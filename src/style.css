@@ -2,3 +2,198 @@
 CSS Styles for Sanctum Station
 This file contains the styling for the psuedo-desktop environment to be used.
 */
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1e1e2e 0%, #2d2d42 100%);
+    color: #ffffff;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Desktop container */
+.desktop-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Settings button */
+.settings-btn {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    color: #ffffff;
+    z-index: 100;
+}
+
+.settings-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: rotate(90deg) scale(1.1);
+}
+
+.settings-btn:active {
+    transform: rotate(90deg) scale(0.95);
+}
+
+/* Central area */
+.central-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3rem;
+    z-index: 10;
+}
+
+/* Clock area */
+.clock-area {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.digital-clock {
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.25);
+    font-variant-numeric: tabular-nums;
+}
+
+.date-display {
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    font-weight: 400;
+    opacity: 0.8;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Center button */
+.center-button {
+    width: clamp(5rem, 15vw, 8rem);
+    height: clamp(5rem, 15vw, 8rem);
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0850d4 0%, #266fff 100%);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 
+        0 0px 450px rgba(177, 178, 255, 0.4),
+        0 0 0 0 rgba(99, 102, 241, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.center-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.3s ease;
+}
+
+.center-button:hover {
+    transform: scale(1.05);
+    box-shadow: 
+        0 12px 40px rgba(99, 102, 241, 0.4),
+        0 0 0 8px rgba(99, 102, 241, 0.1);
+}
+
+.center-button:hover::before {
+    width: 100%;
+    height: 100%;
+}
+
+.center-button:active {
+    transform: scale(0.95);
+    box-shadow: 
+        0 4px 16px rgba(99, 102, 241, 0.5),
+        0 0 0 4px rgba(99, 102, 241, 0.2);
+}
+
+.center-button-icon {
+    color: white;
+    z-index: 1;
+    position: relative;
+}
+
+.center-button-icon svg {
+    width: clamp(1.5rem, 4vw, 2rem);
+    height: clamp(1.5rem, 4vw, 2rem);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .settings-btn {
+        top: 1rem;
+        right: 1rem;
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+    
+    .central-area {
+        gap: 2rem;
+    }
+    
+    .clock-area {
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-btn {
+        width: 2rem;
+        height: 2rem;
+    }
+    
+    .settings-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .central-area {
+        gap: 1.5rem;
+    }
+}
+
+/* Animation for clock updates */
+.clock-update {
+    animation: clockPulse 0.3s ease;
+}
+
+@keyframes clockPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
