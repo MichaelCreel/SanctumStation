@@ -12,7 +12,7 @@ This file contains the styling for the psuedo-desktop environment to be used.
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #1e1e2e 0%, #2d2d42 100%);
+    background: linear-gradient(135deg, #000000 0%, #1c1c20 100%);
     color: #ffffff;
     overflow: hidden;
     height: 100vh;
