@@ -55,7 +55,7 @@ class DesktopClock {
         const now = new Date();
         let hour = now.getHours() + now.getMinutes() / 60; // Include minutes for smoother transitions
         
-        // Testing Times - Uncomment ONE line below to test different times:
+        // Testing Times
         // hour = 7.0; // Test dawn transition (purple to orange-red)
         // hour = 9.0; // Test morning transition (orange-red to yellow)
         // hour = 14.0; // Test midday (bright yellow)
