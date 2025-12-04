@@ -4,37 +4,43 @@
 ################################################################################
 
 import webview
+import yaml
+import os
 
-apps = []
+apps = [] # List of apps found in the apps directory
+version = "v0.0.0" # The current version of the app
+wallpaper = "None" # The current wallpaper setting
+
 
 # Handles initialization of app components
 def initialize():
-    if not init_webview():
-        print("FATAL: Failed to initialize webview.\n\nFATAL 0")
-        return False
     if not init_settings():
         print("WARNING: Failed to initialize settings. Using default settings.\n\nWARNING 0")
     if not init_apps():
         print("WARNING: No apps found to initialize. No apps will be loaded.\n\nWARNING 1")
-
-# Initializes webview
-def init_webview():
-    try:
-        webview.create_window("Sanctum Station", "http://localhost:8000", width=1280, height=720)
-        webview.start()
-        return True
-    except Exception as e:
-        print(f"IW: Error initializing webview: {e}")
+    if not init_webview():
+        print("FATAL: Failed to initialize webview.\n\nFATAL 0")
         return False
 
 # Initializes environment settings
 def init_settings():
+    global version, wallpaper
     try:
         with open("data/settings.yaml", "r") as file:
-            settings = file.read()
+            settings = yaml.safe_load(file) or {}
+        
+        if "version" in settings:
+            version = settings["version"]
+        if "wallpaper" in settings:
+            wallpaper = settings["wallpaper"]
+        
+        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}")
         return True
     except FileNotFoundError:
         print("IS: Settings file not found. Using default settings.")
+        return False
+    except yaml.YAMLError as e:
+        print(f"IS: Error parsing YAML file: {e}")
         return False
     except Exception as e:
         print(f"IS: Error reading settings file: {e}")
@@ -57,6 +63,16 @@ def init_apps():
         return False
     except Exception as e:
         print(f"IA: Error initializing apps: {e}")
+        return False
+
+# Initializes webview
+def init_webview():
+    try:
+        webview.create_window("Sanctum Station", "http://localhost:8000", width=1280, height=720)
+        webview.start()
+        return True
+    except Exception as e:
+        print(f"IW: Error initializing webview: {e}")
         return False
 
 # Handles app starting and running
