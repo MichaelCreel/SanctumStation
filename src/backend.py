@@ -6,10 +6,15 @@
 import webview
 import yaml
 import os
+import threading
+import importlib.util
+import sys
 
 apps = [] # List of apps found in the apps directory
 version = "v0.0.0" # The current version of the app
 wallpaper = "None" # The current wallpaper setting
+active_apps = {} # Dict to track running app instances
+webview_window = None # Reference to the main webview window
 
 
 # Handles initialization of app components
@@ -55,8 +60,24 @@ def init_apps():
         app_dir = "data/apps/"
         for app in os.listdir(app_dir):
             if os.path.isdir(os.path.join(app_dir, app)):
-                icon_path = os.path.join(app_dir, app, "icon.png")
-                apps.append({"name": app, "icon": icon_path})
+                app_path = os.path.join(app_dir, app)
+                icon_path = os.path.join(app_path, "icon.png")
+                html_path = os.path.join(app_path, "app.html")
+                py_path = os.path.join(app_path, "app.py")
+                
+                # Check if required files exist
+                if os.path.exists(html_path) and os.path.exists(py_path):
+                    apps.append({
+                        "name": app,
+                        "icon": icon_path,
+                        "htmlpath": html_path,
+                        "pypath": py_path,
+                        "app_dir": app_path
+                    })
+                else:
+                    print(f"IA: App '{app}' missing required files (app.html or app.py)")
+        
+        print(f"IA: Found {len(apps)} valid apps")
         return True
     except FileNotFoundError:
         print("IA: Apps directory not found. No apps will be loaded.")
@@ -65,10 +86,158 @@ def init_apps():
         print(f"IA: Error initializing apps: {e}")
         return False
 
+# Launches an app
+def launch_app(app_name):
+    global active_apps, webview_window
+    
+    app_info = None
+    for app in apps:
+        if app["name"] == app_name:
+            app_info = app
+            break
+    
+    if not app_info:
+        print(f"LA: App '{app_name}' not found")
+        return False
+    
+    try:
+        with open(app_info["htmlpath"], "r", encoding="utf-8") as f:
+            app_html = f.read()
+        
+        app_container_id = f"app-{app_name}-{id(app_info)}"
+        
+        inject_script = f"""
+        // Create app container
+        const appContainer = document.createElement('div');
+        appContainer.id = '{app_container_id}';
+        appContainer.className = 'app-container';
+        appContainer.style.cssText = `
+            position: fixed;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 1000;
+            overflow: auto;
+            padding: 20px;
+        `;
+        
+        // Add close button
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '×';
+        closeBtn.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 1001;
+        `;
+        closeBtn.onclick = function() {{
+            document.body.removeChild(appContainer);
+            // Signal Python backend to stop the app
+            window.pywebview.api.stop_app('{app_name}');
+        }};
+        
+        // Add app HTML content
+        appContainer.innerHTML = `{app_html.replace('`', '\\`').replace('${', '\\${')}`; 
+        appContainer.appendChild(closeBtn);
+        
+        // Add to DOM
+        document.body.appendChild(appContainer);
+        
+        // Signal that app UI is loaded
+        console.log('App {app_name} UI loaded');
+        """
+        
+        if webview_window:
+            webview_window.evaluate_js(inject_script)
+        
+        if app_name not in active_apps:
+            app_thread = threading.Thread(
+                target=run_app_backend, 
+                args=(app_name, app_info["pypath"], app_info["app_dir"]),
+                daemon=True
+            )
+            app_thread.start()
+            active_apps[app_name] = {
+                "thread": app_thread,
+                "container_id": app_container_id
+            }
+        
+        print(f"LA: Successfully launched app '{app_name}'")
+        return True
+        
+    except Exception as e:
+        print(f"LA: Error launching app '{app_name}': {e}")
+        return False
+
+# Runs the backend logic of an app
+def run_app_backend(app_name, py_path, app_dir):
+    try:
+        original_cwd = os.getcwd()
+        os.chdir(app_dir)
+        spec = importlib.util.spec_from_file_location(f"app_{app_name}", py_path)
+        app_module = importlib.util.module_from_spec(spec)
+        sys.modules[f"app_{app_name}"] = app_module
+        spec.loader.exec_module(app_module)
+        if hasattr(app_module, 'main'):
+            app_module.main()
+        elif hasattr(app_module, 'run'):
+            app_module.run()
+        
+        print(f"RAB: App '{app_name}' backend finished")
+        
+    except Exception as e:
+        print(f"RAB: Error running app '{app_name}' backend: {e}")
+    finally:
+        os.chdir(original_cwd)
+        if app_name in active_apps:
+            del active_apps[app_name]
+
+def stop_app(app_name):
+    global active_apps
+    
+    if app_name in active_apps:
+        print(f"SA: Stopping app '{app_name}'")
+        del active_apps[app_name]
+        return True
+    
+    return False
+
+def get_running_apps():
+    return list(active_apps.keys())
+
 # Initializes webview
 def init_webview():
+    global webview_window
     try:
-        webview.create_window("Sanctum Station", "http://localhost:8000", width=1280, height=720)
+        class API:
+            def launch_app(self, app_name):
+                return launch_app(app_name)
+            
+            def stop_app(self, app_name):
+                return stop_app(app_name)
+            
+            def get_apps(self):
+                return apps
+            
+            def get_running_apps(self):
+                return get_running_apps()
+        
+        webview_window = webview.create_window(
+            "Sanctum Station", 
+            "http://localhost:8000", 
+            width=1280, 
+            height=720,
+            js_api=API()
+        )
         webview.start()
         return True
     except Exception as e:
@@ -195,6 +364,17 @@ class FileManagerAPI:
         except Exception as e:
             print(f"FMAPI CF: Error creating file {path}: {e}")
             return False
+
+# API for managing apps within the environment
+class AppManagerAPI:
+    # Lists all initialized apps
+    def list_apps(self):
+        global apps
+        return apps
+
+# Handles app starting and running  
+def main():
+    initialize()
 
 if __name__ == "__main__":
     main()
