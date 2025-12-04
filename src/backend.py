@@ -231,9 +231,15 @@ def init_webview():
             def get_running_apps(self):
                 return get_running_apps()
         
+        html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "index.html"))
+        
+        if not os.path.exists(html_path):
+            print(f"IW: Error - index.html not found at {html_path}")
+            return False
+        
         webview_window = webview.create_window(
             "Sanctum Station", 
-            "http://localhost:8000", 
+            html_path,
             width=1280, 
             height=720,
             js_api=API()
