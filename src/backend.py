@@ -375,7 +375,7 @@ class FileManagerAPI:
                         'path': full_path,
                         'type': 'folder' if is_dir else 'file',
                         'size': 0 if is_dir else stat_info.st_size,
-                        'modified': stat_info.st_mtime
+                        'modified': int(stat_info.st_mtime * 1000)
                     })
                 except (OSError, PermissionError) as e:
                     print(f"FMAPI: Skipping {full_path}: {e}")
