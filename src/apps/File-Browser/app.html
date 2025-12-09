@@ -38,21 +38,25 @@
         .btn {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
+            border-radius: 8px;
             color: #ffffff;
             padding: 0.5rem 1rem;
             cursor: pointer;
             font-size: 0.875rem;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }
 
         .btn:hover {
             background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .btn:active {
-            transform: scale(0.98);
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
 
         .path-bar {
@@ -64,6 +68,33 @@
             color: #ffffff;
             font-size: 0.875rem;
             margin-left: 1rem;
+        }
+
+        .sort-dropdown {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            margin-left: 0.5rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        .sort-dropdown:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .sort-dropdown option {
+            background: #1e1e2e;
+            color: #ffffff;
         }
 
         .file-list {
@@ -179,6 +210,16 @@
             <button class="btn" onclick="createNewFolder()">+ Folder</button>
             <button class="btn" onclick="refreshDirectory()">↻ Refresh</button>
             <input type="text" class="path-bar" id="pathBar" value="/home/michael" readonly>
+            <select class="sort-dropdown" id="sortSelect" onchange="changeSortOrder()">
+                <option value="name-asc">Name ↑</option>
+                <option value="name-desc">Name ↓</option>
+                <option value="size-asc">Size ↑</option>
+                <option value="size-desc">Size ↓</option>
+                <option value="date-asc">Date ↑</option>
+                <option value="date-desc">Date ↓</option>
+                <option value="type-asc">Type ↑</option>
+                <option value="type-desc">Type ↓</option>
+            </select>
         </div>
         
         <div class="file-list" id="fileList">
@@ -199,6 +240,8 @@
         let selectedItem = null;
         let clipboardItem = null;
         let clipboardAction = null;
+        let currentItems = []; // Store current directory items
+        let sortOrder = 'name-asc'; // Default sort order
 
         // Initialize immediately since DOMContentLoaded may have already fired
         console.log('File Browser script loaded');
@@ -221,6 +264,57 @@
             document.getElementById('contextMenu').addEventListener('click', (e) => {
                 e.stopPropagation();
             });
+        }
+
+        function sortItems(items) {
+            if (!items || items.length === 0) return items;
+
+            const sorted = [...items];
+            const [field, direction] = sortOrder.split('-');
+
+            sorted.sort((a, b) => {
+                let aVal, bVal;
+
+                // Always put folders first (unless sorting by type)
+                if (field !== 'type') {
+                    if (a.type === 'folder' && b.type !== 'folder') return -1;
+                    if (a.type !== 'folder' && b.type === 'folder') return 1;
+                }
+
+                switch (field) {
+                    case 'name':
+                        aVal = a.name.toLowerCase();
+                        bVal = b.name.toLowerCase();
+                        break;
+                    case 'size':
+                        aVal = a.size || 0;
+                        bVal = b.size || 0;
+                        break;
+                    case 'date':
+                        aVal = new Date(a.modified || 0).getTime();
+                        bVal = new Date(b.modified || 0).getTime();
+                        break;
+                    case 'type':
+                        aVal = a.type === 'folder' ? 0 : 1;
+                        bVal = b.type === 'folder' ? 0 : 1;
+                        if (aVal === bVal) {
+                            aVal = a.name.toLowerCase();
+                            bVal = b.name.toLowerCase();
+                        }
+                        break;
+                }
+
+                if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            return sorted;
+        }
+
+        function changeSortOrder() {
+            sortOrder = document.getElementById('sortSelect').value;
+            displayFiles(sortItems(currentItems));
         }
 
         async function loadDirectory(path) {
@@ -248,7 +342,8 @@
                 console.log('Items length:', items ? items.length : 0);
                 console.log('Items type:', typeof items);
                 
-                displayFiles(items);
+                currentItems = items; // Store for re-sorting
+                displayFiles(sortItems(items));
                 currentPath = path;
             } catch (error) {
                 console.error('Error loading directory:', error);
