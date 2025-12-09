@@ -161,12 +161,31 @@ def launch_app(app_name):
             window.pywebview.api.stop_app('{app_name}');
         }};
         
-        // Add app HTML content
-        appContainer.innerHTML = `{app_html.replace('`', '\\`').replace('${', '\\${')}`; 
+        // Parse and inject app HTML content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = `{app_html.replace('`', '\\`').replace('${', '\\${')}`;
+        
+        // Extract scripts to execute them separately (innerHTML doesn't execute scripts)
+        const scripts = tempDiv.querySelectorAll('script');
+        const scriptContents = [];
+        scripts.forEach(script => {{
+            scriptContents.push(script.textContent);
+            script.remove(); // Remove from tempDiv so we don't double-inject
+        }});
+        
+        // Add the HTML content (without scripts)
+        appContainer.innerHTML = tempDiv.innerHTML;
         appContainer.appendChild(closeBtn);
         
         // Add to DOM
         document.body.appendChild(appContainer);
+        
+        // Execute scripts after DOM is ready
+        scriptContents.forEach(scriptContent => {{
+            const script = document.createElement('script');
+            script.textContent = scriptContent;
+            appContainer.appendChild(script);
+        }});
         
         // Signal that app UI is loaded
         console.log('App {app_name} UI loaded');
@@ -255,6 +274,9 @@ def get_running_apps():
 def init_webview():
     global webview_window
     try:
+        # Create file manager instance
+        file_manager = FileManagerAPI()
+        
         class API:
             def launch_app(self, app_name):
                 return launch_app(app_name)
@@ -267,6 +289,43 @@ def init_webview():
             
             def get_running_apps(self):
                 return get_running_apps()
+            
+            # File Management - Delegate to FileManagerAPI
+            def list_directory(self, path):
+                return file_manager.list_directory(path)
+            
+            def read_file(self, path):
+                return file_manager.read_file(path)
+            
+            def write_file(self, path, content):
+                return file_manager.write_file(path, content)
+            
+            def delete_file(self, path):
+                return file_manager.delete_file(path)
+            
+            def delete_directory(self, path):
+                return file_manager.delete_directory(path)
+            
+            def create_directory(self, path):
+                return file_manager.create_directory(path)
+            
+            def create_file(self, path):
+                return file_manager.create_file(path)
+            
+            def rename_item(self, old_path, new_name):
+                return file_manager.rename_item(old_path, new_name)
+            
+            def move_item(self, src, dest):
+                return file_manager.move_item(src, dest)
+            
+            def copy_item(self, src, dest):
+                return file_manager.copy_item(src, dest)
+            
+            def get_metadata(self, path):
+                return file_manager.get_metadata(path)
+            
+            def exists(self, path):
+                return file_manager.exists(path)
         
         html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "index.html"))
         
@@ -294,23 +353,37 @@ def main():
 
 # API for file management between the app and the system(s)
 class FileManagerAPI:
-    # Lists the contents of a directory
-    def list_dir(self, path):
+    # Lists contents of a directory
+    def list_directory(self, path):
         try:
-            items = os.listdir(path)
+            items = []
+            for item in os.listdir(path):
+                full_path = os.path.join(path, item)
+                try:
+                    stat_info = os.stat(full_path)
+                    is_dir = os.path.isdir(full_path)
+                    items.append({
+                        'name': item,
+                        'path': full_path,
+                        'type': 'folder' if is_dir else 'file',
+                        'size': 0 if is_dir else stat_info.st_size,
+                        'modified': stat_info.st_mtime
+                    })
+                except (OSError, PermissionError) as e:
+                    print(f"FMAPI: Skipping {full_path}: {e}")
+                    continue
             return items
         except Exception as e:
-            print(f"FMAPI LD: Error listing directory {path}: {e}")
+            print(f"FMAPI: Error listing directory {path}: {e}")
             return []
 
     # Reads the contents of a file
     def read_file(self, path):
         try:
             with open(path, "r") as file:
-                content = file.read()
-            return content
+                return file.read()
         except Exception as e:
-            print(f"FMAPI RF: Error reading file {path}: {e}")
+            print(f"FMAPI: Error reading file {path}: {e}")
             return ""
         
     # Writes content to a file
@@ -320,7 +393,7 @@ class FileManagerAPI:
                 file.write(content)
             return True
         except Exception as e:
-            print(f"FMAPI WF: Error writing file {path}: {e}")
+            print(f"FMAPI: Error writing file {path}: {e}")
             return False
         
     # Deletes a file
@@ -329,73 +402,89 @@ class FileManagerAPI:
             os.remove(path)
             return True
         except Exception as e:
-            print(f"FMAPI DF: Error deleting file {path}: {e}")
+            print(f"FMAPI: Error deleting file {path}: {e}")
+            return False
+    
+    # Deletes a directory
+    def delete_directory(self, path):
+        try:
+            import shutil
+            shutil.rmtree(path)
+            return True
+        except Exception as e:
+            print(f"FMAPI: Error deleting directory {path}: {e}")
             return False
     
     # Creates a directory
-    def create_dir(self, path):
+    def create_directory(self, path):
         try:
             os.makedirs(path, exist_ok=True)
             return True
         except Exception as e:
-            print(f"FMAPI CD: Error creating directory {path}: {e}")
+            print(f"FMAPI: Error creating directory {path}: {e}")
             return False
     
-    # Deletes a directory
-    def delete_dir(self, path):
+    # Creates an empty file
+    def create_file(self, path):
         try:
-            os.rmdir(path)
+            with open(path, "w") as file:
+                pass
             return True
         except Exception as e:
-            print(f"FMAPI DD: Error deleting directory {path}: {e}")
-            return False
-    
-    # Moves a file or directory
-    def move(self, src, dest):
-        try:
-            os.rename(src, dest)
-            return True
-        except Exception as e:
-            print(f"FMAPI M: Error moving {src} to {dest}: {e}")
-            return False
-        
-    # Copies a file
-    def copy(self, src, dest):
-        try:
-            import shutil
-            shutil.copy2(src, dest)
-            return True
-        except Exception as e:
-            print(f"FMAPI C: Error copying {src} to {dest}: {e}")
+            print(f"FMAPI: Error creating file {path}: {e}")
             return False
     
     # Renames a file or directory
-    def rename(self, src, new_name):
+    def rename_item(self, old_path, new_name):
         try:
-            base_dir = os.path.dirname(src)
-            dest = os.path.join(base_dir, new_name)
-            os.rename(src, dest)
+            base_dir = os.path.dirname(old_path)
+            new_path = os.path.join(base_dir, new_name)
+            os.rename(old_path, new_path)
+            return {'success': True, 'new_path': new_path}
+        except Exception as e:
+            print(f"FMAPI: Error renaming {old_path}: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    # Moves a file or directory
+    def move_item(self, src, dest):
+        try:
+            import shutil
+            shutil.move(src, dest)
             return True
         except Exception as e:
-            print(f"FMAPI R: Error renaming {src} to {new_name}: {e}")
+            print(f"FMAPI: Error moving {src} to {dest}: {e}")
+            return False
+        
+    # Copies a file or directory
+    def copy_item(self, src, dest):
+        try:
+            import shutil
+            if os.path.isdir(src):
+                shutil.copytree(src, dest)
+            else:
+                shutil.copy2(src, dest)
+            return True
+        except Exception as e:
+            print(f"FMAPI: Error copying {src} to {dest}: {e}")
             return False
         
     # Gets file or directory metadata
     def get_metadata(self, path):
         try:
             stats = os.stat(path)
-            metadata = {
+            return {
                 "size": stats.st_size,
                 "modified": stats.st_mtime,
                 "created": stats.st_ctime,
                 "is_directory": os.path.isdir(path)
             }
-            return metadata
         except Exception as e:
-            print(f"FMAPI GM: Error getting metadata for {path}: {e}")
+            print(f"FMAPI: Error getting metadata for {path}: {e}")
             return {}
         
-    # Checks if a file or directory exists
+    def exists(self, path):
+        """Check if a file or directory exists"""
+        return os.path.exists(path)
     def exists(self, path):
         return os.path.exists(path)
     

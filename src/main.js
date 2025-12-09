@@ -53,7 +53,7 @@ class DesktopClock {
 
     updateSunGlow() {
         const now = new Date();
-        let hour = now.getHours() + now.getMinutes() / 60; // Include minutes for smoother transitions
+        let hour = now.getHours() + now.getMinutes() / 60;
         
         // Testing Times
         // hour = 7.0; // Test dawn transition (purple to orange-red)
@@ -64,8 +64,6 @@ class DesktopClock {
         // hour = 2.0; // Test night (dark purple)
         
         let color, intensity;
-        
-        console.log(`Current hour: ${hour.toFixed(2)}`); // Debug output
         
         if (hour >= 6 && hour < 8) {
             // Dawn transition: purple-black to orange-red (6 AM - 8 AM)
@@ -114,8 +112,6 @@ class DesktopClock {
         }
         
         const colorString = `rgba(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)}, ${intensity})`;
-        
-        console.log(`Sun glow color: ${colorString}`); // Debug output
         
         if (this.sunGlowElement) {
             this.sunGlowElement.style.setProperty('--sun-color', colorString);
