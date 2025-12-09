@@ -138,11 +138,35 @@ class DesktopInteractions {
     constructor() {
         this.settingsBtn = document.getElementById('settingsBtn');
         this.centerBtn = document.getElementById('centerBtn');
+        this.clockArea = document.getElementById('clockArea');
+        this.appLauncher = document.getElementById('appLauncher');
+        this.isAppLauncherOpen = false;
+        this.apps = [];
         this.init();
     }
 
     init() {
         this.setupEventListeners();
+        // Wait for pywebview API to be ready
+        this.waitForAPI();
+    }
+
+    async waitForAPI() {
+        console.log('Waiting for pywebview API...');
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds max
+        
+        while (attempts < maxAttempts) {
+            if (window.pywebview && window.pywebview.api) {
+                console.log('PyWebview API is ready!');
+                await this.loadApps();
+                return;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
+        console.error('PyWebview API failed to load after 5 seconds');
     }
 
     setupEventListeners() {
@@ -157,6 +181,34 @@ class DesktopInteractions {
         document.addEventListener('keydown', (event) => {
             this.handleKeyboardShortcuts(event);
         });
+
+        // Close app launcher when clicking outside (but not on center button)
+        document.addEventListener('click', (event) => {
+            if (this.isAppLauncherOpen && 
+                !this.centerBtn.contains(event.target) && 
+                !this.appLauncher.contains(event.target)) {
+                // Only close if not clicking the center button
+                // The center button has its own handler that toggles
+                this.closeAppLauncher();
+            }
+        });
+    }
+
+    async loadApps() {
+        try {
+            // Load apps from Python backend
+            if (window.pywebview && window.pywebview.api) {
+                this.apps = await window.pywebview.api.get_apps();
+                console.log('=== LOADED APPS ===');
+                console.log('Number of apps:', this.apps.length);
+                console.log('Apps data:', JSON.stringify(this.apps, null, 2));
+                console.log('==================');
+            } else {
+                console.log('PyWebview API not available yet');
+            }
+        } catch (error) {
+            console.error('Error loading apps:', error);
+        }
     }
 
     handleSettingsClick() {
@@ -164,14 +216,134 @@ class DesktopInteractions {
         this.addClickFeedback(this.settingsBtn);
     }
 
-    handleCenterButtonClick() {
+    async handleCenterButtonClick() {
         console.log('Center button clicked');
+        console.log('isAppLauncherOpen:', this.isAppLauncherOpen);
         this.addClickFeedback(this.centerBtn);
+        
+        if (this.isAppLauncherOpen) {
+            console.log('Closing app launcher...');
+            this.closeAppLauncher();
+        } else {
+            console.log('Opening app launcher...');
+            await this.openAppLauncher();
+        }
+    }
+
+    async openAppLauncher() {
+        this.isAppLauncherOpen = true;
+        
+        // Reload apps if not loaded yet
+        if (!this.apps || this.apps.length === 0) {
+            console.log('Apps not loaded, loading now...');
+            await this.loadApps();
+        }
+        
+        // Hide clock
+        this.clockArea.classList.add('hidden');
+        
+        // Show app launcher
+        this.appLauncher.classList.add('active');
+        
+        // Display apps in a circle
+        this.displayAppsInCircle();
+    }
+
+    closeAppLauncher() {
+        this.isAppLauncherOpen = false;
+        
+        // Show clock
+        this.clockArea.classList.remove('hidden');
+        
+        // Hide app launcher
+        this.appLauncher.classList.remove('active');
+        
+        // Clear apps
+        this.appLauncher.innerHTML = '';
+    }
+
+    displayAppsInCircle() {
+        console.log('=== DISPLAY APPS IN CIRCLE ===');
+        console.log('App launcher element:', this.appLauncher);
+        console.log('Apps array:', this.apps);
+        
+        this.appLauncher.innerHTML = '';
+        
+        if (!this.apps || this.apps.length === 0) {
+            console.log('No apps to display - apps is empty or null');
+            return;
+        }
+
+        const numApps = this.apps.length;
+        const radius = Math.min(window.innerWidth, window.innerHeight) * 0.25; // 25% of viewport
+        
+        console.log(`Displaying ${numApps} apps with radius ${radius}px`);
+        console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
+        
+        this.apps.forEach((app, index) => {
+            const angle = (index / numApps) * 2 * Math.PI - Math.PI / 2; // Start from top
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            
+            console.log(`App ${index} (${app.name}): angle=${angle}, x=${x}, y=${y}, icon=${app.icon}`);
+            
+            const appIcon = document.createElement('div');
+            appIcon.className = 'app-icon';
+            appIcon.style.transform = `translate(${x}px, ${y}px)`;
+            appIcon.title = app.name;
+            console.log('Created app icon element:', appIcon);
+            
+            // Try to load app icon, fallback to placeholder
+            const iconPath = app.icon;
+            console.log(`Icon path for ${app.name}:`, iconPath);
+            
+            if (iconPath) {
+                console.log(`Creating img element for ${app.name}`);
+                const img = document.createElement('img');
+                img.src = iconPath;
+                img.alt = app.name;
+                img.onload = () => {
+                    console.log(`Successfully loaded icon for ${app.name}`);
+                };
+                img.onerror = () => {
+                    console.log(`Failed to load icon for ${app.name}, using placeholder`);
+                    appIcon.innerHTML = `<div class="app-icon-placeholder"></div>`;
+                };
+                appIcon.appendChild(img);
+            } else {
+                console.log(`No icon path for ${app.name}, using placeholder`);
+                appIcon.innerHTML = `<div class="app-icon-placeholder"></div>`;
+            }
+            
+            // Click handler to launch app
+            appIcon.addEventListener('click', async () => {
+                console.log(`Launching app: ${app.name}`);
+                try {
+                    if (window.pywebview && window.pywebview.api) {
+                        await window.pywebview.api.launch_app(app.name);
+                        this.closeAppLauncher();
+                    }
+                } catch (error) {
+                    console.error(`Error launching app ${app.name}:`, error);
+                }
+            });
+            
+            this.appLauncher.appendChild(appIcon);
+            console.log(`Appended icon for ${app.name} to launcher`);
+        });
+        
+        console.log('App launcher children count:', this.appLauncher.children.length);
+        console.log('App launcher HTML:', this.appLauncher.innerHTML.substring(0, 200));
+        console.log('=== END DISPLAY APPS ===');
     }
 
     handleKeyboardShortcuts(event) {
+        // Escape to close app launcher
+        if (event.key === 'Escape' && this.isAppLauncherOpen) {
+            this.closeAppLauncher();
+        }
         // Space key for center button
-        if (event.key === ' ' || event.key === 'Enter') {
+        else if (event.key === ' ' || event.key === 'Enter') {
             event.preventDefault();
             this.handleCenterButtonClick();
         }

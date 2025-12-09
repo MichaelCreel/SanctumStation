@@ -26,10 +26,13 @@ This file contains the structure and layout for the psuedo-desktop environment t
         <!-- Central area with clock and button -->
         <div class="central-area">
             <!-- Clock area -->
-            <div class="clock-area">
+            <div class="clock-area" id="clockArea">
                 <div class="digital-clock" id="digitalClock">HH:MM</div>
                 <div class="date-display" id="dateDisplay">WWW MMM DD YY</div>
             </div>
+
+            <!-- App launcher container (hidden by default) -->
+            <div class="app-launcher" id="appLauncher"></div>
 
             <!-- Center circle button -->
             <button class="center-button" id="centerBtn">

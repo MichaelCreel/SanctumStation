@@ -57,7 +57,8 @@ def init_apps():
     apps = []
     try:
         import os
-        app_dir = "data/apps/"
+        # Apps are now in src/apps/ so they can be served by the webview HTTP server
+        app_dir = os.path.join(os.path.dirname(__file__), "apps")
         for app in os.listdir(app_dir):
             if os.path.isdir(os.path.join(app_dir, app)):
                 app_path = os.path.join(app_dir, app)
@@ -65,15 +66,20 @@ def init_apps():
                 html_path = os.path.join(app_path, "app.html")
                 py_path = os.path.join(app_path, "app.py")
                 
-                # Check if required files exist
                 if os.path.exists(html_path) and os.path.exists(py_path):
+                    # Use simple relative path from src/ directory
+                    icon_url = None
+                    if os.path.exists(icon_path):
+                        icon_url = f"apps/{app}/icon.png"
+                        print(f"IA: Icon URL for {app}: {icon_url}")
                     apps.append({
                         "name": app,
-                        "icon": icon_path,
+                        "icon": icon_url,
                         "htmlpath": html_path,
                         "pypath": py_path,
-                        "app_dir": app_path
+                        "app_dir": os.path.abspath(app_path)  # Use absolute path for backend
                     })
+                    print(f"IA: Added app '{app}' with icon: {icon_url}")
                 else:
                     print(f"IA: App '{app}' missing required files (app.html or app.py)")
         
@@ -160,15 +166,18 @@ def launch_app(app_name):
             webview_window.evaluate_js(inject_script)
         
         if app_name not in active_apps:
+            # Create stop event for this app
+            stop_event = threading.Event()
             app_thread = threading.Thread(
                 target=run_app_backend, 
-                args=(app_name, app_info["pypath"], app_info["app_dir"]),
+                args=(app_name, app_info["pypath"], app_info["app_dir"], stop_event),
                 daemon=True
             )
             app_thread.start()
             active_apps[app_name] = {
                 "thread": app_thread,
-                "container_id": app_container_id
+                "container_id": app_container_id,
+                "stop_event": stop_event
             }
         
         print(f"LA: Successfully launched app '{app_name}'")
@@ -179,18 +188,33 @@ def launch_app(app_name):
         return False
 
 # Runs the backend logic of an app
-def run_app_backend(app_name, py_path, app_dir):
+def run_app_backend(app_name, py_path, app_dir, stop_event):
     try:
         original_cwd = os.getcwd()
+        # app_dir is already absolute, so use it directly
         os.chdir(app_dir)
-        spec = importlib.util.spec_from_file_location(f"app_{app_name}", py_path)
+        # py_path needs to be absolute or relative to app_dir
+        py_file = os.path.join(app_dir, "app.py") if not os.path.isabs(py_path) else py_path
+        spec = importlib.util.spec_from_file_location(f"app_{app_name}", py_file)
         app_module = importlib.util.module_from_spec(spec)
         sys.modules[f"app_{app_name}"] = app_module
         spec.loader.exec_module(app_module)
+        
+        # Pass stop_event to app's main/run function if it accepts it
         if hasattr(app_module, 'main'):
-            app_module.main()
+            import inspect
+            sig = inspect.signature(app_module.main)
+            if len(sig.parameters) > 0:
+                app_module.main(stop_event)
+            else:
+                app_module.main()
         elif hasattr(app_module, 'run'):
-            app_module.run()
+            import inspect
+            sig = inspect.signature(app_module.run)
+            if len(sig.parameters) > 0:
+                app_module.run(stop_event)
+            else:
+                app_module.run()
         
         print(f"RAB: App '{app_name}' backend finished")
         
@@ -206,6 +230,9 @@ def stop_app(app_name):
     
     if app_name in active_apps:
         print(f"SA: Stopping app '{app_name}'")
+        # Signal the app to stop
+        if "stop_event" in active_apps[app_name]:
+            active_apps[app_name]["stop_event"].set()
         del active_apps[app_name]
         return True
     
@@ -244,7 +271,8 @@ def init_webview():
             height=720,
             js_api=API()
         )
-        webview.start()
+        #webview.start()
+        webview.start(debug=True)
         return True
     except Exception as e:
         print(f"IW: Error initializing webview: {e}")

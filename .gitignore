@@ -1,2 +1,4 @@
 #.gitignore
 context.txt
+*.pyc
+__pycache__/
