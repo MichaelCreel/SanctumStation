@@ -2,3 +2,4 @@
 context.txt
 *.pyc
 __pycache__/
+package.sh
