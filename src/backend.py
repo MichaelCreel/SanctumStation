@@ -112,8 +112,15 @@ def launch_app(app_name):
         
         app_container_id = f"app-{app_name}-{id(app_info)}"
         
+        # Use JSON to safely pass the HTML content
+        import json
+        app_html_escaped = json.dumps(app_html)
+        
         inject_script = f"""
-        // Create app container
+        (function() {{
+            const appHtml = {app_html_escaped};
+            
+            // Create app container
         const appContainer = document.createElement('div');
         appContainer.id = '{app_container_id}';
         appContainer.className = 'app-container';
@@ -163,7 +170,7 @@ def launch_app(app_name):
         
         // Parse and inject app HTML content
         const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = `{app_html.replace('`', '\\`').replace('${', '\\${')}`;
+        tempDiv.innerHTML = appHtml;
         
         // Extract scripts to execute them separately (innerHTML doesn't execute scripts)
         const scripts = tempDiv.querySelectorAll('script');
@@ -180,15 +187,16 @@ def launch_app(app_name):
         // Add to DOM
         document.body.appendChild(appContainer);
         
-        // Execute scripts after DOM is ready
+        // Execute scripts after DOM is ready in global scope
         scriptContents.forEach(scriptContent => {{
             const script = document.createElement('script');
             script.textContent = scriptContent;
-            appContainer.appendChild(script);
+            document.head.appendChild(script); // Append to head for global scope
         }});
         
         // Signal that app UI is loaded
         console.log('App {app_name} UI loaded');
+        }})();
         """
         
         if webview_window:
