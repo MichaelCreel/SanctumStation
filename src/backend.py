@@ -119,32 +119,42 @@ def launch_app(app_name):
         appContainer.className = 'app-container';
         appContainer.style.cssText = `
             position: fixed;
-            top: 10%;
-            left: 10%;
-            width: 80%;
-            height: 80%;
-            background: rgba(0, 0, 0, 0.9);
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1e1e2e;
             z-index: 1000;
             overflow: auto;
-            padding: 20px;
         `;
         
         // Add close button
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
         closeBtn.style.cssText = `
-            position: absolute;
+            position: fixed;
             top: 10px;
             right: 15px;
-            background: none;
-            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
             color: white;
             font-size: 24px;
             cursor: pointer;
             z-index: 1001;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease;
         `;
+        closeBtn.onmouseover = function() {{
+            this.style.background = 'rgba(255, 255, 255, 0.2)';
+        }};
+        closeBtn.onmouseout = function() {{
+            this.style.background = 'rgba(255, 255, 255, 0.1)';
+        }};
         closeBtn.onclick = function() {{
             document.body.removeChild(appContainer);
             // Signal Python backend to stop the app
