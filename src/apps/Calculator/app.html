@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .calculator {
+            background: rgba(30, 30, 46, 0.95);
+            padding: 2rem;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .display {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0;
+        }
+
+        .display-text {
+            font-size: 3.5rem;
+            text-align: right;
+            min-height: 4rem;
+            word-wrap: break-word;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .display-history {
+            font-size: 1.2rem;
+            text-align: right;
+            color: rgba(255, 255, 255, 0.5);
+            min-height: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: #ffffff;
+            padding: 1.5rem;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-operator {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-operator:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-function {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: rgba(139, 92, 246, 0.4);
+            font-size: 0.9rem;
+        }
+
+        .btn-function:hover {
+            background: rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-equals {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-equals:hover {
+            background: rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-clear {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .btn-clear:hover {
+            background: rgba(239, 68, 68, 0.5);
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .mode-btn.active {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.5);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div class="mode-toggle">
+            <div class="mode-btn active" id="degMode" onclick="setAngleMode('deg')">DEG</div>
+            <div class="mode-btn" id="radMode" onclick="setAngleMode('rad')">RAD</div>
+        </div>
+
+        <div class="display">
+            <div class="display-history" id="history"></div>
+            <div class="display-text" id="display">0</div>
+        </div>
+
+        <div class="button-grid">
+            <!-- Row 1 -->
+            <button class="btn btn-clear" onclick="clearDisplay()">AC</button>
+            <button class="btn" onclick="addToDisplay('(')">(</button>
+            <button class="btn" onclick="addToDisplay(')')">)</button>
+            <button class="btn btn-operator" onclick="addToDisplay('/')">÷</button>
+
+            <!-- Row 2 -->
+            <button class="btn" onclick="addToDisplay('7')">7</button>
+            <button class="btn" onclick="addToDisplay('8')">8</button>
+            <button class="btn" onclick="addToDisplay('9')">9</button>
+            <button class="btn btn-operator" onclick="addToDisplay('*')">×</button>
+
+            <!-- Row 3 -->
+            <button class="btn" onclick="addToDisplay('4')">4</button>
+            <button class="btn" onclick="addToDisplay('5')">5</button>
+            <button class="btn" onclick="addToDisplay('6')">6</button>
+            <button class="btn btn-operator" onclick="addToDisplay('-')">−</button>
+
+            <!-- Row 4 -->
+            <button class="btn" onclick="addToDisplay('1')">1</button>
+            <button class="btn" onclick="addToDisplay('2')">2</button>
+            <button class="btn" onclick="addToDisplay('3')">3</button>
+            <button class="btn btn-operator" onclick="addToDisplay('+')">+</button>
+
+            <!-- Row 5 -->
+            <button class="btn" onclick="addToDisplay('0')">0</button>
+            <button class="btn" onclick="addToDisplay('.')">.</button>
+            <button class="btn btn-function" onclick="addToDisplay('^')">x^y</button>
+            <button class="btn btn-equals" onclick="calculate()">=</button>
+
+            <!-- Row 6: Scientific functions -->
+            <button class="btn btn-function" onclick="addFunction('sin(')">sin</button>
+            <button class="btn btn-function" onclick="addFunction('cos(')">cos</button>
+            <button class="btn btn-function" onclick="addFunction('tan(')">tan</button>
+            <button class="btn btn-function" onclick="addFunction('sqrt(')">√</button>
+
+            <!-- Row 7: More functions -->
+            <button class="btn btn-function" onclick="addFunction('log(')">log</button>
+            <button class="btn btn-function" onclick="addFunction('ln(')">ln</button>
+            <button class="btn btn-function" onclick="addConstant('π')">π</button>
+            <button class="btn btn-function" onclick="addConstant('e')">e</button>
+        </div>
+    </div>
+
+    <script>
+        console.log('Calculator script loading...');
+        let currentDisplay = '0';
+        let history = '';
+        let angleMode = 'deg'; // 'deg' or 'rad'
+
+        // Initialize
+        setTimeout(() => {
+            console.log('Calculator initializing...');
+            console.log('Functions defined:', typeof addToDisplay, typeof calculate, typeof clearDisplay);
+            updateDisplay();
+            console.log('Calculator initialized');
+        }, 100);
+
+        function setAngleMode(mode) {
+            angleMode = mode;
+            if (mode === 'deg') {
+                document.getElementById('degMode').classList.add('active');
+                document.getElementById('radMode').classList.remove('active');
+            } else {
+                document.getElementById('radMode').classList.add('active');
+                document.getElementById('degMode').classList.remove('active');
+            }
+        }
+
+        function setupModeToggle() {
+            // Deprecated - now using onclick handlers
+        }
+
+        function updateDisplay() {
+            document.getElementById('display').textContent = currentDisplay;
+            document.getElementById('history').textContent = history;
+        }
+
+        function addToDisplay(value) {
+            console.log('addToDisplay called with:', value);
+            if (currentDisplay === '0' && value !== '.') {
+                currentDisplay = value;
+            } else {
+                currentDisplay += value;
+            }
+            updateDisplay();
+        }
+
+        function addFunction(func) {
+            if (currentDisplay === '0') {
+                currentDisplay = func;
+            } else {
+                currentDisplay += func;
+            }
+            updateDisplay();
+        }
+
+        function addConstant(constant) {
+            const value = constant === 'π' ? 'Math.PI' : 'Math.E';
+            if (currentDisplay === '0') {
+                currentDisplay = value;
+            } else {
+                currentDisplay += value;
+            }
+            updateDisplay();
+        }
+
+        function clearDisplay() {
+            currentDisplay = '0';
+            history = '';
+            updateDisplay();
+        }
+
+        function calculate() {
+            try {
+                history = currentDisplay;
+                
+                // Prepare expression for evaluation
+                let expression = currentDisplay
+                    .replace(/π/g, 'Math.PI')
+                    .replace(/e/g, 'Math.E')
+                    .replace(/×/g, '*')
+                    .replace(/÷/g, '/')
+                    .replace(/−/g, '-')
+                    .replace(/\^/g, '**');
+
+                // Handle trig functions with angle mode
+                if (angleMode === 'deg') {
+                    expression = expression
+                        .replace(/sin\(/g, 'Math.sin((Math.PI/180)*')
+                        .replace(/cos\(/g, 'Math.cos((Math.PI/180)*')
+                        .replace(/tan\(/g, 'Math.tan((Math.PI/180)*');
+                } else {
+                    expression = expression
+                        .replace(/sin\(/g, 'Math.sin(')
+                        .replace(/cos\(/g, 'Math.cos(')
+                        .replace(/tan\(/g, 'Math.tan(');
+                }
+
+                // Handle other functions
+                expression = expression
+                    .replace(/log\(/g, 'Math.log10(')
+                    .replace(/ln\(/g, 'Math.log(')
+                    .replace(/sqrt\(/g, 'Math.sqrt(');
+
+                // Evaluate
+                const result = eval(expression);
+                
+                // Format result
+                if (isNaN(result) || !isFinite(result)) {
+                    currentDisplay = 'Error';
+                } else {
+                    // Round to 10 decimal places to avoid floating point errors
+                    currentDisplay = String(Math.round(result * 10000000000) / 10000000000);
+                }
+            } catch (error) {
+                currentDisplay = 'Error';
+            }
+            
+            updateDisplay();
+        }
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '0' && e.key <= '9') {
+                addToDisplay(e.key);
+            } else if (e.key === '.') {
+                addToDisplay('.');
+            } else if (e.key === '+') {
+                addToDisplay('+');
+            } else if (e.key === '-') {
+                addToDisplay('-');
+            } else if (e.key === '*') {
+                addToDisplay('*');
+            } else if (e.key === '/') {
+                addToDisplay('/');
+            } else if (e.key === '(' || e.key === ')') {
+                addToDisplay(e.key);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                calculate();
+            } else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
+                clearDisplay();
+            } else if (e.key === 'Backspace') {
+                if (currentDisplay.length > 1) {
+                    currentDisplay = currentDisplay.slice(0, -1);
+                } else {
+                    currentDisplay = '0';
+                }
+                updateDisplay();
+            }
+        });
+    </script>
+</body>
+</html>
