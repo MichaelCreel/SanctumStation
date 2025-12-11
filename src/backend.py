@@ -190,16 +190,9 @@ def launch_app(app_name):
         // Execute scripts in isolated scope to prevent variable conflicts
         scriptContents.forEach(scriptContent => {{
             const script = document.createElement('script');
-            // Wrap in IIFE to create isolated scope while keeping functions accessible
-            script.textContent = `
-                (function() {{
-                    // Store reference to app container for event delegation
-                    const appContainer = document.getElementById('{app_container_id}');
-                    
-                    // Execute app script
-                    ${{scriptContent}}
-                }})();
-            `;
+            // Don't wrap in IIFE - let scripts manage their own scope
+            // Scripts should attach functions to window if they need onclick handlers
+            script.textContent = scriptContent;
             document.body.appendChild(script);
         }});
         
@@ -343,6 +336,51 @@ def init_webview():
             
             def exists(self, path):
                 return file_manager.exists(path)
+            
+            # Focus-Timer specific methods
+            def start_custom_timer(self, focus_minutes, short_minutes, long_minutes, use_long_break):
+                """Start a custom Focus-Timer session"""
+                try:
+                    if "app_Focus-Timer" in sys.modules:
+                        app_module = sys.modules["app_Focus-Timer"]
+                        if hasattr(app_module, 'start_custom_timer'):
+                            return app_module.start_custom_timer(focus_minutes, short_minutes, long_minutes, use_long_break)
+                    return {"success": False, "message": "Focus-Timer not running"}
+                except Exception as e:
+                    return {"success": False, "message": str(e)}
+            
+            def start_preset_timer(self, preset_name):
+                """Start a preset Focus-Timer session"""
+                try:
+                    if "app_Focus-Timer" in sys.modules:
+                        app_module = sys.modules["app_Focus-Timer"]
+                        if hasattr(app_module, 'start_preset_timer'):
+                            return app_module.start_preset_timer(preset_name)
+                    return {"success": False, "message": "Focus-Timer not running"}
+                except Exception as e:
+                    return {"success": False, "message": str(e)}
+            
+            def stop_timer(self):
+                """Stop the current Focus-Timer session"""
+                try:
+                    if "app_Focus-Timer" in sys.modules:
+                        app_module = sys.modules["app_Focus-Timer"]
+                        if hasattr(app_module, 'stop_timer'):
+                            return app_module.stop_timer()
+                    return {"success": False, "message": "Focus-Timer not running"}
+                except Exception as e:
+                    return {"success": False, "message": str(e)}
+            
+            def get_timer_status(self):
+                """Get the current Focus-Timer status"""
+                try:
+                    if "app_Focus-Timer" in sys.modules:
+                        app_module = sys.modules["app_Focus-Timer"]
+                        if hasattr(app_module, 'get_status'):
+                            return app_module.get_status()
+                    return {"session": "idle", "active": False, "remaining_seconds": 0}
+                except Exception as e:
+                    return {"session": "idle", "active": False, "remaining_seconds": 0, "error": str(e)}
         
         html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "index.html"))
         
