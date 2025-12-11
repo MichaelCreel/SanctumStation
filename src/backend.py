@@ -337,50 +337,25 @@ def init_webview():
             def exists(self, path):
                 return file_manager.exists(path)
             
-            # Focus-Timer specific methods
-            def start_custom_timer(self, focus_minutes, short_minutes, long_minutes, use_long_break):
-                """Start a custom Focus-Timer session"""
+            # Generic app function call - allows apps to expose their own API
+            def call_app_function(self, app_name, function_name, *args, **kwargs):
                 try:
-                    if "app_Focus-Timer" in sys.modules:
-                        app_module = sys.modules["app_Focus-Timer"]
-                        if hasattr(app_module, 'start_custom_timer'):
-                            return app_module.start_custom_timer(focus_minutes, short_minutes, long_minutes, use_long_break)
-                    return {"success": False, "message": "Focus-Timer not running"}
+                    module_name = f"app_{app_name}"
+                    if module_name not in sys.modules:
+                        return {"success": False, "message": f"App '{app_name}' not running"}
+                    
+                    app_module = sys.modules[module_name]
+                    
+                    if not hasattr(app_module, function_name):
+                        return {"success": False, "message": f"Function '{function_name}' not found in app '{app_name}'"}
+                    
+                    func = getattr(app_module, function_name)
+                    result = func(*args, **kwargs)
+                    return result
+                    
                 except Exception as e:
-                    return {"success": False, "message": str(e)}
-            
-            def start_preset_timer(self, preset_name):
-                """Start a preset Focus-Timer session"""
-                try:
-                    if "app_Focus-Timer" in sys.modules:
-                        app_module = sys.modules["app_Focus-Timer"]
-                        if hasattr(app_module, 'start_preset_timer'):
-                            return app_module.start_preset_timer(preset_name)
-                    return {"success": False, "message": "Focus-Timer not running"}
-                except Exception as e:
-                    return {"success": False, "message": str(e)}
-            
-            def stop_timer(self):
-                """Stop the current Focus-Timer session"""
-                try:
-                    if "app_Focus-Timer" in sys.modules:
-                        app_module = sys.modules["app_Focus-Timer"]
-                        if hasattr(app_module, 'stop_timer'):
-                            return app_module.stop_timer()
-                    return {"success": False, "message": "Focus-Timer not running"}
-                except Exception as e:
-                    return {"success": False, "message": str(e)}
-            
-            def get_timer_status(self):
-                """Get the current Focus-Timer status"""
-                try:
-                    if "app_Focus-Timer" in sys.modules:
-                        app_module = sys.modules["app_Focus-Timer"]
-                        if hasattr(app_module, 'get_status'):
-                            return app_module.get_status()
-                    return {"session": "idle", "active": False, "remaining_seconds": 0}
-                except Exception as e:
-                    return {"session": "idle", "active": False, "remaining_seconds": 0, "error": str(e)}
+                    return {"success": False, "message": f"Error calling {function_name}: {str(e)}"}
+
         
         html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "index.html"))
         
