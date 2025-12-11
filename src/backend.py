@@ -498,9 +498,9 @@ class FileManagerAPI:
         except Exception as e:
             print(f"FMAPI: Error getting metadata for {path}: {e}")
             return {}
-        
+
+    # Checks if a file or directory exists
     def exists(self, path):
-        """Check if a file or directory exists"""
         return os.path.exists(path)
     def exists(self, path):
         return os.path.exists(path)
