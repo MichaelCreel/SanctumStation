@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d3d 100%);
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timer-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .session-label {
+            font-size: 2rem;
+            font-weight: 300;
+            opacity: 0.7;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3rem;
+        }
+
+        .timer-display {
+            font-size: 8rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 3rem;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .timer-display.focus {
+            color: #10b981;
+        }
+
+        .timer-display.break {
+            color: #3b82f6;
+        }
+
+        .timer-display.idle {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: #ffffff;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            min-width: 120px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.5);
+        }
+
+        .presets {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            max-width: 900px;
+            width: 100%;
+            margin-bottom: 2rem;
+        }
+
+        .preset-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .preset-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .preset-card.active {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .preset-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .preset-details {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .custom-controls {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            margin-bottom: 2rem;
+        }
+
+        .custom-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .input-label {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .input-field {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 0.75rem;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .input-field:focus {
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            margin-top: 2rem;
+            opacity: 0.5;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="timer-container">
+        <div class="session-label" id="sessionLabel">Idle</div>
+        <div class="timer-display idle" id="timerDisplay">00:00</div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" id="startBtn" onclick="startTimer()">Start</button>
+            <button class="btn btn-danger" id="stopBtn" onclick="stopTimer()" disabled>Stop</button>
+        </div>
+
+        <div class="presets">
+            <div class="preset-card" onclick="selectPreset('pomodoro-short', this)">
+                <div class="preset-title">Pomodoro</div>
+                <div class="preset-details">25 min focus / 5 min breaks</div>
+            </div>
+            <div class="preset-card" onclick="selectPreset('pomodoro-long', this)">
+                <div class="preset-title">Pomodoro Long</div>
+                <div class="preset-details">25/5 + 15 min long break</div>
+            </div>
+            <div class="preset-card" onclick="selectPreset('52-17', this)">
+                <div class="preset-title">52/17</div>
+                <div class="preset-details">52 min focus / 17 min break</div>
+            </div>
+            <div class="preset-card active" onclick="selectPreset('ultradian', this)">
+                <div class="preset-title">Ultradian</div>
+                <div class="preset-details">90 min focus / 25 min break</div>
+            </div>
+        </div>
+
+        <div class="custom-controls">
+            <div class="custom-title">Custom Timer</div>
+            <div class="input-grid">
+                <div class="input-group">
+                    <label class="input-label">Focus (min)</label>
+                    <input type="number" class="input-field" id="focusInput" value="25" min="1" max="180">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Short Break (min)</label>
+                    <input type="number" class="input-field" id="shortBreakInput" value="5" min="1" max="60">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Long Break (min)</label>
+                    <input type="number" class="input-field" id="longBreakInput" value="15" min="1" max="60">
+                </div>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" class="checkbox" id="longBreakCheckbox">
+                <label class="input-label">Use long break every 4 cycles</label>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Focus Timer script loaded');
+
+        let selectedPreset = 'ultradian';
+        let updateInterval = null;
+
+        // Initialize
+        setTimeout(() => {
+            console.log('Focus Timer initializing...');
+            updateStatus();
+            // Start polling for status updates
+            updateInterval = setInterval(updateStatus, 1000);
+        }, 100);
+
+        // Make functions global so onclick handlers can access them
+        window.selectPreset = function(preset, element) {
+            selectedPreset = preset;
+            
+            // Update UI
+            document.querySelectorAll('.preset-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            // Add active class to clicked element
+            if (element) {
+                element.classList.add('active');
+            }
+
+            // Update custom inputs based on preset
+            switch(preset) {
+                case 'pomodoro-short':
+                    document.getElementById('focusInput').value = 25;
+                    document.getElementById('shortBreakInput').value = 5;
+                    document.getElementById('longBreakInput').value = 15;
+                    document.getElementById('longBreakCheckbox').checked = false;
+                    break;
+                case 'pomodoro-long':
+                    document.getElementById('focusInput').value = 25;
+                    document.getElementById('shortBreakInput').value = 5;
+                    document.getElementById('longBreakInput').value = 15;
+                    document.getElementById('longBreakCheckbox').checked = true;
+                    break;
+                case '52-17':
+                    document.getElementById('focusInput').value = 52;
+                    document.getElementById('shortBreakInput').value = 17;
+                    document.getElementById('longBreakInput').value = 0;
+                    document.getElementById('longBreakCheckbox').checked = false;
+                    break;
+                case 'ultradian':
+                    document.getElementById('focusInput').value = 90;
+                    document.getElementById('shortBreakInput').value = 25;
+                    document.getElementById('longBreakInput').value = 0;
+                    document.getElementById('longBreakCheckbox').checked = false;
+                    break;
+            }
+        };
+
+        window.startTimer = async function() {
+            const focusDur = parseInt(document.getElementById('focusInput').value);
+            const shortDur = parseInt(document.getElementById('shortBreakInput').value);
+            const longDur = parseInt(document.getElementById('longBreakInput').value);
+            const useLongBreak = document.getElementById('longBreakCheckbox').checked;
+
+            try {
+                // Call through pywebview API
+                const result = await window.pywebview.api.start_custom_timer(focusDur, shortDur, longDur, useLongBreak);
+                console.log('Start timer result:', result);
+                
+                if (result && result.success) {
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                } else {
+                    alert(result ? result.message : 'Failed to start timer');
+                }
+            } catch (error) {
+                console.error('Error starting timer:', error);
+                alert('Failed to start timer: ' + error);
+            }
+        };
+
+        window.stopTimer = async function() {
+            try {
+                // Call through pywebview API
+                const result = await window.pywebview.api.stop_timer();
+                console.log('Stop timer result:', result);
+                
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            } catch (error) {
+                console.error('Error stopping timer:', error);
+            }
+        };
+
+        async function updateStatus() {
+            try {
+                // Call through pywebview API
+                const status = await window.pywebview.api.get_timer_status();
+                
+                // Update session label
+                const sessionLabel = document.getElementById('sessionLabel');
+                sessionLabel.textContent = status.session;
+
+                // Update timer display
+                const timerDisplay = document.getElementById('timerDisplay');
+                const minutes = Math.floor(status.remaining_seconds / 60);
+                const seconds = status.remaining_seconds % 60;
+                timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+                // Update display class based on session
+                timerDisplay.className = 'timer-display';
+                if (status.session.toLowerCase().includes('focus')) {
+                    timerDisplay.classList.add('focus');
+                } else if (status.session.toLowerCase().includes('break')) {
+                    timerDisplay.classList.add('break');
+                } else {
+                    timerDisplay.classList.add('idle');
+                }
+
+                // Update button states
+                document.getElementById('startBtn').disabled = status.active;
+                document.getElementById('stopBtn').disabled = !status.active;
+
+            } catch (error) {
+                // Silently fail if module not loaded yet
+            }
+        }
+
+        // Stop event propagation for inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                e.stopPropagation();
+            });
+        });
+
+        // Cleanup on unload
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+</body>
+</html>
