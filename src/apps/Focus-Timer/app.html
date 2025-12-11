@@ -354,8 +354,15 @@
             const useLongBreak = document.getElementById('longBreakCheckbox').checked;
 
             try {
-                // Call through pywebview API
-                const result = await window.pywebview.api.start_custom_timer(focusDur, shortDur, longDur, useLongBreak);
+                // Call app's own backend function
+                const result = await window.pywebview.api.call_app_function(
+                    'Focus-Timer', 
+                    'start_custom_timer', 
+                    focusDur, 
+                    shortDur, 
+                    longDur, 
+                    useLongBreak
+                );
                 console.log('Start timer result:', result);
                 
                 if (result && result.success) {
@@ -372,8 +379,8 @@
 
         window.stopTimer = async function() {
             try {
-                // Call through pywebview API
-                const result = await window.pywebview.api.stop_timer();
+                // Call app's own backend function
+                const result = await window.pywebview.api.call_app_function('Focus-Timer', 'stop_timer');
                 console.log('Stop timer result:', result);
                 
                 document.getElementById('startBtn').disabled = false;
@@ -385,8 +392,8 @@
 
         async function updateStatus() {
             try {
-                // Call through pywebview API
-                const status = await window.pywebview.api.get_timer_status();
+                // Call app's own backend function
+                const status = await window.pywebview.api.call_app_function('Focus-Timer', 'get_status');
                 
                 // Update session label
                 const sessionLabel = document.getElementById('sessionLabel');
