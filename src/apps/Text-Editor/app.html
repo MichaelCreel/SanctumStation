@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .editor-container {
+            display: flex;
+            height: 100vh;
+            background: #1e1e2e;
+        }
+
+        /* File Browser Panel (Left) */
+        .file-panel {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .file-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .file-item.selected {
+            background: rgba(99, 102, 241, 0.3);
+            border-left: 3px solid #6366f1;
+        }
+
+        .file-icon {
+            margin-right: 0.75rem;
+            opacity: 0.7;
+        }
+
+        .file-name {
+            flex: 1;
+            font-size: 0.875rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .path-bar {
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #ffffff;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .current-path {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Editor Panel (Right) */
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-toolbar {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.75rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .file-info {
+            flex: 1;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.6);
+            padding-left: 1rem;
+        }
+
+        .editor-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            overflow: hidden;
+        }
+
+        .text-editor {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            resize: none;
+            outline: none;
+        }
+
+        .text-editor:focus {
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            opacity: 0.6;
+            font-size: 0.875rem;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.875rem;
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        /* Scrollbar styling */
+        .file-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .file-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .file-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .file-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <!-- File Browser Panel -->
+        <div class="file-panel">
+            <div class="panel-header">File Browser</div>
+            <div class="path-bar">
+                <button class="nav-btn" onclick="navigateUp()">↑</button>
+                <span class="current-path" id="currentPath">/home/michael</span>
+            </div>
+            <div class="file-list" id="fileList">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Editor Panel -->
+        <div class="editor-panel">
+            <div class="editor-toolbar">
+                <button class="btn" onclick="openSelectedFile()" id="openBtn" disabled>Open</button>
+                <button class="btn" onclick="saveFile()" id="saveBtn" disabled>Save</button>
+                <button class="btn" onclick="saveAsFile()">Save As...</button>
+                <button class="btn" onclick="newFile()">New</button>
+                <span class="file-info" id="fileInfo">No file open</span>
+            </div>
+            <div class="editor-area">
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">📝</div>
+                    <div>Select a file from the browser or click "New" to start</div>
+                </div>
+                <textarea class="text-editor" id="textEditor" style="display: none;"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Text Editor script loaded');
+
+        let currentPath = '/home/michael';
+        let currentFile = null;
+        let currentItems = [];
+        let selectedItem = null;
+        let isModified = false;
+
+        // Initialize
+        setTimeout(() => {
+            console.log('Text Editor initializing...');
+            loadDirectory(currentPath);
+        }, 100);
+
+        async function loadDirectory(path) {
+            const fileList = document.getElementById('fileList');
+            const pathDisplay = document.getElementById('currentPath');
+            
+            fileList.innerHTML = '<div class="loading">Loading...</div>';
+            pathDisplay.textContent = path;
+
+            try {
+                if (!window.pywebview || !window.pywebview.api) {
+                    throw new Error('PyWebview API not available');
+                }
+                
+                const items = await window.pywebview.api.list_directory(path);
+                currentItems = items;
+                currentPath = path;
+                displayFiles(items);
+            } catch (error) {
+                console.error('Error loading directory:', error);
+                fileList.innerHTML = '<div class="loading" style="color: #ff6b6b;">Error loading directory</div>';
+            }
+        }
+
+        function displayFiles(items) {
+            const fileList = document.getElementById('fileList');
+            
+            if (!items || items.length === 0) {
+                fileList.innerHTML = '<div class="loading">Empty directory</div>';
+                return;
+            }
+
+            fileList.innerHTML = '';
+
+            // Sort: folders first, then files
+            const sorted = [...items].sort((a, b) => {
+                if (a.type === 'folder' && b.type !== 'folder') return -1;
+                if (a.type !== 'folder' && b.type === 'folder') return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            sorted.forEach(item => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.dataset.path = item.path;
+                fileItem.dataset.isDirectory = (item.type === 'folder');
+                fileItem.dataset.name = item.name;
+
+                const icon = (item.type === 'folder') ? '📁' : '📄';
+
+                fileItem.innerHTML = `
+                    <span class="file-icon">${icon}</span>
+                    <span class="file-name">${item.name}</span>
+                `;
+
+                // Double click behavior
+                fileItem.addEventListener('dblclick', () => {
+                    if (item.type === 'folder') {
+                        loadDirectory(item.path);
+                    } else {
+                        selectItem(fileItem);
+                        openSelectedFile();
+                    }
+                });
+
+                // Single click to select
+                fileItem.addEventListener('click', () => {
+                    selectItem(fileItem);
+                });
+
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        function selectItem(itemElement) {
+            // Remove previous selection
+            document.querySelectorAll('.file-item.selected').forEach(item => {
+                item.classList.remove('selected');
+            });
+
+            // Select new item
+            itemElement.classList.add('selected');
+            selectedItem = {
+                path: itemElement.dataset.path,
+                name: itemElement.dataset.name,
+                isDirectory: itemElement.dataset.isDirectory === 'true'
+            };
+
+            // Enable/disable open button based on selection
+            const openBtn = document.getElementById('openBtn');
+            openBtn.disabled = selectedItem.isDirectory;
+        }
+
+        function navigateUp() {
+            const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
+            loadDirectory(parentPath);
+        }
+
+        async function openSelectedFile() {
+            if (!selectedItem || selectedItem.isDirectory) {
+                return;
+            }
+
+            // Warn if current file is modified
+            if (isModified && currentFile) {
+                if (!confirm('Current file has unsaved changes. Continue?')) {
+                    return;
+                }
+            }
+
+            try {
+                const content = await window.pywebview.api.read_file(selectedItem.path);
+                
+                currentFile = selectedItem.path;
+                isModified = false;
+                
+                // Show editor, hide empty state
+                document.getElementById('emptyState').style.display = 'none';
+                document.getElementById('textEditor').style.display = 'block';
+                document.getElementById('textEditor').value = content;
+                document.getElementById('fileInfo').textContent = selectedItem.name;
+                document.getElementById('saveBtn').disabled = false;
+
+                console.log('Opened file:', currentFile);
+            } catch (error) {
+                console.error('Error opening file:', error);
+                alert('Failed to open file: ' + error);
+            }
+        }
+
+        async function saveFile() {
+            if (!currentFile) {
+                saveAsFile();
+                return;
+            }
+
+            try {
+                const content = document.getElementById('textEditor').value;
+                const success = await window.pywebview.api.write_file(currentFile, content);
+                
+                if (success) {
+                    isModified = false;
+                    console.log('File saved:', currentFile);
+                    alert('File saved successfully!');
+                } else {
+                    alert('Failed to save file');
+                }
+            } catch (error) {
+                console.error('Error saving file:', error);
+                alert('Failed to save file: ' + error);
+            }
+        }
+
+        async function saveAsFile() {
+            const filename = prompt('Enter filename:', currentFile ? currentFile.split('/').pop() : 'untitled.txt');
+            if (!filename) return;
+
+            const savePath = currentPath + '/' + filename;
+
+            try {
+                const content = document.getElementById('textEditor').value;
+                const success = await window.pywebview.api.write_file(savePath, content);
+                
+                if (success) {
+                    currentFile = savePath;
+                    isModified = false;
+                    document.getElementById('fileInfo').textContent = filename;
+                    document.getElementById('saveBtn').disabled = false;
+                    console.log('File saved as:', currentFile);
+                    alert('File saved successfully!');
+                    loadDirectory(currentPath); // Refresh file list
+                } else {
+                    alert('Failed to save file');
+                }
+            } catch (error) {
+                console.error('Error saving file:', error);
+                alert('Failed to save file: ' + error);
+            }
+        }
+
+        function newFile() {
+            // Warn if current file is modified
+            if (isModified && currentFile) {
+                if (!confirm('Current file has unsaved changes. Continue?')) {
+                    return;
+                }
+            }
+
+            currentFile = null;
+            isModified = false;
+            
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('textEditor').style.display = 'block';
+            document.getElementById('textEditor').value = '';
+            document.getElementById('fileInfo').textContent = 'Untitled';
+            document.getElementById('saveBtn').disabled = false;
+        }
+
+        // Track modifications
+        document.getElementById('textEditor').addEventListener('input', () => {
+            if (currentFile) {
+                isModified = true;
+                document.getElementById('fileInfo').textContent = document.getElementById('fileInfo').textContent.replace(' *', '') + ' *';
+            }
+        });
+
+        // Stop event propagation for textarea to prevent desktop environment from capturing keys
+        document.getElementById('textEditor').addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            
+            // Only handle keyboard shortcuts, let everything else pass through
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 's') {
+                    e.preventDefault();
+                    saveFile();
+                } else if (e.key === 'n') {
+                    e.preventDefault();
+                    newFile();
+                }
+            }
+        });
+
+        document.getElementById('textEditor').addEventListener('keypress', (e) => {
+            e.stopPropagation();
+        });
+
+        document.getElementById('textEditor').addEventListener('keyup', (e) => {
+            e.stopPropagation();
+        });
+
+        // Global keyboard shortcuts (only when not in textarea)
+        document.addEventListener('keydown', (e) => {
+            // Don't handle if event originated from textarea
+            if (e.target.id === 'textEditor') return;
+            
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 's') {
+                    e.preventDefault();
+                    saveFile();
+                } else if (e.key === 'o') {
+                    e.preventDefault();
+                    if (selectedItem && !selectedItem.isDirectory) {
+                        openSelectedFile();
+                    }
+                } else if (e.key === 'n') {
+                    e.preventDefault();
+                    newFile();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
