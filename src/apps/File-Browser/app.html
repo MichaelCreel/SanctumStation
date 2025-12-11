@@ -255,10 +255,13 @@
         }, 100);
 
         function setupEventListeners() {
-            // Hide context menu on click elsewhere
-            document.addEventListener('click', () => {
+            // Get the file browser root element
+            const fileBrowser = document.querySelector('.file-browser');
+            
+            // Hide context menu on click elsewhere - use capture phase to get all clicks
+            fileBrowser.addEventListener('click', () => {
                 hideContextMenu();
-            });
+            }, true);
 
             // Prevent context menu from hiding when clicking on it
             document.getElementById('contextMenu').addEventListener('click', (e) => {
@@ -521,8 +524,9 @@
             return new Date(date).toLocaleDateString();
         }
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
+        // Keyboard shortcuts - attach to file browser container instead of document
+        const fileBrowser = document.querySelector('.file-browser');
+        fileBrowser.addEventListener('keydown', (e) => {
             if (e.key === 'Delete' && selectedItem) {
                 contextAction('delete');
             } else if (e.key === 'F2' && selectedItem) {

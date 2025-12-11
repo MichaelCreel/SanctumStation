@@ -507,8 +507,9 @@
             e.stopPropagation();
         });
 
-        // Global keyboard shortcuts (only when not in textarea)
-        document.addEventListener('keydown', (e) => {
+        // Global keyboard shortcuts (only when not in textarea) - attach to editor container instead of document
+        const editorContainer = document.querySelector('.editor-container');
+        editorContainer.addEventListener('keydown', (e) => {
             // Don't handle if event originated from textarea
             if (e.target.id === 'textEditor') return;
             

@@ -187,11 +187,20 @@ def launch_app(app_name):
         // Add to DOM
         document.body.appendChild(appContainer);
         
-        // Execute scripts after DOM is ready in global scope
+        // Execute scripts in isolated scope to prevent variable conflicts
         scriptContents.forEach(scriptContent => {{
             const script = document.createElement('script');
-            script.textContent = scriptContent;
-            document.head.appendChild(script); // Append to head for global scope
+            // Wrap in IIFE to create isolated scope while keeping functions accessible
+            script.textContent = `
+                (function() {{
+                    // Store reference to app container for event delegation
+                    const appContainer = document.getElementById('{app_container_id}');
+                    
+                    // Execute app script
+                    ${{scriptContent}}
+                }})();
+            `;
+            document.body.appendChild(script);
         }});
         
         // Signal that app UI is loaded
