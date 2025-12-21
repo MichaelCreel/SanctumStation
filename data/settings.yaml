@@ -1,2 +1,4 @@
 version: v0.1.0
 wallpaper: "None"
+font: "src/inter.ttf" # Defaults to app included font
+day_gradient: True # Whether to include the time of day gradient overlay on the desktop

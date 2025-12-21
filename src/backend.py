@@ -13,6 +13,7 @@ import sys
 apps = [] # List of apps found in the apps directory
 version = "v0.0.0" # The current version of the app
 wallpaper = "None" # The current wallpaper setting
+font = "src/inter.ttf" # The current font setting
 active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
 
@@ -29,7 +30,7 @@ def initialize():
 
 # Initializes environment settings
 def init_settings():
-    global version, wallpaper
+    global version, wallpaper, font
     try:
         with open("data/settings.yaml", "r") as file:
             settings = yaml.safe_load(file) or {}
@@ -38,8 +39,10 @@ def init_settings():
             version = settings["version"]
         if "wallpaper" in settings:
             wallpaper = settings["wallpaper"]
+        if "font" in settings:
+            font = settings["font"]
         
-        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}")
+        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -font={font}")
         return True
     except FileNotFoundError:
         print("IS: Settings file not found. Using default settings.")
@@ -336,6 +339,19 @@ def init_webview():
             
             def exists(self, path):
                 return file_manager.exists(path)
+            
+            # Settings access
+            def get_font(self):
+                global font
+                return font
+            
+            def get_version(self):
+                global version
+                return version
+            
+            def get_wallpaper(self):
+                global wallpaper
+                return wallpaper
             
             # Generic app function call - allows apps to expose their own API
             def call_app_function(self, app_name, function_name, *args, **kwargs):
