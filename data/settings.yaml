@@ -1,4 +1,13 @@
 version: v0.1.0
 wallpaper: "None"
-font: "src/inter.ttf" # Defaults to app included font
+# Default fonts for apps
+black_font: "fonts/Inter-Black.ttf"
+extra_bold_font: "fonts/Inter-ExtraBold.ttf"
+bold_font: "fonts/Inter-Bold.ttf"
+semi_bold_font: "fonts/Inter-SemiBold.ttf"
+medium_font: "fonts/Inter-Medium.ttf"
+regular_font: "fonts/Inter-Regular.ttf"
+light_font: "fonts/Inter-Light.ttf"
+extra_light_font: "fonts/Inter-ExtraLight.ttf"
+thin_font: "fonts/Inter-Thin.ttf"
 day_gradient: True # Whether to include the time of day gradient overlay on the desktop

@@ -155,6 +155,7 @@ class DesktopInteractions {
         while (attempts < maxAttempts) {
             if (window.pywebview && window.pywebview.api) {
                 console.log('PyWebview API is ready!');
+                await this.loadFont();
                 await this.loadApps();
                 return;
             }
@@ -163,6 +164,49 @@ class DesktopInteractions {
         }
         
         console.error('PyWebview API failed to load after 5 seconds');
+    }
+
+    async loadFont() {
+        try {
+            const fonts = await window.pywebview.api.get_fonts();
+            if (fonts && Object.keys(fonts).length > 0) {
+                console.log('Loading fonts:', fonts);
+                
+                // Font weight mapping
+                const weightMap = {
+                    'black_font': 900,
+                    'extra_bold_font': 800,
+                    'bold_font': 700,
+                    'semi_bold_font': 600,
+                    'medium_font': 500,
+                    'regular_font': 400,
+                    'light_font': 300,
+                    'extra_light_font': 200,
+                    'thin_font': 100
+                };
+                
+                const fontName = 'Inter';
+                
+                // Load all font weights
+                for (const [key, filename] of Object.entries(fonts)) {
+                    const weight = weightMap[key];
+                    const fontFace = new FontFace(fontName, `url(${filename})`, {
+                        weight: weight,
+                        style: 'normal'
+                    });
+                    
+                    await fontFace.load();
+                    document.fonts.add(fontFace);
+                    console.log(`Loaded ${key} (weight ${weight}): ${filename}`);
+                }
+                
+                // Apply the font family to the body
+                document.body.style.fontFamily = `"${fontName}", 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+                console.log('All fonts loaded and applied successfully');
+            }
+        } catch (error) {
+            console.error('Error loading fonts:', error);
+        }
     }
 
     setupEventListeners() {
