@@ -235,24 +235,25 @@
     </div>
 
     <script>
-        // Get user home directory - default to /home/michael
-        let currentPath = '/home/michael';
-        let selectedItem = null;
-        let clipboardItem = null;
-        let clipboardAction = null;
-        let currentItems = []; // Store current directory items
-        let sortOrder = 'name-asc'; // Default sort order
+        (function() {
+            // Get user home directory - default to /home/michael
+            let currentPath = '/home/michael';
+            let selectedItem = null;
+            let clipboardItem = null;
+            let clipboardAction = null;
+            let currentItems = []; // Store current directory items
+            let sortOrder = 'name-asc'; // Default sort order
 
-        // Initialize immediately since DOMContentLoaded may have already fired
-        console.log('File Browser script loaded');
-        
-        // Use setTimeout to ensure DOM is ready
-        setTimeout(() => {
-            console.log('File Browser initializing...');
-            console.log('Starting path:', currentPath);
-            loadDirectory(currentPath);
-            setupEventListeners();
-        }, 100);
+            // Initialize immediately since DOMContentLoaded may have already fired
+            console.log('File Browser script loaded');
+            
+            // Use setTimeout to ensure DOM is ready
+            setTimeout(() => {
+                console.log('File Browser initializing...');
+                console.log('Starting path:', currentPath);
+                loadDirectory(currentPath);
+                setupEventListeners();
+            }, 100);
 
         function setupEventListeners() {
             // Get the file browser root element
@@ -315,7 +316,7 @@
             return sorted;
         }
 
-        function changeSortOrder() {
+        window.changeSortOrder = function changeSortOrder() {
             sortOrder = document.getElementById('sortSelect').value;
             displayFiles(sortItems(currentItems));
         }
@@ -424,14 +425,14 @@
             };
         }
 
-        function navigateUp() {
+        window.navigateUp = function navigateUp() {
             if (currentPath === '/') return;
             
             const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
             loadDirectory(parentPath);
         }
 
-        async function createNewFolder() {
+        window.createNewFolder = async function createNewFolder() {
             const folderName = prompt('Enter folder name:');
             if (!folderName) return;
 
@@ -444,7 +445,7 @@
             }
         }
 
-        function refreshDirectory() {
+        window.refreshDirectory = function refreshDirectory() {
             loadDirectory(currentPath);
         }
 
@@ -459,7 +460,7 @@
             document.getElementById('contextMenu').style.display = 'none';
         }
 
-        async function contextAction(action) {
+        window.contextAction = async function contextAction(action) {
             if (!selectedItem) return;
 
             hideContextMenu();
@@ -539,6 +540,8 @@
                 contextAction('paste');
             }
         });
+
+        })(); // End IIFE
 
         // Load fonts from API
         (async function loadFonts() {
