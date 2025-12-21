@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clock</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .clock-container {
+            display: flex;
+            height: 100%;
+            background: #1e1e2e;
+        }
+
+        /* Clock Section - Left */
+        .clock-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+        }
+
+        .time-display {
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.25);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .date-display {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.7);
+            opacity: 0.8;
+        }
+
+        .info-section {
+            display: flex;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            backdrop-filter: blur(10px);
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .info-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        /* Tools Section - Right */
+        .tools-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            gap: 2rem;
+        }
+
+        .tool-panel {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+        }
+
+        .tool-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .tool-display {
+            font-size: 4rem;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .timer-input-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .timer-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 0.75rem;
+            font-size: 1.25rem;
+            width: 80px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        .timer-input:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .timer-label {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .tool-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.primary {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .btn.primary:hover {
+            background: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.7);
+        }
+
+        .btn.danger {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .btn.danger:hover {
+            background: rgba(239, 68, 68, 0.5);
+            border-color: rgba(239, 68, 68, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="clock-container">
+        <!-- Clock Section -->
+        <div class="clock-section">
+            <div class="time-display" id="timeDisplay">00:00:00</div>
+            <div class="date-display" id="dateDisplay">Loading...</div>
+            
+            <div class="info-section">
+                <div class="info-card">
+                    <div class="info-label">Day of Week</div>
+                    <div class="info-value" id="dayOfWeek">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Week Number</div>
+                    <div class="info-value" id="weekNumber">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Time Zone</div>
+                    <div class="info-value" id="timeZone">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tools Section -->
+        <div class="tools-section">
+            <!-- Stopwatch -->
+            <div class="tool-panel">
+                <div class="tool-title">Stopwatch</div>
+                <div class="tool-display" id="stopwatchDisplay">00:00:00</div>
+                <div class="tool-buttons">
+                    <button class="btn primary" id="stopwatchStartBtn" onclick="startStopwatch()">Start</button>
+                    <button class="btn danger" id="stopwatchStopBtn" onclick="stopStopwatch()" disabled>Stop</button>
+                    <button class="btn" onclick="resetStopwatch()">Reset</button>
+                </div>
+            </div>
+
+            <!-- Timer -->
+            <div class="tool-panel">
+                <div class="tool-title">Timer</div>
+                <div class="tool-display" id="timerDisplay">00:00:00</div>
+                <div class="timer-input-group">
+                    <div>
+                        <input type="number" class="timer-input" id="timerHours" min="0" max="23" value="0" />
+                        <div class="timer-label">Hours</div>
+                    </div>
+                    <div>
+                        <input type="number" class="timer-input" id="timerMinutes" min="0" max="59" value="5" />
+                        <div class="timer-label">Minutes</div>
+                    </div>
+                    <div>
+                        <input type="number" class="timer-input" id="timerSeconds" min="0" max="59" value="0" />
+                        <div class="timer-label">Seconds</div>
+                    </div>
+                </div>
+                <div class="tool-buttons">
+                    <button class="btn primary" id="timerStartBtn" onclick="startTimer()">Start</button>
+                    <button class="btn danger" id="timerStopBtn" onclick="stopTimer()" disabled>Stop</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stopwatchRunning = false;
+        let stopwatchStartTime = 0;
+        let stopwatchInterval = null;
+
+        let timerRunning = false;
+        let timerInterval = null;
+
+        // Clock update
+        function updateClock() {
+            const now = new Date();
+            
+            // Update time (24-hour format)
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            document.getElementById('timeDisplay').textContent = timeString;
+            
+            // Update date
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateString = now.toLocaleDateString('en-US', options);
+            document.getElementById('dateDisplay').textContent = dateString;
+            
+            // Update day of week
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            document.getElementById('dayOfWeek').textContent = days[now.getDay()];
+            
+            // Update week number
+            const weekNumber = getWeekNumber(now);
+            document.getElementById('weekNumber').textContent = weekNumber;
+            
+            // Update timezone
+            const timeZoneShort = now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop();
+            document.getElementById('timeZone').textContent = timeZoneShort;
+        }
+
+        function getWeekNumber(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        // Stopwatch functions
+        async function startStopwatch() {
+            try {
+                await window.pywebview.api.call_app_function('Clock', 'stopwatch_start');
+                stopwatchRunning = true;
+                stopwatchStartTime = Date.now() / 1000;
+                
+                document.getElementById('stopwatchStartBtn').disabled = true;
+                document.getElementById('stopwatchStopBtn').disabled = false;
+                
+                updateStopwatchDisplay();
+            } catch (error) {
+                console.error('Error starting stopwatch:', error);
+            }
+        }
+
+        async function stopStopwatch() {
+            try {
+                await window.pywebview.api.call_app_function('Clock', 'stopwatch_stop');
+                stopwatchRunning = false;
+                
+                document.getElementById('stopwatchStartBtn').disabled = false;
+                document.getElementById('stopwatchStopBtn').disabled = true;
+            } catch (error) {
+                console.error('Error stopping stopwatch:', error);
+            }
+        }
+
+        function resetStopwatch() {
+            stopwatchRunning = false;
+            stopwatchStartTime = 0;
+            document.getElementById('stopwatchDisplay').textContent = '00:00:00';
+            document.getElementById('stopwatchStartBtn').disabled = false;
+            document.getElementById('stopwatchStopBtn').disabled = true;
+        }
+
+        async function updateStopwatchDisplay() {
+            if (stopwatchRunning) {
+                try {
+                    const elapsed = await window.pywebview.api.call_app_function('Clock', 'stopwatch_get');
+                    const formatted = await window.pywebview.api.call_app_function('Clock', 'stopwatch_get_formatted', elapsed);
+                    document.getElementById('stopwatchDisplay').textContent = formatted;
+                } catch (error) {
+                    // Fallback to local calculation
+                    const elapsed = Date.now() / 1000 - stopwatchStartTime;
+                    document.getElementById('stopwatchDisplay').textContent = formatTime(elapsed);
+                }
+                setTimeout(updateStopwatchDisplay, 100);
+            }
+        }
+
+        // Timer functions
+        async function startTimer() {
+            const hours = parseInt(document.getElementById('timerHours').value) || 0;
+            const minutes = parseInt(document.getElementById('timerMinutes').value) || 0;
+            const seconds = parseInt(document.getElementById('timerSeconds').value) || 0;
+            
+            const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+            
+            if (totalSeconds === 0) {
+                alert('Please set a time greater than 0');
+                return;
+            }
+            
+            try {
+                await window.pywebview.api.call_app_function('Clock', 'timer_start', totalSeconds);
+                timerRunning = true;
+                
+                document.getElementById('timerStartBtn').disabled = true;
+                document.getElementById('timerStopBtn').disabled = false;
+                document.getElementById('timerHours').disabled = true;
+                document.getElementById('timerMinutes').disabled = true;
+                document.getElementById('timerSeconds').disabled = true;
+                
+                updateTimerDisplay();
+            } catch (error) {
+                console.error('Error starting timer:', error);
+                alert('Failed to start timer');
+            }
+        }
+
+        async function stopTimer() {
+            try {
+                await window.pywebview.api.call_app_function('Clock', 'timer_stop');
+                timerRunning = false;
+                
+                document.getElementById('timerStartBtn').disabled = false;
+                document.getElementById('timerStopBtn').disabled = true;
+                document.getElementById('timerHours').disabled = false;
+                document.getElementById('timerMinutes').disabled = false;
+                document.getElementById('timerSeconds').disabled = false;
+            } catch (error) {
+                console.error('Error stopping timer:', error);
+            }
+        }
+
+        async function updateTimerDisplay() {
+            if (timerRunning) {
+                try {
+                    const remaining = await window.pywebview.api.call_app_function('Clock', 'timer_get_remaining');
+                    
+                    if (remaining <= 0) {
+                        timerRunning = false;
+                        document.getElementById('timerDisplay').textContent = '00:00:00';
+                        document.getElementById('timerStartBtn').disabled = false;
+                        document.getElementById('timerStopBtn').disabled = true;
+                        document.getElementById('timerHours').disabled = false;
+                        document.getElementById('timerMinutes').disabled = false;
+                        document.getElementById('timerSeconds').disabled = false;
+                        return;
+                    }
+                    
+                    document.getElementById('timerDisplay').textContent = formatTime(remaining);
+                    setTimeout(updateTimerDisplay, 1000);
+                } catch (error) {
+                    console.error('Error updating timer:', error);
+                    timerRunning = false;
+                }
+            }
+        }
+
+        function formatTime(totalSeconds) {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        // Prevent input events from propagating
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keydown', (e) => e.stopPropagation());
+            input.addEventListener('keypress', (e) => e.stopPropagation());
+            input.addEventListener('keyup', (e) => e.stopPropagation());
+        });
+
+        // Initialize
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>

@@ -132,10 +132,9 @@ def countdown(total_seconds):
     if not stop_event.is_set() and remaining_seconds == 0:
         play_notification_sound()
     
-    return not stop_event.is_set()  # Return True if completed naturally
+    return not stop_event.is_set()
 
 def play_notification_sound():
-    """Play a notification sound when session ends"""
     try:
         # Get the path to session.wav in the app directory
         app_dir = os.path.dirname(os.path.abspath(__file__))
