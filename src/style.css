@@ -204,18 +204,15 @@ body {
     width: clamp(5rem, 15vw, 8rem);
     height: clamp(5rem, 15vw, 8rem);
     border-radius: 50%;
-    background: linear-gradient(135deg, #0850d4 0%, #266fff 100%);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: transparent;
+    border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
-    box-shadow: 
-        0 0px 450px rgba(177, 178, 255, 0.4),
-        0 0 0 0 rgba(99, 102, 241, 0.4);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     z-index: 101; /* Above app launcher */
 }
 
@@ -226,7 +223,7 @@ body {
     left: 50%;
     width: 0;
     height: 0;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(0, 174, 255, 0.3) 0%, transparent 100%);
     border-radius: 50%;
     transform: translate(-50%, -50%);
     transition: all 0.3s ease;
@@ -234,9 +231,6 @@ body {
 
 .center-button:hover {
     transform: scale(1.05);
-    box-shadow: 
-        0 12px 40px rgba(99, 102, 241, 0.4),
-        0 0 0 8px rgba(99, 102, 241, 0.1);
 }
 
 .center-button:hover::before {
@@ -246,9 +240,6 @@ body {
 
 .center-button:active {
     transform: scale(0.95);
-    box-shadow: 
-        0 4px 16px rgba(99, 102, 241, 0.5),
-        0 0 0 4px rgba(99, 102, 241, 0.2);
 }
 
 .center-button-icon {

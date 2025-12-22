@@ -391,6 +391,16 @@ def init_webview():
             height=720,
             js_api=API()
         )
+        
+        # Set window icon for GTK
+        try:
+            icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "logo_solid.png"))
+            if os.path.exists(icon_path):
+                # This will be set when the window is created by GTK
+                webview_window.icon = icon_path
+        except Exception as e:
+            print(f"Warning: Could not set window icon: {e}")
+        
         #webview.start()
         webview.start(debug=True)
         return True
