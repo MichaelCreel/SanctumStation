@@ -49,6 +49,8 @@ An embedded terminal emulator for executing shell commands directly within Sanct
 - Current working directory tracking
 - `cd` command support with state persistence
 
+**Security Note**: The terminal executes commands with full shell access. This is intended for local developer use only. Do not expose to untrusted users or networks.
+
 #### Git Manager
 Visual Git repository management interface.
 - View repository status and changed files

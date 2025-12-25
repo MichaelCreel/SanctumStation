@@ -13,7 +13,11 @@ class TerminalBackend:
         self.current_dir = os.path.expanduser('~')
     
     def execute_command(self, command):
-        """Execute a shell command and return the output"""
+        """Execute a shell command and return the output
+        
+        WARNING: Uses shell=True for full shell feature support (pipes, redirects, etc).
+        This is a local developer tool - do not expose to untrusted users or networks.
+        """
         try:
             # Handle cd command specially to maintain state
             if command.strip().startswith('cd '):
