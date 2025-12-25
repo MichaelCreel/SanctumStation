@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .terminal-container {
+            background: #0a0a0a;
+            padding: 1.5rem;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            color: #888;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0.5rem;
+        }
+
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .terminal-line {
+            margin-bottom: 0.5rem;
+        }
+
+        .terminal-prompt {
+            color: #00aaff;
+        }
+
+        .terminal-command {
+            color: #ffffff;
+        }
+
+        .terminal-result {
+            color: #00ff00;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .terminal-error {
+            color: #ff4444;
+            white-space: pre-wrap;
+        }
+
+        .terminal-input-area {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .terminal-input-prompt {
+            color: #00aaff;
+            flex-shrink: 0;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            outline: none;
+            padding: 0.5rem;
+        }
+
+        .terminal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .terminal-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .terminal-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Scrollbar styling */
+        .terminal-output::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .terminal-output::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .terminal-output::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        .terminal-output::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-container">
+        <div class="terminal-header">
+            Sanctum Station Terminal
+        </div>
+
+        <div class="terminal-actions">
+            <button class="terminal-btn" onclick="clearTerminal()">Clear</button>
+            <button class="terminal-btn" onclick="showHistory()">History</button>
+        </div>
+
+        <div class="terminal-output" id="terminalOutput">
+            <div class="terminal-line">
+                <span class="terminal-result">Welcome to Sanctum Station Terminal</span>
+            </div>
+            <div class="terminal-line">
+                <span class="terminal-result">Type commands and press Enter to execute</span>
+            </div>
+        </div>
+
+        <div class="terminal-input-area">
+            <span class="terminal-input-prompt" id="promptText">$</span>
+            <input type="text" class="terminal-input" id="terminalInput" autocomplete="off" autofocus>
+        </div>
+    </div>
+
+    <script>
+        let commandHistory = [];
+        let historyIndex = -1;
+        let currentDir = '~';
+
+        // Initialize
+        setTimeout(() => {
+            document.getElementById('terminalInput').focus();
+            updatePrompt();
+        }, 100);
+
+        async function updatePrompt() {
+            try {
+                const result = await window.pywebview.api.call_app_function('Terminal', 'get_current_dir');
+                if (result && typeof result === 'string') {
+                    currentDir = result;
+                    document.getElementById('promptText').textContent = `${currentDir} $`;
+                }
+            } catch (error) {
+                console.error('Error updating prompt:', error);
+            }
+        }
+
+        async function executeCommand() {
+            const input = document.getElementById('terminalInput');
+            const command = input.value.trim();
+            
+            if (!command) return;
+
+            // Add to history
+            commandHistory.push(command);
+            historyIndex = commandHistory.length;
+
+            // Display command
+            const output = document.getElementById('terminalOutput');
+            const commandLine = document.createElement('div');
+            commandLine.className = 'terminal-line';
+            commandLine.innerHTML = `<span class="terminal-prompt">${currentDir} $</span> <span class="terminal-command">${escapeHtml(command)}</span>`;
+            output.appendChild(commandLine);
+
+            // Clear input
+            input.value = '';
+
+            // Execute command
+            try {
+                const result = await window.pywebview.api.call_app_function('Terminal', 'execute_command', command);
+                
+                if (result && result.output) {
+                    const resultLine = document.createElement('div');
+                    resultLine.className = 'terminal-line';
+                    resultLine.innerHTML = `<span class="${result.success ? 'terminal-result' : 'terminal-error'}">${escapeHtml(result.output)}</span>`;
+                    output.appendChild(resultLine);
+                }
+
+                // Update current directory
+                if (result && result.cwd) {
+                    currentDir = result.cwd;
+                    await updatePrompt();
+                }
+
+            } catch (error) {
+                const errorLine = document.createElement('div');
+                errorLine.className = 'terminal-line';
+                errorLine.innerHTML = `<span class="terminal-error">Error: ${escapeHtml(error.message)}</span>`;
+                output.appendChild(errorLine);
+            }
+
+            // Scroll to bottom
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearTerminal() {
+            const output = document.getElementById('terminalOutput');
+            output.innerHTML = '';
+        }
+
+        async function showHistory() {
+            try {
+                const result = await window.pywebview.api.call_app_function('Terminal', 'get_history');
+                
+                if (result && Array.isArray(result)) {
+                    const output = document.getElementById('terminalOutput');
+                    const historyLine = document.createElement('div');
+                    historyLine.className = 'terminal-line';
+                    
+                    let historyText = '--- Command History ---\n';
+                    result.forEach((item, index) => {
+                        historyText += `${index + 1}. ${item.command}\n`;
+                    });
+                    
+                    historyLine.innerHTML = `<span class="terminal-result">${escapeHtml(historyText)}</span>`;
+                    output.appendChild(historyLine);
+                    output.scrollTop = output.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error showing history:', error);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event listeners
+        document.getElementById('terminalInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                executeCommand();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    document.getElementById('terminalInput').value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    document.getElementById('terminalInput').value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    document.getElementById('terminalInput').value = '';
+                }
+            }
+        });
+
+        // Keep input focused
+        document.addEventListener('click', () => {
+            document.getElementById('terminalInput').focus();
+        });
+
+        // Load fonts
+        (async function loadFonts() {
+            try {
+                const fonts = await window.pywebview.api.get_fonts();
+                if (fonts && Object.keys(fonts).length > 0) {
+                    const weightMap = {
+                        'black_font': 900, 'extra_bold_font': 800, 'bold_font': 700,
+                        'semi_bold_font': 600, 'medium_font': 500, 'regular_font': 400,
+                        'light_font': 300, 'extra_light_font': 200, 'thin_font': 100
+                    };
+                    
+                    const fontName = 'Inter';
+                    for (const [key, filename] of Object.entries(fonts)) {
+                        const weight = weightMap[key];
+                        const fontFace = new FontFace(fontName, `url(${filename})`, {
+                            weight: weight, style: 'normal'
+                        });
+                        await fontFace.load();
+                        document.fonts.add(fontFace);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading fonts:', error);
+            }
+        })();
+    </script>
+</body>
+</html>

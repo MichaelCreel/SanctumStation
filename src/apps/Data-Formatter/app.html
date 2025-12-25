@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Formatter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .formatter {
+            background: rgba(30, 30, 46, 0.95);
+            padding: 2rem;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .header {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-success {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-success:hover {
+            background: rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-warning {
+            background: rgba(251, 191, 36, 0.3);
+            border-color: rgba(251, 191, 36, 0.5);
+        }
+
+        .btn-warning:hover {
+            background: rgba(251, 191, 36, 0.5);
+        }
+
+        .content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            overflow: hidden;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .textarea {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 1rem;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            resize: none;
+        }
+
+        .status {
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .status-success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.5);
+            color: #10b981;
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            color: #ef4444;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .tab.active {
+            color: #ffffff;
+            border-bottom-color: rgba(99, 102, 241, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="formatter">
+        <div class="tabs">
+            <button class="tab active" onclick="switchMode('json')">JSON</button>
+            <button class="tab" onclick="switchMode('yaml')">YAML</button>
+            <button class="tab" onclick="switchMode('base64')">Base64</button>
+        </div>
+
+        <div id="jsonMode">
+            <div class="header">
+                <button class="btn btn-success" onclick="formatJSON()">Format JSON</button>
+                <button class="btn" onclick="minifyJSON()">Minify JSON</button>
+                <button class="btn" onclick="validateJSON()">Validate JSON</button>
+                <button class="btn btn-warning" onclick="jsonToYAML()">JSON → YAML</button>
+                <button class="btn" onclick="copyOutput()">Copy Output</button>
+                <button class="btn" onclick="clearAll()">Clear</button>
+            </div>
+        </div>
+
+        <div id="yamlMode" class="hidden">
+            <div class="header">
+                <button class="btn btn-success" onclick="validateYAML()">Validate YAML</button>
+                <button class="btn btn-warning" onclick="yamlToJSON()">YAML → JSON</button>
+                <button class="btn" onclick="copyOutput()">Copy Output</button>
+                <button class="btn" onclick="clearAll()">Clear</button>
+            </div>
+        </div>
+
+        <div id="base64Mode" class="hidden">
+            <div class="header">
+                <button class="btn btn-success" onclick="encodeBase64()">Encode Base64</button>
+                <button class="btn btn-warning" onclick="decodeBase64()">Decode Base64</button>
+                <button class="btn" onclick="copyOutput()">Copy Output</button>
+                <button class="btn" onclick="clearAll()">Clear</button>
+            </div>
+        </div>
+
+        <div id="status" class="status hidden"></div>
+
+        <div class="content">
+            <div class="panel">
+                <div class="panel-title">Input</div>
+                <textarea class="textarea" id="input" placeholder="Paste your data here..."></textarea>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Output</div>
+                <textarea class="textarea" id="output" readonly placeholder="Output will appear here..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'json';
+
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // Update tabs
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update mode panels
+            document.getElementById('jsonMode').classList.add('hidden');
+            document.getElementById('yamlMode').classList.add('hidden');
+            document.getElementById('base64Mode').classList.add('hidden');
+            document.getElementById(mode + 'Mode').classList.remove('hidden');
+            
+            // Clear status
+            hideStatus();
+        }
+
+        function showStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + (isError ? 'status-error' : 'status-success');
+            status.classList.remove('hidden');
+        }
+
+        function hideStatus() {
+            document.getElementById('status').classList.add('hidden');
+        }
+
+        async function formatJSON() {
+            const input = document.getElementById('input').value;
+            if (!input.trim()) {
+                showStatus('Please enter JSON data', true);
+                return;
+            }
+
+            const result = await window.pywebview.api.call_app_function('Data-Formatter', 'format_json', input);
+            if (result && result.success) {
+                document.getElementById('output').value = result.data;
+                showStatus('JSON formatted successfully');
+            } else {
+                showStatus(result.error || 'Failed to format JSON', true);
+            }
+        }
+
+        async function minifyJSON() {
+            const input = document.getElementById('input').value;
+            if (!input.trim()) {
+                showStatus('Please enter JSON data', true);
+                return;
+            }
+
+            const result = await window.pywebview.api.call_app_function('Data-Formatter', 'minify_json', input);
+            if (result && result.success) {
+                document.getElementById('output').value = result.data;
+                showStatus('JSON minified successfully');
+            } else {
+                showStatus(result.error || 'Failed to minify JSON', true);
+            }
+        }
+
+        async function validateJSON() {
+            const input = document.getElementById('input').value;
+            if (!input.trim()) {
+                showStatus('Please enter JSON data', true);
+                return;
+            }
+
+            const result = await window.pywebview.api.call_app_function('Data-Formatter', 'validate_json', input);
+            if (result && result.success) {
+                showStatus(result.message, !result.valid);
+            } else {
+                showStatus(result.error || 'Validation failed', true);
+            }
+        }
+
+        async function validateYAML() {
+            const input = document.getElementById('input').value;
+            if (!input.trim()) {
+                showStatus('Please enter YAML data', true);
+                return;
+            }
+
+            const result = await window.pywebview.api.call_app_function('Data-Formatter', 'validate_yaml', input);
+            if (result && result.success) {
+                showStatus(result.message, !result.valid);
+            } else {
+                showStatus(result.error || 'Validation failed', true);
+            }
+        }
+
+        async function jsonToYAML() {
+            const input = document.getElementById('input').value;
+            if (!input.trim()) {
+                showStatus('Please enter JSON data', true);
+                return;
+            }
+
+            const result = await window.pywebview.api.call_app_function('Data-Formatter', 'json_to_yaml', input);
+            if (result && result.success) {
+                document.getElementById('output').value = result.data;
+                showStatus('Converted JSON to YAML successfully');
+            } else {
+                showStatus(result.error || 'Conversion failed', true);
+            }
+        }
+
+        async function yamlToJSON() {
+            const input = document.getElementById('input').value;
+            if (!input.trim()) {
+                showStatus('Please enter YAML data', true);
+                return;
+            }
+
+            const result = await window.pywebview.api.call_app_function('Data-Formatter', 'yaml_to_json', input);
+            if (result && result.success) {
+                document.getElementById('output').value = result.data;
+                showStatus('Converted YAML to JSON successfully');
+            } else {
+                showStatus(result.error || 'Conversion failed', true);
+            }
+        }
+
+        async function encodeBase64() {
+            const input = document.getElementById('input').value;
+            if (!input.trim()) {
+                showStatus('Please enter data to encode', true);
+                return;
+            }
+
+            const result = await window.pywebview.api.call_app_function('Data-Formatter', 'encode_base64', input);
+            if (result && result.success) {
+                document.getElementById('output').value = result.data;
+                showStatus('Encoded to Base64 successfully');
+            } else {
+                showStatus(result.error || 'Encoding failed', true);
+            }
+        }
+
+        async function decodeBase64() {
+            const input = document.getElementById('input').value;
+            if (!input.trim()) {
+                showStatus('Please enter Base64 data to decode', true);
+                return;
+            }
+
+            const result = await window.pywebview.api.call_app_function('Data-Formatter', 'decode_base64', input);
+            if (result && result.success) {
+                document.getElementById('output').value = result.data;
+                showStatus('Decoded from Base64 successfully');
+            } else {
+                showStatus(result.error || 'Decoding failed', true);
+            }
+        }
+
+        function copyOutput() {
+            const output = document.getElementById('output');
+            if (!output.value) {
+                showStatus('No output to copy', true);
+                return;
+            }
+
+            output.select();
+            document.execCommand('copy');
+            showStatus('Copied to clipboard');
+        }
+
+        function clearAll() {
+            document.getElementById('input').value = '';
+            document.getElementById('output').value = '';
+            hideStatus();
+        }
+
+        // Load fonts
+        (async function loadFonts() {
+            try {
+                const fonts = await window.pywebview.api.get_fonts();
+                if (fonts && Object.keys(fonts).length > 0) {
+                    const weightMap = {
+                        'black_font': 900, 'extra_bold_font': 800, 'bold_font': 700,
+                        'semi_bold_font': 600, 'medium_font': 500, 'regular_font': 400,
+                        'light_font': 300, 'extra_light_font': 200, 'thin_font': 100
+                    };
+                    
+                    const fontName = 'Inter';
+                    for (const [key, filename] of Object.entries(fonts)) {
+                        const weight = weightMap[key];
+                        const fontFace = new FontFace(fontName, `url(${filename})`, {
+                            weight: weight, style: 'normal'
+                        });
+                        await fontFace.load();
+                        document.fonts.add(fontFace);
+                    }
+                    document.body.style.fontFamily = `"${fontName}", 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+                }
+            } catch (error) {
+                console.error('Error loading fonts:', error);
+            }
+        })();
+    </script>
+</body>
+</html>

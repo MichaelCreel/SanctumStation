@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .git-manager {
+            background: rgba(30, 30, 46, 0.95);
+            padding: 2rem;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .header {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .repo-path {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            background: rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-success {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-success:hover {
+            background: rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.5);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .tab.active {
+            color: #ffffff;
+            border-bottom-color: rgba(99, 102, 241, 0.8);
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .status-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .status-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .status-modified {
+            background: rgba(251, 191, 36, 0.3);
+            border: 1px solid rgba(251, 191, 36, 0.5);
+        }
+
+        .status-added {
+            background: rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(16, 185, 129, 0.5);
+        }
+
+        .status-deleted {
+            background: rgba(239, 68, 68, 0.3);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+        }
+
+        .commit-form {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .commit-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .branch-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .branch-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .branch-item.current {
+            border-color: rgba(99, 102, 241, 0.5);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .commit-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .commit-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .commit-hash {
+            font-family: monospace;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.8rem;
+        }
+
+        .commit-message {
+            font-weight: 600;
+            margin: 0.5rem 0;
+        }
+
+        .commit-meta {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+        }
+
+        .output-area {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+
+        .success {
+            color: #10b981;
+        }
+
+        .error {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="git-manager">
+        <div class="header">
+            <input type="text" class="repo-path" id="repoPath" placeholder="Enter repository path...">
+            <button class="btn" onclick="setRepoPath()">Set Path</button>
+            <button class="btn btn-success" onclick="refreshAll()">Refresh</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('status')">Status</button>
+            <button class="tab" onclick="switchTab('branches')">Branches</button>
+            <button class="tab" onclick="switchTab('commits')">Commits</button>
+            <button class="tab" onclick="switchTab('actions')">Actions</button>
+        </div>
+
+        <div id="statusTab" class="tab-content active">
+            <div id="statusList" class="status-list"></div>
+            <div class="commit-form">
+                <input type="text" class="commit-input" id="commitMessage" placeholder="Commit message...">
+                <button class="btn btn-success" onclick="commitChanges()">Commit</button>
+            </div>
+        </div>
+
+        <div id="branchesTab" class="tab-content">
+            <div id="branchList" class="branch-list"></div>
+            <div class="commit-form">
+                <input type="text" class="commit-input" id="newBranchName" placeholder="New branch name...">
+                <button class="btn btn-success" onclick="createNewBranch()">Create Branch</button>
+            </div>
+        </div>
+
+        <div id="commitsTab" class="tab-content">
+            <div id="commitList" class="commit-list"></div>
+        </div>
+
+        <div id="actionsTab" class="tab-content">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button class="btn" onclick="gitPull()">Pull</button>
+                <button class="btn" onclick="gitPush()">Push</button>
+                <button class="btn" onclick="runCustomCommand()">Custom Command</button>
+            </div>
+            <div class="commit-form">
+                <input type="text" class="commit-input" id="customCommand" placeholder="git command (without 'git')...">
+                <button class="btn" onclick="executeCustomCommand()">Run</button>
+            </div>
+        </div>
+
+        <div id="output" class="output-area"></div>
+    </div>
+
+    <script>
+        let currentTab = 'status';
+
+        // Initialize
+        setTimeout(async () => {
+            const path = await window.pywebview.api.call_app_function('Git-Manager', 'get_repo_path');
+            if (path) {
+                document.getElementById('repoPath').value = path;
+            }
+            refreshAll();
+        }, 100);
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+            
+            if (tab === 'status') refreshStatus();
+            else if (tab === 'branches') refreshBranches();
+            else if (tab === 'commits') refreshCommits();
+        }
+
+        async function setRepoPath() {
+            const path = document.getElementById('repoPath').value;
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'set_repo_path', path);
+            if (result && result.success) {
+                showOutput('Repository path set: ' + result.path, 'success');
+                refreshAll();
+            } else {
+                showOutput('Error: ' + (result.error || 'Failed to set path'), 'error');
+            }
+        }
+
+        async function refreshAll() {
+            if (currentTab === 'status') await refreshStatus();
+            else if (currentTab === 'branches') await refreshBranches();
+            else if (currentTab === 'commits') await refreshCommits();
+        }
+
+        async function refreshStatus() {
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'get_status');
+            const statusList = document.getElementById('statusList');
+            
+            if (result && result.success) {
+                if (result.files.length === 0) {
+                    statusList.innerHTML = '<div class="status-item">No changes</div>';
+                } else {
+                    statusList.innerHTML = result.files.map(file => {
+                        let statusClass = 'status-modified';
+                        let statusText = file.status;
+                        
+                        if (file.status.includes('A')) {
+                            statusClass = 'status-added';
+                            statusText = 'Added';
+                        } else if (file.status.includes('D')) {
+                            statusClass = 'status-deleted';
+                            statusText = 'Deleted';
+                        } else if (file.status.includes('M')) {
+                            statusText = 'Modified';
+                        }
+                        
+                        return `
+                            <div class="status-item">
+                                <span>${file.path}</span>
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } else {
+                statusList.innerHTML = '<div class="status-item error">Error loading status</div>';
+            }
+        }
+
+        async function refreshBranches() {
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'get_branches');
+            const branchList = document.getElementById('branchList');
+            
+            if (result && result.success) {
+                branchList.innerHTML = result.branches.map(branch => `
+                    <div class="branch-item ${branch.current ? 'current' : ''}">
+                        <span>${branch.name} ${branch.current ? '(current)' : ''}</span>
+                        ${!branch.current ? `<button class="btn" onclick="checkoutBranch('${branch.name}')">Checkout</button>` : ''}
+                    </div>
+                `).join('');
+            } else {
+                branchList.innerHTML = '<div class="branch-item error">Error loading branches</div>';
+            }
+        }
+
+        async function refreshCommits() {
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'get_log', 20);
+            const commitList = document.getElementById('commitList');
+            
+            if (result && result.success) {
+                commitList.innerHTML = result.commits.map(commit => `
+                    <div class="commit-item">
+                        <div class="commit-hash">${commit.hash.substring(0, 8)}</div>
+                        <div class="commit-message">${commit.message}</div>
+                        <div class="commit-meta">${commit.author} • ${commit.date}</div>
+                    </div>
+                `).join('');
+            } else {
+                commitList.innerHTML = '<div class="commit-item error">Error loading commits</div>';
+            }
+        }
+
+        async function commitChanges() {
+            const message = document.getElementById('commitMessage').value;
+            if (!message) {
+                showOutput('Error: Commit message is required', 'error');
+                return;
+            }
+            
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'commit', message);
+            if (result && result.success) {
+                showOutput('Commit successful: ' + result.output, 'success');
+                document.getElementById('commitMessage').value = '';
+                refreshStatus();
+                refreshCommits();
+            } else {
+                showOutput('Error: ' + (result.error || result.output || 'Commit failed'), 'error');
+            }
+        }
+
+        async function checkoutBranch(branch) {
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'checkout', branch);
+            if (result && result.success) {
+                showOutput('Checked out branch: ' + branch, 'success');
+                refreshBranches();
+                refreshStatus();
+            } else {
+                showOutput('Error: ' + (result.error || 'Checkout failed'), 'error');
+            }
+        }
+
+        async function createNewBranch() {
+            const name = document.getElementById('newBranchName').value;
+            if (!name) {
+                showOutput('Error: Branch name is required', 'error');
+                return;
+            }
+            
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'create_branch', name);
+            if (result && result.success) {
+                showOutput('Created and checked out branch: ' + name, 'success');
+                document.getElementById('newBranchName').value = '';
+                refreshBranches();
+            } else {
+                showOutput('Error: ' + (result.error || 'Branch creation failed'), 'error');
+            }
+        }
+
+        async function gitPull() {
+            showOutput('Pulling...', 'success');
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'pull');
+            if (result && result.success) {
+                showOutput('Pull successful: ' + result.output, 'success');
+                refreshAll();
+            } else {
+                showOutput('Error: ' + (result.error || 'Pull failed'), 'error');
+            }
+        }
+
+        async function gitPush() {
+            showOutput('Pushing...', 'success');
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'push');
+            if (result && result.success) {
+                showOutput('Push successful: ' + result.output, 'success');
+            } else {
+                showOutput('Error: ' + (result.error || 'Push failed'), 'error');
+            }
+        }
+
+        async function executeCustomCommand() {
+            const command = document.getElementById('customCommand').value;
+            if (!command) return;
+            
+            const result = await window.pywebview.api.call_app_function('Git-Manager', 'execute_git_command', command);
+            if (result) {
+                showOutput((result.output || '') + (result.error || ''), result.success ? 'success' : 'error');
+            }
+        }
+
+        function runCustomCommand() {
+            document.getElementById('customCommand').focus();
+        }
+
+        function showOutput(message, type) {
+            const output = document.getElementById('output');
+            output.className = 'output-area ' + type;
+            output.textContent = message;
+        }
+
+        // Load fonts
+        (async function loadFonts() {
+            try {
+                const fonts = await window.pywebview.api.get_fonts();
+                if (fonts && Object.keys(fonts).length > 0) {
+                    const weightMap = {
+                        'black_font': 900, 'extra_bold_font': 800, 'bold_font': 700,
+                        'semi_bold_font': 600, 'medium_font': 500, 'regular_font': 400,
+                        'light_font': 300, 'extra_light_font': 200, 'thin_font': 100
+                    };
+                    
+                    const fontName = 'Inter';
+                    for (const [key, filename] of Object.entries(fonts)) {
+                        const weight = weightMap[key];
+                        const fontFace = new FontFace(fontName, `url(${filename})`, {
+                            weight: weight, style: 'normal'
+                        });
+                        await fontFace.load();
+                        document.fonts.add(fontFace);
+                    }
+                    document.body.style.fontFamily = `"${fontName}", 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+                }
+            } catch (error) {
+                console.error('Error loading fonts:', error);
+            }
+        })();
+    </script>
+</body>
+</html>

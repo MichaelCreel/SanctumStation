@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .api-tester {
+            background: rgba(30, 30, 46, 0.95);
+            padding: 2rem;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .request-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .method-select {
+            background: rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 0.75rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            min-width: 100px;
+        }
+
+        .url-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            background: rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(16, 185, 129, 0.5);
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 0.75rem 2rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+
+        .textarea {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .response-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .status-success {
+            background: rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(16, 185, 129, 0.5);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.3);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+        }
+
+        .response-body {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .tab.active {
+            color: #ffffff;
+            border-bottom-color: rgba(99, 102, 241, 0.8);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="api-tester">
+        <div class="request-form">
+            <div class="form-row">
+                <select class="method-select" id="method">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                </select>
+                <input type="text" class="url-input" id="url" placeholder="https://api.example.com/endpoint">
+                <button class="btn" onclick="sendRequest()">Send</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('headers')">Headers</button>
+                <button class="tab" onclick="switchTab('body')">Body</button>
+            </div>
+
+            <div id="headersTab" class="tab-content active">
+                <div class="label">Headers (JSON or key:value per line)</div>
+                <textarea class="textarea" id="headers" placeholder='{"Content-Type": "application/json"}'></textarea>
+            </div>
+
+            <div id="bodyTab" class="tab-content">
+                <div class="label">Request Body (JSON)</div>
+                <textarea class="textarea" id="body" placeholder='{"key": "value"}'></textarea>
+            </div>
+        </div>
+
+        <div class="response-area">
+            <div id="responseHeader" class="response-header hidden">
+                <div>
+                    <span class="status-badge" id="statusBadge"></span>
+                    <span style="margin-left: 1rem;" id="statusText"></span>
+                </div>
+                <div id="elapsed"></div>
+            </div>
+
+            <div id="responseBody" class="response-body hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'headers';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        async function sendRequest() {
+            const method = document.getElementById('method').value;
+            const url = document.getElementById('url').value;
+            const headers = document.getElementById('headers').value;
+            const body = document.getElementById('body').value;
+
+            if (!url) {
+                alert('Please enter a URL');
+                return;
+            }
+
+            try {
+                const result = await window.pywebview.api.call_app_function(
+                    'API-Tester',
+                    'make_request',
+                    method,
+                    url,
+                    headers || null,
+                    body || null
+                );
+
+                displayResponse(result);
+            } catch (error) {
+                displayError(error.message);
+            }
+        }
+
+        function displayResponse(result) {
+            const responseHeader = document.getElementById('responseHeader');
+            const responseBody = document.getElementById('responseBody');
+            const statusBadge = document.getElementById('statusBadge');
+            const statusText = document.getElementById('statusText');
+            const elapsed = document.getElementById('elapsed');
+
+            if (result.success) {
+                // Show response
+                responseHeader.classList.remove('hidden');
+                responseBody.classList.remove('hidden');
+
+                // Status
+                const statusClass = result.status_code >= 200 && result.status_code < 300 ? 'status-success' : 'status-error';
+                statusBadge.className = 'status-badge ' + statusClass;
+                statusBadge.textContent = result.status_code + ' ' + result.status_text;
+                
+                // Elapsed time
+                elapsed.textContent = result.elapsed + ' ms';
+
+                // Body
+                let bodyText;
+                if (typeof result.body === 'object') {
+                    bodyText = JSON.stringify(result.body, null, 2);
+                } else {
+                    bodyText = result.body;
+                }
+                responseBody.textContent = bodyText;
+            } else {
+                displayError(result.error);
+            }
+        }
+
+        function displayError(message) {
+            const responseHeader = document.getElementById('responseHeader');
+            const responseBody = document.getElementById('responseBody');
+            const statusBadge = document.getElementById('statusBadge');
+            const statusText = document.getElementById('statusText');
+
+            responseHeader.classList.remove('hidden');
+            responseBody.classList.remove('hidden');
+
+            statusBadge.className = 'status-badge status-error';
+            statusBadge.textContent = 'ERROR';
+            statusText.textContent = '';
+            
+            responseBody.textContent = message;
+        }
+
+        // Keyboard shortcuts
+        document.getElementById('url').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                sendRequest();
+            }
+        });
+
+        // Load fonts
+        (async function loadFonts() {
+            try {
+                const fonts = await window.pywebview.api.get_fonts();
+                if (fonts && Object.keys(fonts).length > 0) {
+                    const weightMap = {
+                        'black_font': 900, 'extra_bold_font': 800, 'bold_font': 700,
+                        'semi_bold_font': 600, 'medium_font': 500, 'regular_font': 400,
+                        'light_font': 300, 'extra_light_font': 200, 'thin_font': 100
+                    };
+                    
+                    const fontName = 'Inter';
+                    for (const [key, filename] of Object.entries(fonts)) {
+                        const weight = weightMap[key];
+                        const fontFace = new FontFace(fontName, `url(${filename})`, {
+                            weight: weight, style: 'normal'
+                        });
+                        await fontFace.load();
+                        document.fonts.add(fontFace);
+                    }
+                    document.body.style.fontFamily = `"${fontName}", 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+                }
+            } catch (error) {
+                console.error('Error loading fonts:', error);
+            }
+        })();
+    </script>
+</body>
+</html>

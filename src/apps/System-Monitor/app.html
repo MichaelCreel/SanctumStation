@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .system-monitor {
+            background: rgba(30, 30, 46, 0.95);
+            padding: 2rem;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: rgba(99, 102, 241, 0.8);
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .stat-value {
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #3b82f6);
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
+        }
+
+        .process-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .process-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .process-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .process-stats {
+            display: flex;
+            gap: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .disk-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .disk-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .disk-name {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn {
+            background: rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+
+        .toggle {
+            width: 40px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle.active {
+            background: rgba(99, 102, 241, 0.5);
+        }
+
+        .toggle-slider {
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s;
+        }
+
+        .toggle.active .toggle-slider {
+            left: 22px;
+        }
+    </style>
+</head>
+<body>
+    <div class="system-monitor">
+        <div class="header">
+            <div class="title">System Monitor</div>
+            <div class="auto-refresh">
+                <span>Auto-refresh</span>
+                <div class="toggle active" id="autoRefreshToggle" onclick="toggleAutoRefresh()">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- CPU Card -->
+            <div class="card">
+                <div class="card-title">CPU</div>
+                <div class="stat">
+                    <span class="stat-label">Usage</span>
+                    <span class="stat-value" id="cpuUsage">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cpuProgress" style="width: 0%"></div>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Cores</span>
+                    <span class="stat-value" id="cpuCores">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Frequency</span>
+                    <span class="stat-value" id="cpuFreq">0 MHz</span>
+                </div>
+            </div>
+
+            <!-- Memory Card -->
+            <div class="card">
+                <div class="card-title">Memory</div>
+                <div class="stat">
+                    <span class="stat-label">Used</span>
+                    <span class="stat-value" id="memUsed">0 GB / 0 GB</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="memProgress" style="width: 0%"></div>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Available</span>
+                    <span class="stat-value" id="memAvailable">0 GB</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Swap</span>
+                    <span class="stat-value" id="swapUsed">0 GB / 0 GB</span>
+                </div>
+            </div>
+
+            <!-- Network Card -->
+            <div class="card">
+                <div class="card-title">Network</div>
+                <div class="stat">
+                    <span class="stat-label">Sent</span>
+                    <span class="stat-value" id="netSent">0 GB</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Received</span>
+                    <span class="stat-value" id="netRecv">0 GB</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Packets Sent</span>
+                    <span class="stat-value" id="pktSent">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Packets Received</span>
+                    <span class="stat-value" id="pktRecv">0</span>
+                </div>
+            </div>
+
+            <!-- System Info Card -->
+            <div class="card">
+                <div class="card-title">System Info</div>
+                <div class="stat">
+                    <span class="stat-label">Platform</span>
+                    <span class="stat-value" id="platform">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Architecture</span>
+                    <span class="stat-value" id="architecture">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Uptime</span>
+                    <span class="stat-value" id="uptime">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disk Info -->
+        <div class="card">
+            <div class="card-title">Disk Usage</div>
+            <div class="disk-list" id="diskList"></div>
+        </div>
+
+        <!-- Top Processes -->
+        <div class="card">
+            <div class="card-title">Top Processes (by CPU)</div>
+            <div class="process-list" id="processList"></div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefresh = true;
+        let refreshInterval;
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            let result = [];
+            if (days > 0) result.push(days + 'd');
+            if (hours > 0) result.push(hours + 'h');
+            if (minutes > 0) result.push(minutes + 'm');
+            
+            return result.join(' ') || '0m';
+        }
+
+        async function updateCPU() {
+            const result = await window.pywebview.api.call_app_function('System-Monitor', 'get_cpu_info');
+            if (result && result.success) {
+                document.getElementById('cpuUsage').textContent = result.percent.toFixed(1) + '%';
+                document.getElementById('cpuCores').textContent = result.count;
+                document.getElementById('cpuFreq').textContent = result.frequency.current.toFixed(0) + ' MHz';
+                
+                const progress = document.getElementById('cpuProgress');
+                progress.style.width = result.percent + '%';
+                progress.className = 'progress-fill' + (result.percent > 80 ? ' warning' : '');
+            }
+        }
+
+        async function updateMemory() {
+            const result = await window.pywebview.api.call_app_function('System-Monitor', 'get_memory_info');
+            if (result && result.success) {
+                document.getElementById('memUsed').textContent = 
+                    formatBytes(result.used) + ' / ' + formatBytes(result.total);
+                document.getElementById('memAvailable').textContent = formatBytes(result.available);
+                document.getElementById('swapUsed').textContent = 
+                    formatBytes(result.swap_used) + ' / ' + formatBytes(result.swap_total);
+                
+                const progress = document.getElementById('memProgress');
+                progress.style.width = result.percent + '%';
+                progress.className = 'progress-fill' + (result.percent > 80 ? ' warning' : '');
+            }
+        }
+
+        async function updateDisk() {
+            const result = await window.pywebview.api.call_app_function('System-Monitor', 'get_disk_info');
+            if (result && result.success) {
+                const diskList = document.getElementById('diskList');
+                diskList.innerHTML = result.partitions.map(disk => `
+                    <div class="disk-item">
+                        <div class="disk-name">${disk.mountpoint} (${disk.device})</div>
+                        <div class="stat">
+                            <span class="stat-label">Used</span>
+                            <span class="stat-value">${formatBytes(disk.used)} / ${formatBytes(disk.total)}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${disk.percent > 80 ? 'warning' : ''}" style="width: ${disk.percent}%"></div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function updateNetwork() {
+            const result = await window.pywebview.api.call_app_function('System-Monitor', 'get_network_info');
+            if (result && result.success) {
+                document.getElementById('netSent').textContent = formatBytes(result.bytes_sent);
+                document.getElementById('netRecv').textContent = formatBytes(result.bytes_recv);
+                document.getElementById('pktSent').textContent = result.packets_sent.toLocaleString();
+                document.getElementById('pktRecv').textContent = result.packets_recv.toLocaleString();
+            }
+        }
+
+        async function updateProcesses() {
+            const result = await window.pywebview.api.call_app_function('System-Monitor', 'get_process_list', 10);
+            if (result && result.success) {
+                const processList = document.getElementById('processList');
+                processList.innerHTML = result.processes.map(proc => `
+                    <div class="process-item">
+                        <span class="process-name">${proc.name}</span>
+                        <div class="process-stats">
+                            <span>CPU: ${proc.cpu_percent.toFixed(1)}%</span>
+                            <span>MEM: ${proc.memory_percent.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function updateSystemInfo() {
+            const result = await window.pywebview.api.call_app_function('System-Monitor', 'get_system_info');
+            if (result && result.success) {
+                document.getElementById('platform').textContent = result.platform + ' ' + result.platform_release;
+                document.getElementById('architecture').textContent = result.architecture;
+                document.getElementById('uptime').textContent = formatUptime(result.uptime);
+            }
+        }
+
+        async function refreshAll() {
+            await Promise.all([
+                updateCPU(),
+                updateMemory(),
+                updateDisk(),
+                updateNetwork(),
+                updateProcesses(),
+                updateSystemInfo()
+            ]);
+        }
+
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            const toggle = document.getElementById('autoRefreshToggle');
+            toggle.classList.toggle('active', autoRefresh);
+            
+            if (autoRefresh) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            refreshInterval = setInterval(refreshAll, 2000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+
+        // Initialize
+        setTimeout(() => {
+            refreshAll();
+            startAutoRefresh();
+        }, 100);
+
+        // Load fonts
+        (async function loadFonts() {
+            try {
+                const fonts = await window.pywebview.api.get_fonts();
+                if (fonts && Object.keys(fonts).length > 0) {
+                    const weightMap = {
+                        'black_font': 900, 'extra_bold_font': 800, 'bold_font': 700,
+                        'semi_bold_font': 600, 'medium_font': 500, 'regular_font': 400,
+                        'light_font': 300, 'extra_light_font': 200, 'thin_font': 100
+                    };
+                    
+                    const fontName = 'Inter';
+                    for (const [key, filename] of Object.entries(fonts)) {
+                        const weight = weightMap[key];
+                        const fontFace = new FontFace(fontName, `url(${filename})`, {
+                            weight: weight, style: 'normal'
+                        });
+                        await fontFace.load();
+                        document.fonts.add(fontFace);
+                    }
+                    document.body.style.fontFamily = `"${fontName}", 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+                }
+            } catch (error) {
+                console.error('Error loading fonts:', error);
+            }
+        })();
+    </script>
+</body>
+</html>
