@@ -363,6 +363,9 @@ def init_webview():
                 global wallpaper
                 return wallpaper
             
+            def get_wallpaper_data(self):
+                return settings_manager.get_wallpaper_data()
+            
             # Settings Management - Delegate to SettingsManagerAPI
             def get_settings(self):
                 return settings_manager.get_settings()
@@ -593,6 +596,34 @@ class SettingsManagerAPI:
             "fonts": fonts,
             "day_gradient": day_gradient
         }
+    
+    def get_wallpaper_data(self):
+        """Read wallpaper file and return as base64 data URL"""
+        global wallpaper
+        import base64
+        import mimetypes
+        
+        if not wallpaper or wallpaper.lower() == 'none':
+            return None
+        
+        try:
+            # Get the mime type
+            mime_type, _ = mimetypes.guess_type(wallpaper)
+            if not mime_type:
+                mime_type = 'image/png'  # Default to PNG
+            
+            # Read the file as binary
+            with open(wallpaper, 'rb') as f:
+                image_data = f.read()
+            
+            # Encode to base64
+            b64_data = base64.b64encode(image_data).decode('utf-8')
+            
+            # Return as data URL
+            return f"data:{mime_type};base64,{b64_data}"
+        except Exception as e:
+            print(f"SettingsManagerAPI: Error reading wallpaper file: {e}")
+            return None
     
     def set_wallpaper(self, wallpaper_path):
         global wallpaper

@@ -421,6 +421,46 @@ class ResponsiveHandler {
 }
 
 // Settings functionality
+async function loadWallpaper() {
+    try {
+        console.log('Loading wallpaper...');
+        const wallpaperData = await window.pywebview.api.get_wallpaper_data();
+        console.log('Wallpaper data received:', wallpaperData ? 'Yes (base64)' : 'None');
+        const wallpaperElement = document.getElementById('wallpaper');
+        console.log('Wallpaper element:', wallpaperElement);
+        
+        if (wallpaperData) {
+            console.log('Setting wallpaper from data URL');
+            wallpaperElement.style.backgroundImage = `url("${wallpaperData}")`;
+            wallpaperElement.style.display = 'block';
+            console.log('Wallpaper element display:', wallpaperElement.style.display);
+            console.log('Wallpaper loaded successfully');
+        } else {
+            wallpaperElement.style.display = 'none';
+            console.log('Wallpaper is None or empty');
+        }
+    } catch (error) {
+        console.error('Error loading wallpaper:', error);
+        document.getElementById('wallpaper').style.display = 'none';
+    }
+}
+
+// Wait for pywebview API to be ready
+function waitForPywebview(callback, maxAttempts = 50) {
+    let attempts = 0;
+    const checkAPI = setInterval(() => {
+        attempts++;
+        if (window.pywebview && window.pywebview.api) {
+            clearInterval(checkAPI);
+            console.log('Pywebview API ready');
+            callback();
+        } else if (attempts >= maxAttempts) {
+            clearInterval(checkAPI);
+            console.error('Pywebview API not available after', maxAttempts, 'attempts');
+        }
+    }, 100);
+}
+
 async function toggleSettings() {
     const overlay = document.getElementById('settingsOverlay');
     if (overlay.style.display === 'none' || overlay.style.display === '') {
@@ -436,18 +476,17 @@ async function toggleSettings() {
 
 async function saveWallpaper() {
     const wallpaperPath = document.getElementById('wallpaperInput').value.trim();
-    if (wallpaperPath) {
-        try {
-            const result = await window.pywebview.api.set_wallpaper(wallpaperPath);
-            if (result) {
-                alert('Wallpaper updated! Restart to see changes.');
-            } else {
-                alert('Failed to update wallpaper.');
-            }
-        } catch (error) {
-            console.error('Error setting wallpaper:', error);
-            alert('Error setting wallpaper.');
+    try {
+        const result = await window.pywebview.api.set_wallpaper(wallpaperPath || 'None');
+        if (result) {
+            await loadWallpaper();
+            alert('Wallpaper updated!');
+        } else {
+            alert('Failed to update wallpaper.');
         }
+    } catch (error) {
+        console.error('Error setting wallpaper:', error);
+        alert('Error setting wallpaper.');
     }
 }
 
@@ -480,6 +519,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const clock = new DesktopClock();
     const interactions = new DesktopInteractions();
     const responsive = new ResponsiveHandler();
+    
+    // Wait for pywebview API to be ready before loading wallpaper
+    waitForPywebview(() => {
+        loadWallpaper();
+    });
     
     window.SanctumStation = {
         clock,
