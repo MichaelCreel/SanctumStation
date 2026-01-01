@@ -1,13 +1,12 @@
+black_font: fonts/Inter-Black.ttf
+bold_font: fonts/Inter-Bold.ttf
+day_gradient: true
+extra_bold_font: fonts/Inter-ExtraBold.ttf
+extra_light_font: fonts/Inter-ExtraLight.ttf
+light_font: fonts/Inter-Light.ttf
+medium_font: fonts/Inter-Medium.ttf
+regular_font: fonts/Inter-Regular.ttf
+semi_bold_font: fonts/Inter-SemiBold.ttf
+thin_font: fonts/Inter-Thin.ttf
 version: v0.2.1
-wallpaper: "None"
-day_gradient: True # Whether to include the time of day gradient overlay on the desktop
-# Default fonts for apps
-black_font: "fonts/Inter-Black.ttf"
-extra_bold_font: "fonts/Inter-ExtraBold.ttf"
-bold_font: "fonts/Inter-Bold.ttf"
-semi_bold_font: "fonts/Inter-SemiBold.ttf"
-medium_font: "fonts/Inter-Medium.ttf"
-regular_font: "fonts/Inter-Regular.ttf"
-light_font: "fonts/Inter-Light.ttf"
-extra_light_font: "fonts/Inter-ExtraLight.ttf"
-thin_font: "fonts/Inter-Thin.ttf"
+wallpaper: None
