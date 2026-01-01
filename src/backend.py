@@ -298,6 +298,7 @@ def init_webview():
     try:
         # Create file manager instance
         file_manager = FileManagerAPI()
+        settings_manager = SettingsManagerAPI()
         
         class API:
             def launch_app(self, app_name):
@@ -361,6 +362,19 @@ def init_webview():
             def get_wallpaper(self):
                 global wallpaper
                 return wallpaper
+            
+            # Settings Management - Delegate to SettingsManagerAPI
+            def get_settings(self):
+                return settings_manager.get_settings()
+            
+            def set_wallpaper(self, wallpaper_path):
+                return settings_manager.set_wallpaper(wallpaper_path)
+            
+            def set_day_gradient(self, enabled):
+                return settings_manager.set_day_gradient(enabled)
+            
+            def set_font(self, weight, font_path):
+                return settings_manager.set_font(weight, font_path)
             
             # Generic app function call - allows apps to expose their own API
             def call_app_function(self, app_name, function_name, *args, **kwargs):
@@ -573,10 +587,11 @@ class AppManagerAPI:
 class SettingsManagerAPI:
     # Gets current settings
     def get_settings(self):
-        global version, wallpaper, fonts
+        global version, wallpaper, fonts, day_gradient
         return {
             "wallpaper": wallpaper,
-            "fonts": fonts
+            "fonts": fonts,
+            "day_gradient": day_gradient
         }
     
     def set_wallpaper(self, wallpaper_path):

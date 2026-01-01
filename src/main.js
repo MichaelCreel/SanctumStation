@@ -420,6 +420,60 @@ class ResponsiveHandler {
     }
 }
 
+// Settings functionality
+async function toggleSettings() {
+    const overlay = document.getElementById('settingsOverlay');
+    if (overlay.style.display === 'none' || overlay.style.display === '') {
+        // Load current settings
+        const settings = await window.pywebview.api.get_settings();
+        document.getElementById('wallpaperInput').value = settings.wallpaper || '';
+        document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
+        overlay.style.display = 'flex';
+    } else {
+        overlay.style.display = 'none';
+    }
+}
+
+async function saveWallpaper() {
+    const wallpaperPath = document.getElementById('wallpaperInput').value.trim();
+    if (wallpaperPath) {
+        try {
+            const result = await window.pywebview.api.set_wallpaper(wallpaperPath);
+            if (result) {
+                alert('Wallpaper updated! Restart to see changes.');
+            } else {
+                alert('Failed to update wallpaper.');
+            }
+        } catch (error) {
+            console.error('Error setting wallpaper:', error);
+            alert('Error setting wallpaper.');
+        }
+    }
+}
+
+async function saveDayGradient() {
+    const enabled = document.getElementById('dayGradientToggle').checked;
+    try {
+        const result = await window.pywebview.api.set_day_gradient(enabled);
+        if (result) {
+            // Update the sun glow immediately
+            const sunGlow = document.getElementById('sunGlow');
+            if (enabled) {
+                sunGlow.style.display = '';
+                const clock = window.SanctumStation?.clock;
+                if (clock) clock.updateSunGlow();
+            } else {
+                sunGlow.style.display = 'none';
+            }
+        } else {
+            alert('Failed to update day gradient setting.');
+        }
+    } catch (error) {
+        console.error('Error setting day gradient:', error);
+        alert('Error setting day gradient.');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Sanctum Station Desktop Environment initialized');
 
