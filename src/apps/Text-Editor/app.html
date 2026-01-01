@@ -264,19 +264,20 @@
     </div>
 
     <script>
-        console.log('Text Editor script loaded');
+        (function() {
+            console.log('Text Editor script loaded');
 
-        let currentPath = '/home/michael';
-        let currentFile = null;
-        let currentItems = [];
-        let selectedItem = null;
-        let isModified = false;
+            let currentPath = '/home/michael';
+            let currentFile = null;
+            let currentItems = [];
+            let selectedItem = null;
+            let isModified = false;
 
-        // Initialize
-        setTimeout(() => {
-            console.log('Text Editor initializing...');
-            loadDirectory(currentPath);
-        }, 100);
+            // Initialize
+            setTimeout(() => {
+                console.log('Text Editor initializing...');
+                loadDirectory(currentPath);
+            }, 100);
 
         async function loadDirectory(path) {
             const fileList = document.getElementById('fileList');
@@ -369,12 +370,12 @@
             openBtn.disabled = selectedItem.isDirectory;
         }
 
-        function navigateUp() {
+        window.navigateUp = function navigateUp() {
             const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
             loadDirectory(parentPath);
         }
 
-        async function openSelectedFile() {
+        window.openSelectedFile = async function openSelectedFile() {
             if (!selectedItem || selectedItem.isDirectory) {
                 return;
             }
@@ -406,7 +407,7 @@
             }
         }
 
-        async function saveFile() {
+        window.saveFile = async function saveFile() {
             if (!currentFile) {
                 saveAsFile();
                 return;
@@ -429,7 +430,7 @@
             }
         }
 
-        async function saveAsFile() {
+        window.saveAsFile = async function saveAsFile() {
             const filename = prompt('Enter filename:', currentFile ? currentFile.split('/').pop() : 'untitled.txt');
             if (!filename) return;
 
@@ -456,7 +457,7 @@
             }
         }
 
-        function newFile() {
+        window.newFile = function newFile() {
             // Warn if current file is modified
             if (isModified && currentFile) {
                 if (!confirm('Current file has unsaved changes. Continue?')) {
@@ -528,32 +529,38 @@
             }
         });
 
-        // Load fonts from API
-        (async function loadFonts() {
-            try {
-                const fonts = await window.pywebview.api.get_fonts();
-                if (fonts && Object.keys(fonts).length > 0) {
-                    const weightMap = {
-                        'black_font': 900, 'extra_bold_font': 800, 'bold_font': 700,
-                        'semi_bold_font': 600, 'medium_font': 500, 'regular_font': 400,
-                        'light_font': 300, 'extra_light_font': 200, 'thin_font': 100
-                    };
-                    
-                    const fontName = 'Inter';
-                    for (const [key, filename] of Object.entries(fonts)) {
-                        const weight = weightMap[key];
-                        const fontFace = new FontFace(fontName, `url(${filename})`, {
-                            weight: weight, style: 'normal'
-                        });
-                        await fontFace.load();
-                        document.fonts.add(fontFace);
-                    }
-                    document.body.style.fontFamily = `"${fontName}", 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+        // Initial load
+        setTimeout(() => {
+            loadDirectory(currentPath);
+        }, 100);
+    })(); // Close main IIFE
+
+    // Load fonts from API
+    (async function loadFonts() {
+        try {
+            const fonts = await window.pywebview.api.get_fonts();
+            if (fonts && Object.keys(fonts).length > 0) {
+                const weightMap = {
+                    'black_font': 900, 'extra_bold_font': 800, 'bold_font': 700,
+                    'semi_bold_font': 600, 'medium_font': 500, 'regular_font': 400,
+                    'light_font': 300, 'extra_light_font': 200, 'thin_font': 100
+                };
+                
+                const fontName = 'Inter';
+                for (const [key, filename] of Object.entries(fonts)) {
+                    const weight = weightMap[key];
+                    const fontFace = new FontFace(fontName, `url(${filename})`, {
+                        weight: weight, style: 'normal'
+                    });
+                    await fontFace.load();
+                    document.fonts.add(fontFace);
                 }
-            } catch (error) {
-                console.error('Error loading fonts:', error);
+                document.body.style.fontFamily = `"${fontName}", 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
             }
-        })();
+        } catch (error) {
+            console.error('Error loading fonts:', error);
+        }
+    })();
     </script>
 </body>
 </html>
