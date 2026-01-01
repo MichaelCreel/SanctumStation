@@ -13,6 +13,7 @@ import sys
 apps = [] # List of apps found in the apps directory
 version = "v0.0.0" # The current version of the app
 wallpaper = "None" # The current wallpaper setting
+day_gradient = True # Whether to include the time of day gradient overlay on the desktop
 fonts = {} # Dictionary of font weights
 active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
@@ -39,6 +40,9 @@ def init_settings():
             version = settings["version"]
         if "wallpaper" in settings:
             wallpaper = settings["wallpaper"]
+        if "day_gradient" in settings:
+            global day_gradient
+            day_gradient = settings["day_gradient"]
         
         # Load all font weights
         font_keys = ['black_font', 'extra_bold_font', 'bold_font', 'semi_bold_font', 
@@ -565,6 +569,60 @@ class AppManagerAPI:
     def list_apps(self):
         global apps
         return apps
+
+class SettingsManagerAPI:
+    # Gets current settings
+    def get_settings(self):
+        global version, wallpaper, fonts
+        return {
+            "wallpaper": wallpaper,
+            "fonts": fonts
+        }
+    
+    def set_wallpaper(self, wallpaper_path):
+        global wallpaper
+        wallpaper = wallpaper_path
+        # Write to settings.yaml
+        try:
+            with open("data/settings.yaml", "r") as file:
+                settings = yaml.safe_load(file) or {}
+            settings["wallpaper"] = wallpaper_path
+            with open("data/settings.yaml", "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SettingsManagerAPI: Error setting wallpaper: {e}")
+            return False
+        return True
+    
+    def set_day_gradient(self, enabled):
+        global day_gradient
+        day_gradient = enabled
+        # Write to settings.yaml
+        try:
+            with open("data/settings.yaml", "r") as file:
+                settings = yaml.safe_load(file) or {}
+            settings["day_gradient"] = enabled
+            with open("data/settings.yaml", "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SettingsManagerAPI: Error setting day_gradient: {e}")
+            return False
+        return True
+    
+    def set_font(self, weight, font_path):
+        global fonts
+        fonts[weight] = font_path
+        # Write to settings.yaml
+        try:
+            with open("data/settings.yaml", "r") as file:
+                settings = yaml.safe_load(file) or {}
+            settings[f"{weight}_font"] = font_path
+            with open("data/settings.yaml", "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SettingsManagerAPI: Error setting font {weight}: {e}")
+            return False
+        return True
 
 # Handles app starting and running  
 def main():
