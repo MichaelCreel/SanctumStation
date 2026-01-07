@@ -9,6 +9,7 @@ import os
 import threading
 import importlib.util
 import sys
+import requests
 
 apps = [] # List of apps found in the apps directory
 version = "v0.0.0" # The current version of the app
@@ -693,6 +694,43 @@ class SettingsManagerAPI:
             print(f"SettingsManagerAPI: Error setting updates: {e}")
             return False
         return True
+
+# Check if it is a newer version
+def is_newer_version(installed, latest):
+    def version_tuple(v):
+        return tuple(map(int, (v.lstrip('v').split("."))))
+    
+    return version_tuple(latest) > version_tuple(installed)
+
+# Check for updates
+def check_for_updates():
+    global version, updates
+    url = "https://api.github.com/repos/MichaelCreel/SanctumStation/releases"
+    try:
+        response = requests.get(url, timeout=20)
+        if response.status_code == 200:
+            releases = response.json()
+            latest_release = releases[0]
+            latest_version = "v" + latest_release["tag_name"]
+            is_prerelease = latest_release["prerelease"]
+            release_type = "Prerelease" if is_prerelease else "Stable Release"
+            download_url = latest_release["html_url"]
+
+            print(f"Latest Version: {latest_version} ({release_type}) - {download_url}")
+
+            if is_newer_version(version, latest_version):
+                if updates == "release" and is_prerelease:
+                    print("Prerelease skipped by preference.")
+                    return None
+                else:
+                    print(f"Update available: {latest_version}, {release_type}")
+                    return latest_version
+            else:
+                print("No updates available.")
+            return None
+    except Exception as e:
+        print(f"Error checking for updates: {e}")
+        return None
 
 # Handles app starting and running  
 def main():
