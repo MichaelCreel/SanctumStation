@@ -12,6 +12,7 @@ import sys
 
 apps = [] # List of apps found in the apps directory
 version = "v0.0.0" # The current version of the app
+updates = "release" # Update preference: "release" or "all"
 wallpaper = "None" # The current wallpaper setting
 day_gradient = True # Whether to include the time of day gradient overlay on the desktop
 fonts = {} # Dictionary of font weights
@@ -31,7 +32,7 @@ def initialize():
 
 # Initializes environment settings
 def init_settings():
-    global version, wallpaper, fonts
+    global version, wallpaper, fonts, updates, day_gradient
     try:
         with open("data/settings.yaml", "r") as file:
             settings = yaml.safe_load(file) or {}
@@ -41,8 +42,9 @@ def init_settings():
         if "wallpaper" in settings:
             wallpaper = settings["wallpaper"]
         if "day_gradient" in settings:
-            global day_gradient
             day_gradient = settings["day_gradient"]
+        if "updates" in settings:
+            updates = settings["updates"]
         
         # Load all font weights
         font_keys = ['black_font', 'extra_bold_font', 'bold_font', 'semi_bold_font', 
@@ -50,8 +52,7 @@ def init_settings():
         for key in font_keys:
             if key in settings:
                 fonts[key] = settings[key]
-        
-        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights")
+        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}")
         return True
     except FileNotFoundError:
         print("IS: Settings file not found. Using default settings.")
@@ -365,6 +366,10 @@ def init_webview():
             
             def get_wallpaper_data(self):
                 return settings_manager.get_wallpaper_data()
+            
+            def get_day_gradient(self):
+                global day_gradient
+                return day_gradient
             
             # Settings Management - Delegate to SettingsManagerAPI
             def get_settings(self):

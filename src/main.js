@@ -470,6 +470,25 @@ class ResponsiveHandler {
 }
 
 // Settings functionality
+async function loadDayGradient() {
+    try {
+        console.log('Loading day gradient setting...');
+        const dayGradient = await window.pywebview.api.get_day_gradient();
+        console.log('Day gradient setting:', dayGradient);
+        const sunGlow = document.getElementById('sunGlow');
+        
+        if (dayGradient !== false) {
+            sunGlow.style.display = '';
+            console.log('Day gradient enabled');
+        } else {
+            sunGlow.style.display = 'none';
+            console.log('Day gradient disabled');
+        }
+    } catch (error) {
+        console.error('Error loading day gradient:', error);
+    }
+}
+
 async function loadWallpaper() {
     try {
         console.log('Loading wallpaper...');
@@ -572,6 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Wait for pywebview API to be ready before loading wallpaper
     waitForPywebview(() => {
         loadWallpaper();
+        loadDayGradient();
     });
     
     window.SanctumStation = {
