@@ -398,6 +398,12 @@ class DesktopInteractions {
                 appIcon.innerHTML = `<div class="app-icon-placeholder"></div>`;
             }
             
+            // Add app name label
+            const appLabel = document.createElement('div');
+            appLabel.className = 'app-label';
+            appLabel.textContent = app.name;
+            appIcon.appendChild(appLabel);
+            
             // Click handler to launch app
             appIcon.addEventListener('click', async () => {
                 console.log(`Launching app: ${app.name}`);
