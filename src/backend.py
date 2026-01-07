@@ -384,6 +384,9 @@ def init_webview():
             def set_font(self, weight, font_path):
                 return settings_manager.set_font(weight, font_path)
             
+            def set_updates(self, channel):
+                return settings_manager.set_updates(channel)
+            
             # Generic app function call - allows apps to expose their own API
             def call_app_function(self, app_name, function_name, *args, **kwargs):
                 try:
@@ -595,11 +598,12 @@ class AppManagerAPI:
 class SettingsManagerAPI:
     # Gets current settings
     def get_settings(self):
-        global version, wallpaper, fonts, day_gradient
+        global version, wallpaper, fonts, day_gradient, updates
         return {
             "wallpaper": wallpaper,
             "fonts": fonts,
-            "day_gradient": day_gradient
+            "day_gradient": day_gradient,
+            "updates": updates
         }
     
     def get_wallpaper_data(self):
@@ -672,6 +676,21 @@ class SettingsManagerAPI:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SettingsManagerAPI: Error setting font {weight}: {e}")
+            return False
+        return True
+    
+    def set_updates(self, channel):
+        global updates
+        updates = channel
+        # Write to settings.yaml
+        try:
+            with open("data/settings.yaml", "r") as file:
+                settings = yaml.safe_load(file) or {}
+            settings["updates"] = channel
+            with open("data/settings.yaml", "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SettingsManagerAPI: Error setting updates: {e}")
             return False
         return True
 

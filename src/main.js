@@ -536,6 +536,7 @@ async function toggleSettings() {
         const settings = await window.pywebview.api.get_settings();
         document.getElementById('wallpaperInput').value = settings.wallpaper || '';
         document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
+        document.getElementById('updatesSelect').value = settings.updates || 'release';
         overlay.style.display = 'flex';
     } else {
         overlay.style.display = 'none';
@@ -578,6 +579,21 @@ async function saveDayGradient() {
     } catch (error) {
         console.error('Error setting day gradient:', error);
         alert('Error setting day gradient.');
+    }
+}
+
+async function saveUpdates() {
+    const channel = document.getElementById('updatesSelect').value;
+    try {
+        const result = await window.pywebview.api.set_updates(channel);
+        if (result) {
+            console.log('Updates channel set to:', channel);
+        } else {
+            alert('Failed to update channel setting.');
+        }
+    } catch (error) {
+        console.error('Error setting updates channel:', error);
+        alert('Error setting updates channel.');
     }
 }
 

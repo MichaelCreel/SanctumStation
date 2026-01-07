@@ -256,6 +256,40 @@ body {
     transform: translateX(24px);
 }
 
+/* Select dropdown */
+.setting-input-group select {
+    flex: 1;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+}
+
+.setting-input-group select:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.setting-input-group select:focus {
+    outline: none;
+    border-color: rgba(138, 43, 226, 0.6);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.setting-input-group select option {
+    background: rgba(28, 28, 32, 0.95);
+    color: #ffffff;
+    padding: 0.5rem;
+}
+
 /* Central area */
 .central-area {
     position: fixed;
