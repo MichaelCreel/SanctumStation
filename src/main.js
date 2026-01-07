@@ -315,17 +315,60 @@ class DesktopInteractions {
         }
 
         const numApps = this.apps.length;
-        const radius = Math.min(window.innerWidth, window.innerHeight) * 0.25; // 25% of viewport
+        const baseAppsPerRing = 8; // Apps in the first (innermost) ring
+        const baseRadius = Math.min(window.innerWidth, window.innerHeight) * 0.25;
+        const ringSpacing = Math.min(window.innerWidth, window.innerHeight) * 0.12; // Space between rings
         
-        console.log(`Displaying ${numApps} apps with radius ${radius}px`);
+        console.log(`Displaying ${numApps} apps with base radius ${baseRadius}px`);
         console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
         
+        // Calculate how many apps fit in each ring to maintain spacing
+        const getAppsPerRing = (ringIndex) => {
+            const radius = baseRadius + (ringIndex * ringSpacing);
+            // Scale apps by radius to maintain arc length between apps
+            return Math.round(baseAppsPerRing * (radius / baseRadius));
+        };
+        
+        // Distribute apps across rings
+        let appsPlaced = 0;
+        let currentRing = 0;
+        const ringAssignments = []; // [{ ringIndex, startIndex, count }]
+        
+        while (appsPlaced < numApps) {
+            const appsInThisRing = getAppsPerRing(currentRing);
+            const appsToPlace = Math.min(appsInThisRing, numApps - appsPlaced);
+            ringAssignments.push({
+                ringIndex: currentRing,
+                startIndex: appsPlaced,
+                count: appsToPlace
+            });
+            appsPlaced += appsToPlace;
+            currentRing++;
+        }
+        
+        console.log('Ring assignments:', ringAssignments);
+        
+        const maxAppRadius = 10;
+
         this.apps.forEach((app, index) => {
-            const angle = (index / numApps) * 2 * Math.PI - Math.PI / 2; // Start from top
+            // Find which ring this app belongs to
+            const ringInfo = ringAssignments.find(r => 
+                index >= r.startIndex && index < r.startIndex + r.count
+            );
+            const ringIndex = ringInfo.ringIndex;
+            const indexInRing = index - ringInfo.startIndex;
+            const appsInThisRing = ringInfo.count;
+            
+            // Calculate radius for this ring (increasing outward)
+            const radius = baseRadius + (ringIndex * ringSpacing);
+            
+            // Calculate angle
+            const angle = (indexInRing / appsInThisRing) * 2 * Math.PI - Math.PI / 2;
+            
             const x = Math.cos(angle) * radius;
             const y = Math.sin(angle) * radius;
             
-            console.log(`App ${index} (${app.name}): angle=${angle}, x=${x}, y=${y}, icon=${app.icon}`);
+            console.log(`App ${index} (${app.name}): ring=${ringIndex}, indexInRing=${indexInRing}, angle=${angle}, x=${x}, y=${y}, icon=${app.icon}`);
             
             const appIcon = document.createElement('div');
             appIcon.className = 'app-icon';
