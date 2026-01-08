@@ -9,6 +9,7 @@ This file contains the structure and layout for the psuedo-desktop environment t
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sanctum Station</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="desktop-container">
@@ -58,6 +59,33 @@ This file contains the structure and layout for the psuedo-desktop environment t
                                 <option value="all">All</option>
                             </select>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Update notification overlay -->
+        <div class="update-overlay" id="updateOverlay" style="display: none;">
+            <div class="update-popup">
+                <div class="update-header">
+                    <h2>Update Available</h2>
+                </div>
+                <div class="update-content">
+                    <div class="update-info-item">
+                        <label>VERSION:</label>
+                        <span id="updateVersion"></span>
+                    </div>
+                    <div class="update-info-item">
+                        <label>TYPE:</label>
+                        <span id="updateType"></span>
+                    </div>
+                    <div class="update-info-item">
+                        <label>CHANGES:</label>
+                        <div id="updateChanges" class="update-changes-content"></div>
+                    </div>
+                    <div class="update-actions">
+                        <button class="download-btn" id="downloadBtn" onclick="window.open(updateUrl, '_blank')">Download</button>
+                        <button class="dismiss-btn" onclick="dismissUpdate()">Dismiss</button>
                     </div>
                 </div>
             </div>

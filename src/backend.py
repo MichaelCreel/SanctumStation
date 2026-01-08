@@ -17,16 +17,22 @@ updates = "release" # Update preference: "release" or "all"
 wallpaper = "None" # The current wallpaper setting
 day_gradient = True # Whether to include the time of day gradient overlay on the desktop
 fonts = {} # Dictionary of font weights
+available_update = None  # Stores update info if available
 active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
 
 
 # Handles initialization of app components
 def initialize():
+    global available_update
     if not init_settings():
         print("WARNING: Failed to initialize settings. Using default settings.\n\nWARNING 0")
     if not init_apps():
         print("WARNING: No apps found to initialize. No apps will be loaded.\n\nWARNING 1")
+    
+    # Check for updates
+    available_update = check_for_updates()
+    
     if not init_webview():
         print("FATAL: Failed to initialize webview.\n\nFATAL 0")
         return False
@@ -388,6 +394,10 @@ def init_webview():
             def set_updates(self, channel):
                 return settings_manager.set_updates(channel)
             
+            def get_available_update(self):
+                global available_update
+                return available_update
+            
             # Generic app function call - allows apps to expose their own API
             def call_app_function(self, app_name, function_name, *args, **kwargs):
                 try:
@@ -713,8 +723,9 @@ def check_for_updates():
             latest_release = releases[0]
             latest_version = "v" + latest_release["tag_name"]
             is_prerelease = latest_release["prerelease"]
-            release_type = "Prerelease" if is_prerelease else "Stable Release"
+            release_type = "Pre-release" if is_prerelease else "Stable Release"
             download_url = latest_release["html_url"]
+            description = latest_release.get("body", "No description available.")
 
             print(f"Latest Version: {latest_version} ({release_type}) - {download_url}")
 
@@ -724,7 +735,12 @@ def check_for_updates():
                     return None
                 else:
                     print(f"Update available: {latest_version}, {release_type}")
-                    return latest_version
+                    return {
+                        "version": latest_version,
+                        "type": release_type,
+                        "url": download_url,
+                        "description": description
+                    }
             else:
                 print("No updates available.")
             return None

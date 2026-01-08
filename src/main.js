@@ -597,6 +597,55 @@ async function saveUpdates() {
     }
 }
 
+// Check if there's an update available and show notification
+async function checkForUpdateNotification() {
+    try {
+        const updateInfo = await window.pywebview.api.get_available_update();
+        if (updateInfo) {
+            // Store the download URL globally
+            window.updateUrl = updateInfo.url;
+            
+            // Populate the update popup
+            document.getElementById('updateVersion').textContent = updateInfo.version;
+            document.getElementById('updateType').textContent = updateInfo.type;
+            
+            // Clean up and parse markdown in description
+            let description = updateInfo.description || 'No description available.';
+            
+            // Remove "Changes:\n" from the beginning
+            if (description.startsWith('Changes:')) {
+                description = description.substring(9);
+            }
+            
+            // Remove "\nAll Changes: [link]" from the end
+            const allChangesIndex = description.indexOf('\nAll Changes:');
+            if (allChangesIndex !== -1) {
+                description = description.substring(0, allChangesIndex);
+            }
+            
+            const changesElement = document.getElementById('updateChanges');
+            if (typeof marked !== 'undefined') {
+                changesElement.innerHTML = marked.parse(description);
+            } else {
+                changesElement.textContent = description;
+            }
+            
+            // Show the overlay
+            const updateOverlay = document.getElementById('updateOverlay');
+            updateOverlay.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('Error checking for update notification:', error);
+    }
+}
+
+// Dismiss the update notification
+function dismissUpdate() {
+    const updateOverlay = document.getElementById('updateOverlay');
+    updateOverlay.style.display = 'none';
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Sanctum Station Desktop Environment initialized');
 
@@ -604,10 +653,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const interactions = new DesktopInteractions();
     const responsive = new ResponsiveHandler();
     
+    // Global variable to store update URL
+    window.updateUrl = '';
+    
     // Wait for pywebview API to be ready before loading wallpaper
     waitForPywebview(() => {
         loadWallpaper();
         loadDayGradient();
+        checkForUpdateNotification();
     });
     
     window.SanctumStation = {
