@@ -499,7 +499,7 @@ async function loadWallpaper() {
         
         if (wallpaperData) {
             console.log('Setting wallpaper from data URL');
-            wallpaperElement.style.backgroundImage = `url("${wallpaperData}")`;
+            wallpaperElement.src = wallpaperData;
             wallpaperElement.style.display = 'block';
             console.log('Wallpaper element display:', wallpaperElement.style.display);
             console.log('Wallpaper loaded successfully');
