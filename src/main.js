@@ -427,6 +427,15 @@ class DesktopInteractions {
     }
 
     handleKeyboardShortcuts(event) {
+        const isInInput = event.target.tagName === 'INPUT' || 
+                         event.target.tagName === 'TEXTAREA' || 
+                         event.target.isContentEditable;
+        const isAppOpen = document.querySelector('.app-container') !== null;
+        
+        if (isInInput || isAppOpen) {
+            return; // Let the event pass through normally
+        }
+        
         // Escape to close app launcher
         if (event.key === 'Escape' && this.isAppLauncherOpen) {
             this.closeAppLauncher();
