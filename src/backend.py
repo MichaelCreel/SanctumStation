@@ -10,6 +10,8 @@ import threading
 import importlib.util
 import sys
 import requests
+import time
+import inspect
 
 apps = [] # List of apps found in the apps directory
 version = "v0.0.0" # The current version of the app
@@ -307,6 +309,7 @@ def init_webview():
         # Create file manager instance
         file_manager = FileManagerAPI()
         settings_manager = SettingsManagerAPI()
+        notification_manager = NotificationManagerAPI()
         
         class API:
             def launch_app(self, app_name):
@@ -321,6 +324,13 @@ def init_webview():
             def get_running_apps(self):
                 return get_running_apps()
             
+            # Notification Management - Delegate to NotificationManagerAPI
+            def send_notification(self, message):
+                return notification_manager.send_notification(message)
+            
+            def delete_notification(self, notification_id):
+                return notification_manager.delete_notification(notification_id)
+
             # File Management - Delegate to FileManagerAPI
             def list_directory(self, path):
                 return file_manager.list_directory(path)
@@ -451,6 +461,37 @@ def init_webview():
 # Handles app starting and running
 def main():
     initialize()
+
+class NotificationManagerAPI:
+    notifications = {}
+
+    def send_notification(self, message):
+        # Trace back through the call stack to find which app module called this
+        calling_app = "System"  # Default if we can't identify the app
+        
+        for frame_info in inspect.stack():
+            frame_module = inspect.getmodule(frame_info.frame)
+            if frame_module and hasattr(frame_module, '__name__'):
+                module_name = frame_module.__name__
+                # Check if this is an app module (starts with "app_")
+                if module_name.startswith("app_"):
+                    calling_app = module_name[4:]  # Remove "app_" prefix
+                    break
+        
+        notification_id = str(int(time.time() * 1000))
+        self.notifications[notification_id] = {
+            "message": message,
+            "timestamp": time.time(),
+            "source": calling_app
+        }
+        return {"success": True, "notification_id": notification_id, "source": calling_app}
+    
+    def delete_notification(self, notification_id):
+        if notification_id in self.notifications:
+            del self.notifications[notification_id]
+            return {"success": True}
+        else:
+            return {"success": False, "error": "Notification ID not found"}
 
 # API for file management between the app and the system(s)
 class FileManagerAPI:
