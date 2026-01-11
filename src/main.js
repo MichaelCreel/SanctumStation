@@ -538,6 +538,101 @@ function waitForPywebview(callback, maxAttempts = 50) {
     }, 100);
 }
 
+// Notification panel functions
+async function toggleNotifications() {
+    const notificationPanel = document.getElementById('notificationPanel');
+    const isOpen = notificationPanel.classList.contains('open');
+    
+    if (!isOpen) {
+        notificationPanel.classList.add('open');
+        await loadNotifications();
+    } else {
+        notificationPanel.classList.remove('open');
+    }
+}
+
+async function loadNotifications() {
+    try {
+        const result = await window.pywebview.api.get_notifications();
+        if (result.success) {
+            const notifications = result.notifications;
+            const content = document.getElementById('notificationPanelContent');
+            const badge = document.getElementById('notificationBadge');
+            
+            if (notifications.length === 0) {
+                content.innerHTML = '<p class="no-notifications">No notifications</p>';
+                badge.style.display = 'none';
+            } else {
+                // Sort by timestamp, newest first
+                notifications.sort((a, b) => b.timestamp - a.timestamp);
+                
+                content.innerHTML = notifications.map(notif => {
+                    const time = new Date(notif.timestamp * 1000);
+                    const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    
+                    return `
+                        <div class="notification-item">
+                            <div class="notification-item-header">
+                                <span class="notification-source">${notif.source || 'System'}</span>
+                                <span class="notification-time">${timeStr}</span>
+                            </div>
+                            <div class="notification-message">${notif.message}</div>
+                            <button class="notification-delete" onclick="deleteNotification('${notif.id}')">Delete</button>
+                        </div>
+                    `;
+                }).join('');
+                
+                badge.textContent = notifications.length;
+                badge.style.display = 'flex';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load notifications:', error);
+    }
+}
+
+async function deleteNotification(notificationId) {
+    try {
+        const result = await window.pywebview.api.delete_notification(notificationId);
+        if (result.success) {
+            await loadNotifications();
+        }
+    } catch (error) {
+        console.error('Failed to delete notification:', error);
+    }
+}
+
+async function clearAllNotifications() {
+    try {
+        const result = await window.pywebview.api.clear_all_notifications();
+        if (result.success) {
+            await loadNotifications();
+        }
+    } catch (error) {
+        console.error('Failed to clear notifications:', error);
+    }
+}
+
+// Update notification badge periodically
+setInterval(async () => {
+    try {
+        const result = await window.pywebview.api.get_notifications();
+        if (result.success) {
+            const badge = document.getElementById('notificationBadge');
+            const count = result.notifications.length;
+            
+            if (count === 0) {
+                badge.style.display = 'none';
+            } else {
+                badge.textContent = count;
+                badge.style.display = 'flex';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to update notification badge:', error);
+    }
+}, 5000); // Check every 5 seconds
+
 async function toggleSettings() {
     const overlay = document.getElementById('settingsOverlay');
     if (overlay.style.display === 'none' || overlay.style.display === '') {

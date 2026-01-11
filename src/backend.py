@@ -330,6 +330,12 @@ def init_webview():
             
             def delete_notification(self, notification_id):
                 return notification_manager.delete_notification(notification_id)
+            
+            def get_notifications(self):
+                return notification_manager.get_notifications()
+            
+            def clear_all_notifications(self):
+                return notification_manager.clear_all_notifications()
 
             # File Management - Delegate to FileManagerAPI
             def list_directory(self, path):
@@ -462,10 +468,12 @@ def init_webview():
 def main():
     initialize()
 
-class NotificationManagerAPI:
-    notifications = {}
+# Shared notifications storage at module level
+_notifications = {}
 
+class NotificationManagerAPI:
     def send_notification(self, message):
+        global _notifications
         # Trace back through the call stack to find which app module called this
         calling_app = "System"  # Default if we can't identify the app
         
@@ -479,19 +487,41 @@ class NotificationManagerAPI:
                     break
         
         notification_id = str(int(time.time() * 1000))
-        self.notifications[notification_id] = {
+        _notifications[notification_id] = {
             "message": message,
             "timestamp": time.time(),
             "source": calling_app
         }
+        print(f"Notification sent: {calling_app} - {message} (ID: {notification_id})")
+        print(f"Total notifications: {len(_notifications)}")
+        print(f"Notifications dict id: {id(_notifications)}")
         return {"success": True, "notification_id": notification_id, "source": calling_app}
     
     def delete_notification(self, notification_id):
-        if notification_id in self.notifications:
-            del self.notifications[notification_id]
+        global _notifications
+        if notification_id in _notifications:
+            del _notifications[notification_id]
             return {"success": True}
         else:
             return {"success": False, "error": "Notification ID not found"}
+    
+    def get_notifications(self):
+        global _notifications
+        # Return all notifications with their IDs
+        print(f"Getting notifications: {len(_notifications)} total")
+        print(f"Notifications dict id: {id(_notifications)}")
+        return {
+            "success": True,
+            "notifications": [
+                {"id": nid, **ndata}
+                for nid, ndata in _notifications.items()
+            ]
+        }
+    
+    def clear_all_notifications(self):
+        global _notifications
+        _notifications.clear()
+        return {"success": True}
 
 # API for file management between the app and the system(s)
 class FileManagerAPI:
