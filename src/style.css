@@ -106,13 +106,13 @@ body {
 .notification-panel {
     position: fixed;
     top: 0;
-    left: -400px;
+    left: -430px;
     width: 400px;
     height: 100vh;
     background: rgba(20, 20, 30, 0.95);
     backdrop-filter: blur(20px);
-    border-right: 1px solid rgba(138, 43, 226, 0.3);
-    box-shadow: 4px 0 20px rgba(138, 43, 226, 0.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 4px 0 20px rgba(255, 255, 255, 0.2);
     z-index: 1050;
     transition: left 0.3s ease;
     display: flex;
@@ -125,7 +125,7 @@ body {
 
 .notification-panel-header {
     padding: 2rem;
-    border-bottom: 1px solid rgba(138, 43, 226, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -201,7 +201,7 @@ body {
 
 .notification-item {
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(138, 43, 226, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
     padding: 1rem;
     margin-bottom: 0.75rem;
@@ -211,7 +211,7 @@ body {
 
 .notification-item:hover {
     background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(138, 43, 226, 0.4);
+    border-color: rgba(255, 255, 255, 0.4);
     transform: translateX(5px);
 }
 

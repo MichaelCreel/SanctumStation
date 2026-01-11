@@ -432,6 +432,13 @@ class DesktopInteractions {
                          event.target.isContentEditable;
         const isAppOpen = document.querySelector('.app-container') !== null;
         
+        // Ctrl+N to toggle notification panel (works anywhere)
+        if (event.ctrlKey && event.key === 'n') {
+            event.preventDefault();
+            toggleNotifications();
+            return;
+        }
+        
         if (isInInput || isAppOpen) {
             return; // Let the event pass through normally
         }
@@ -613,7 +620,7 @@ async function clearAllNotifications() {
     }
 }
 
-// Update notification badge periodically
+// Update notification badge periodically and refresh panel if open
 setInterval(async () => {
     try {
         const result = await window.pywebview.api.get_notifications();
@@ -627,11 +634,17 @@ setInterval(async () => {
                 badge.textContent = count;
                 badge.style.display = 'flex';
             }
+            
+            // If notification panel is open, reload it
+            const notificationPanel = document.getElementById('notificationPanel');
+            if (notificationPanel && notificationPanel.classList.contains('open')) {
+                await loadNotifications();
+            }
         }
     } catch (error) {
         console.error('Failed to update notification badge:', error);
     }
-}, 5000); // Check every 5 seconds
+}, 2000); // Check every 2 seconds
 
 async function toggleSettings() {
     const overlay = document.getElementById('settingsOverlay');
