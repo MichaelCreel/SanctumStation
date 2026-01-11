@@ -9,5 +9,5 @@ regular_font: fonts/Inter-Regular.ttf
 semi_bold_font: fonts/Inter-SemiBold.ttf
 thin_font: fonts/Inter-Thin.ttf
 updates: release
-version: v0.3.2
+version: v0.4.0
 wallpaper: None
