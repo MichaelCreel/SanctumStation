@@ -653,6 +653,7 @@ async function toggleSettings() {
         const settings = await window.pywebview.api.get_settings();
         document.getElementById('wallpaperInput').value = settings.wallpaper || '';
         document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
+        document.getElementById('fullscreenToggle').checked = settings.fullscreen === true;
         document.getElementById('updatesSelect').value = settings.updates || 'release';
         overlay.style.display = 'flex';
     } else {
@@ -696,6 +697,35 @@ async function saveDayGradient() {
     } catch (error) {
         console.error('Error setting day gradient:', error);
         alert('Error setting day gradient.');
+    }
+}
+
+async function saveFullscreen() {
+    const enabled = document.getElementById('fullscreenToggle').checked;
+    try {
+        const result = await window.pywebview.api.set_fullscreen(enabled);
+        if (!result) {
+            alert('Failed to update fullscreen setting.');
+        }
+    } catch (error) {
+        console.error('Error setting fullscreen:', error);
+        alert('Error setting fullscreen.');
+    }
+}
+
+async function toggleFullscreen() {
+    try {
+        // Get current setting and toggle it
+        const settings = await window.pywebview.api.get_settings();
+        const newState = !settings.fullscreen;
+        
+        await window.pywebview.api.set_fullscreen(newState);
+        
+        // Update toggle in settings if it exists
+        const toggle = document.getElementById('fullscreenToggle');
+        if (toggle) toggle.checked = newState;
+    } catch (error) {
+        console.error('Error toggling fullscreen:', error);
     }
 }
 
@@ -761,6 +791,14 @@ function dismissUpdate() {
     const updateOverlay = document.getElementById('updateOverlay');
     updateOverlay.style.display = 'none';
 }
+
+// Listen for fullscreen changes (not needed for pywebview but kept for compatibility)
+document.addEventListener('fullscreenchange', async () => {
+    const toggle = document.getElementById('fullscreenToggle');
+    if (toggle) {
+        toggle.checked = !!document.fullscreenElement;
+    }
+});
 
 
 document.addEventListener('DOMContentLoaded', () => {

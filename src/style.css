@@ -286,6 +286,36 @@ body {
     transform: rotate(90deg) scale(0.95);
 }
 
+/* Fullscreen button */
+.fullscreen-btn {
+    position: absolute;
+    top: 2rem;
+    right: 5.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    color: #ffffff;
+    z-index: 100;
+}
+
+.fullscreen-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+}
+
+.fullscreen-btn:active {
+    transform: scale(0.95);
+}
+
 /* Settings overlay */
 .settings-overlay {
     position: fixed;
@@ -919,6 +949,13 @@ body {
         height: 2.5rem;
     }
     
+    .fullscreen-btn {
+        top: 1rem;
+        right: 4rem;
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+    
     .central-area {
         gap: 2rem;
     }
@@ -935,6 +972,17 @@ body {
     }
     
     .settings-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .fullscreen-btn {
+        width: 2rem;
+        height: 2rem;
+        right: 3rem;
+    }
+    
+    .fullscreen-btn svg {
         width: 18px;
         height: 18px;
     }

@@ -3,6 +3,7 @@ bold_font: fonts/Inter-Bold.ttf
 day_gradient: true
 extra_bold_font: fonts/Inter-ExtraBold.ttf
 extra_light_font: fonts/Inter-ExtraLight.ttf
+fullscreen: false
 light_font: fonts/Inter-Light.ttf
 medium_font: fonts/Inter-Medium.ttf
 regular_font: fonts/Inter-Regular.ttf

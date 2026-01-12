@@ -22,6 +22,7 @@ fonts = {} # Dictionary of font weights
 available_update = None  # Stores update info if available
 active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
+fullscreen = False # Whether the app is in fullscreen mode or not
 
 
 # Handles initialization of app components
@@ -41,7 +42,7 @@ def initialize():
 
 # Initializes environment settings
 def init_settings():
-    global version, wallpaper, fonts, updates, day_gradient
+    global version, wallpaper, fonts, updates, day_gradient, fullscreen
     try:
         with open("data/settings.yaml", "r") as file:
             settings = yaml.safe_load(file) or {}
@@ -54,6 +55,8 @@ def init_settings():
             day_gradient = settings["day_gradient"]
         if "updates" in settings:
             updates = settings["updates"]
+        if "fullscreen" in settings:
+            fullscreen = settings["fullscreen"]
         
         # Load all font weights
         font_keys = ['black_font', 'extra_bold_font', 'bold_font', 'semi_bold_font', 
@@ -61,7 +64,7 @@ def init_settings():
         for key in font_keys:
             if key in settings:
                 fonts[key] = settings[key]
-        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}")
+        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}")
         return True
     except FileNotFoundError:
         print("IS: Settings file not found. Using default settings.")
@@ -394,6 +397,10 @@ def init_webview():
                 global day_gradient
                 return day_gradient
             
+            def get_fullscreen(self):
+                global fullscreen
+                return fullscreen
+            
             # Settings Management - Delegate to SettingsManagerAPI
             def get_settings(self):
                 return settings_manager.get_settings()
@@ -403,6 +410,9 @@ def init_webview():
             
             def set_day_gradient(self, enabled):
                 return settings_manager.set_day_gradient(enabled)
+            
+            def set_fullscreen(self, enabled):
+                return settings_manager.set_fullscreen(enabled)
             
             def set_font(self, weight, font_path):
                 return settings_manager.set_font(weight, font_path)
@@ -458,11 +468,18 @@ def init_webview():
             print(f"Warning: Could not set window icon: {e}")
         
         #webview.start()
-        webview.start(debug=True)
+        webview.start(debug=True, func=on_webview_ready)
         return True
     except Exception as e:
         print(f"IW: Error initializing webview: {e}")
         return False
+
+def on_webview_ready():
+    """Called when webview is ready - apply initial fullscreen setting"""
+    global fullscreen, webview_window
+    if fullscreen and webview_window:
+        print("Applying fullscreen setting from startup...")
+        webview_window.toggle_fullscreen()
 
 # Handles app starting and running
 def main():
@@ -680,12 +697,13 @@ class AppManagerAPI:
 class SettingsManagerAPI:
     # Gets current settings
     def get_settings(self):
-        global version, wallpaper, fonts, day_gradient, updates
+        global version, wallpaper, fonts, day_gradient, updates, fullscreen
         return {
             "wallpaper": wallpaper,
             "fonts": fonts,
             "day_gradient": day_gradient,
-            "updates": updates
+            "updates": updates,
+            "fullscreen": fullscreen
         }
     
     def get_wallpaper_data(self):
@@ -743,6 +761,26 @@ class SettingsManagerAPI:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SettingsManagerAPI: Error setting day_gradient: {e}")
+            return False
+        return True
+    
+    def set_fullscreen(self, enabled):
+        global fullscreen, webview_window
+        fullscreen = enabled
+        
+        # Actually toggle the pywebview window fullscreen
+        if webview_window:
+            webview_window.toggle_fullscreen()
+        
+        # Write to settings.yaml
+        try:
+            with open("data/settings.yaml", "r") as file:
+                settings = yaml.safe_load(file) or {}
+            settings["fullscreen"] = enabled
+            with open("data/settings.yaml", "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SettingsManagerAPI: Error setting fullscreen: {e}")
             return False
         return True
     
