@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whiteboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .whiteboard-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: rgba(30, 30, 46, 0.95);
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tool-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .tool-btn.active {
+            background: rgba(99, 102, 241, 0.4);
+            border-color: rgba(99, 102, 241, 0.6);
+        }
+
+        .color-picker {
+            width: 40px;
+            height: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            cursor: pointer;
+            background: #000000;
+        }
+
+        .size-slider {
+            width: 100px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .size-label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            min-width: 30px;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #ffffff;
+            margin: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        #canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        #canvas.eraser {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="10" cy="10" r="8" fill="white" stroke="black" stroke-width="2"/></svg>') 10 10, auto;
+        }
+
+        .board-name-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            min-width: 150px;
+        }
+
+        .board-name-input:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.6);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .save-status {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-left: auto;
+        }
+
+        .save-status.saving {
+            color: rgba(255, 165, 0, 0.8);
+        }
+
+        .save-status.saved {
+            color: rgba(0, 255, 0, 0.8);
+        }
+
+        /* Load board modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(30, 30, 46, 0.98);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            border-radius: 12px;
+            padding: 2rem;
+            min-width: 400px;
+            max-width: 500px;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            color: #ffffff;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            border-radius: 6px;
+            padding: 0.5rem;
+            cursor: pointer;
+            font-size: 1.2rem;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .board-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+
+        .board-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.875rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .board-item:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.5);
+            transform: translateX(5px);
+        }
+
+        .board-item-icon {
+            font-size: 1.2rem;
+        }
+
+        .board-item-name {
+            color: #ffffff;
+            font-size: 1rem;
+        }
+
+        .no-boards {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 2rem;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- Load Board Modal -->
+    <div class="modal-overlay" id="loadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Load Board</h2>
+                <button class="modal-close" onclick="closeLoadModal()">✕</button>
+            </div>
+            <div class="board-list" id="boardList">
+                <p class="no-boards">Loading...</p>
+            </div>
+        </div>
+    </div>
+    <div class="whiteboard-container">
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <input type="text" id="boardName" class="board-name-input" placeholder="Board Name" value="untitled">
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+                <button class="tool-btn active" id="penBtn" onclick="selectTool('pen')">
+                    Pen
+                </button>
+                <button class="tool-btn" id="eraserBtn" onclick="selectTool('eraser')">
+                    Eraser
+                </button>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+                <input type="color" id="colorPicker" class="color-picker" value="#000000">
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+                <span class="size-label" id="sizeLabel">5px</span>
+                <input type="range" id="sizeSlider" class="size-slider" min="1" max="50" value="5">
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+                <button class="tool-btn" onclick="clearCanvas()">
+                    Clear
+                </button>
+                <button class="tool-btn" onclick="saveBoard()">
+                    Save
+                </button>
+                <button class="tool-btn" onclick="showLoadModal()">
+                    Load
+                </button>
+            </div>
+
+            <span class="save-status" id="saveStatus"></span>
+        </div>
+
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const colorPicker = document.getElementById('colorPicker');
+            const sizeSlider = document.getElementById('sizeSlider');
+            const sizeLabel = document.getElementById('sizeLabel');
+            const boardNameInput = document.getElementById('boardName');
+            const saveStatus = document.getElementById('saveStatus');
+
+            let isDrawing = false;
+            let currentTool = 'pen';
+            let currentColor = '#000000';
+            let currentSize = 5;
+            let drawingData = [];
+
+            // Initialize canvas size
+            function resizeCanvas() {
+                const container = document.getElementById('canvasContainer');
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+                redrawCanvas();
+            }
+
+            // Set up canvas
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // Tool selection
+            window.selectTool = function(tool) {
+                currentTool = tool;
+                document.getElementById('penBtn').classList.toggle('active', tool === 'pen');
+                document.getElementById('eraserBtn').classList.toggle('active', tool === 'eraser');
+                canvas.classList.toggle('eraser', tool === 'eraser');
+            };
+
+            // Color picker
+            colorPicker.addEventListener('change', (e) => {
+                currentColor = e.target.value;
+                if (currentTool === 'eraser') {
+                    window.selectTool('pen');
+                }
+            });
+
+            // Size slider
+            sizeSlider.addEventListener('input', (e) => {
+                currentSize = parseInt(e.target.value);
+                sizeLabel.textContent = currentSize + 'px';
+            });
+
+            // Drawing functions
+            function startDrawing(e) {
+                isDrawing = true;
+                const pos = getMousePos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                
+                // Mark this as the start of a new stroke
+                drawingData.push({
+                    tool: currentTool,
+                    color: currentColor,
+                    size: currentSize,
+                    x: pos.x,
+                    y: pos.y,
+                    newStroke: true
+                });
+            }
+
+            function draw(e) {
+                if (!isDrawing) return;
+
+                const pos = getMousePos(e);
+                
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = currentSize;
+                
+                if (currentTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = currentColor;
+                }
+
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+
+                // Store drawing data (continuing the stroke)
+                drawingData.push({
+                    tool: currentTool,
+                    color: currentColor,
+                    size: currentSize,
+                    x: pos.x,
+                    y: pos.y
+                });
+            }
+
+            function stopDrawing() {
+                if (isDrawing) {
+                    isDrawing = false;
+                    ctx.beginPath();
+                }
+            }
+
+            function getMousePos(e) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+
+            // Event listeners
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            // Clear canvas
+            window.clearCanvas = function() {
+                if (confirm('Are you sure you want to clear the whiteboard?')) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    drawingData = [];
+                }
+            };
+
+            // Redraw canvas from data
+            function redrawCanvas() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                if (drawingData.length === 0) return;
+
+                let currentPath = null;
+
+                drawingData.forEach((point, index) => {
+                    // Start a new path if:
+                    // 1. It's the first point
+                    // 2. The point is marked as a new stroke
+                    // 3. Tool/color/size changed
+                    if (index === 0 || point.newStroke || 
+                        drawingData[index - 1].tool !== point.tool || 
+                        drawingData[index - 1].color !== point.color || 
+                        drawingData[index - 1].size !== point.size) {
+                        
+                        if (currentPath) {
+                            ctx.stroke();
+                        }
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(point.x, point.y);
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+                        ctx.lineWidth = point.size;
+                        
+                        if (point.tool === 'eraser') {
+                            ctx.globalCompositeOperation = 'destination-out';
+                        } else {
+                            ctx.globalCompositeOperation = 'source-over';
+                            ctx.strokeStyle = point.color;
+                        }
+                        
+                        currentPath = true;
+                    } else {
+                        ctx.lineTo(point.x, point.y);
+                    }
+                });
+
+                if (currentPath) {
+                    ctx.stroke();
+                }
+                
+                // Reset canvas state for normal drawing
+                ctx.beginPath();
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = currentSize;
+            }
+
+            // Save board
+            window.saveBoard = async function() {
+                const boardName = boardNameInput.value.trim() || 'untitled';
+                
+                saveStatus.textContent = 'Saving...';
+                saveStatus.className = 'save-status saving';
+
+                try {
+                    const result = await window.pywebview.api.call_app_function(
+                        'Whiteboard',
+                        'save_board',
+                        boardName,
+                        drawingData
+                    );
+
+                    if (result.success) {
+                        saveStatus.textContent = 'Saved ✓';
+                        saveStatus.className = 'save-status saved';
+                        setTimeout(() => {
+                            saveStatus.textContent = '';
+                            saveStatus.className = 'save-status';
+                        }, 2000);
+                    } else {
+                        saveStatus.textContent = 'Save failed';
+                        saveStatus.className = 'save-status';
+                    }
+                } catch (error) {
+                    console.error('Error saving board:', error);
+                    saveStatus.textContent = 'Save failed';
+                    saveStatus.className = 'save-status';
+                }
+            };
+
+            // Load board modal
+            window.showLoadModal = async function() {
+                const modal = document.getElementById('loadModal');
+                const boardList = document.getElementById('boardList');
+                
+                modal.classList.add('active');
+                boardList.innerHTML = '<p class="no-boards">Loading...</p>';
+                
+                try {
+                    const result = await window.pywebview.api.call_app_function(
+                        'Whiteboard',
+                        'list_boards'
+                    );
+                    
+                    if (result.success && result.boards.length > 0) {
+                        boardList.innerHTML = result.boards.map(boardName => `
+                            <div class="board-item" onclick="loadBoardByName('${boardName}')">
+                                <span class="board-item-icon">📄</span>
+                                <span class="board-item-name">${boardName}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        boardList.innerHTML = '<p class="no-boards">No saved boards found</p>';
+                    }
+                } catch (error) {
+                    console.error('Error listing boards:', error);
+                    boardList.innerHTML = '<p class="no-boards">Error loading boards</p>';
+                }
+            };
+            
+            window.closeLoadModal = function() {
+                document.getElementById('loadModal').classList.remove('active');
+            };
+
+            // Load board by name
+            window.loadBoardByName = async function(boardName) {
+                closeLoadModal();
+                
+                try {
+                    console.log('Loading board:', boardName);
+                    const result = await window.pywebview.api.call_app_function(
+                        'Whiteboard',
+                        'load_board',
+                        boardName
+                    );
+
+                    console.log('Load result:', result);
+
+                    if (result.success) {
+                        drawingData = result.data;
+                        console.log('Loaded drawing data:', drawingData.length, 'points');
+                        boardNameInput.value = boardName;
+                        redrawCanvas();
+                        saveStatus.textContent = 'Loaded ✓';
+                        saveStatus.className = 'save-status saved';
+                        setTimeout(() => {
+                            saveStatus.textContent = '';
+                            saveStatus.className = 'save-status';
+                        }, 2000);
+                    } else {
+                        console.error('Load failed:', result.error);
+                        alert('Failed to load board: ' + (result.error || 'Unknown error'));
+                    }
+                } catch (error) {
+                    console.error('Error loading board:', error);
+                    alert('Error loading board: ' + error.message);
+                }
+            };
+
+            // Load board (legacy - now uses modal)
+            window.loadBoard = async function() {
+                const boardName = boardNameInput.value.trim() || 'untitled';
+
+                try {
+                    console.log('Loading board:', boardName);
+                    const result = await window.pywebview.api.call_app_function(
+                        'Whiteboard',
+                        'load_board',
+                        boardName
+                    );
+
+                    console.log('Load result:', result);
+
+                    if (result.success) {
+                        drawingData = result.data;
+                        console.log('Loaded drawing data:', drawingData.length, 'points');
+                        redrawCanvas();
+                        saveStatus.textContent = 'Loaded ✓';
+                        saveStatus.className = 'save-status saved';
+                        setTimeout(() => {
+                            saveStatus.textContent = '';
+                            saveStatus.className = 'save-status';
+                        }, 2000);
+                    } else {
+                        console.error('Load failed:', result.error);
+                        alert('Failed to load board: ' + (result.error || 'Unknown error'));
+                    }
+                } catch (error) {
+                    console.error('Error loading board:', error);
+                    alert('Error loading board: ' + error.message);
+                }
+            };
+
+            // Auto-save every 30 seconds
+            setInterval(() => {
+                if (drawingData.length > 0) {
+                    window.saveBoard();
+                }
+            }, 30000);
+        })();
+    </script>
+</body>
+</html>
