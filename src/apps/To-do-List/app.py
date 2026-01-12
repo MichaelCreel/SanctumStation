@@ -12,7 +12,7 @@ tasks = {}
 def load_tasks():
     global tasks, next_id
     try:
-        with open("data/todolist.yaml", "r") as file:
+        with open("data/to-do-list/todolist.yaml", "r") as file:
             tasks = yaml.safe_load(file) or {}
             # Set next_id to one higher than the highest existing ID
             if tasks:
@@ -33,7 +33,7 @@ def save_task(task_text):
             "text": task_text,
             "completed": False
         }
-        with open("data/todolist.yaml", "w") as file:
+        with open("data/to-do-list/todolist.yaml", "w") as file:
             yaml.safe_dump(tasks, file)
         next_id += 1
         return {"success": True, "tasks": tasks}
@@ -47,7 +47,7 @@ def delete_task(task_id):
         task_id = str(task_id)
         if task_id in tasks:
             del tasks[task_id]
-            with open("data/todolist.yaml", "w") as file:
+            with open("data/to-do-list/todolist.yaml", "w") as file:
                 yaml.safe_dump(tasks, file)
             return {"success": True, "tasks": tasks}
         else:
@@ -62,7 +62,7 @@ def toggle_task(task_id):
         task_id = str(task_id)
         if task_id in tasks:
             tasks[task_id]["completed"] = not tasks[task_id]["completed"]
-            with open("data/todolist.yaml", "w") as file:
+            with open("data/to-do-list/todolist.yaml", "w") as file:
                 yaml.safe_dump(tasks, file)
             return {"success": True, "tasks": tasks}
         else:
