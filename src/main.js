@@ -10,13 +10,14 @@ class DesktopClock {
         this.dateDisplayElement = document.getElementById('dateDisplay');
         this.sunGlowElement = document.getElementById('sunGlow');
         this.lastGlowColor = null; // Track last glow color to avoid unnecessary updates
+        this.lastMinute = null; // Track last minute to detect minute changes
         this.init();
     }
 
     init() {
         this.updateClock();
-        this.lastClockUpdate = 0;
-        this.lastGlowUpdate = 0;
+        this.lastClockUpdate = performance.now();
+        this.lastGlowUpdate = performance.now();
         // Use requestAnimationFrame for smoother updates and reduced X11 load
         this.startAnimationLoop();
     }
@@ -62,14 +63,15 @@ class DesktopClock {
         if (this.digitalClockElement.textContent !== timeString) {
             this.digitalClockElement.textContent = timeString;
             // Reduce animation frequency on X11 by adding the class conditionally
-            // Only animate if it's a minute change (seconds ending in 0)
-            const seconds = now.getSeconds();
-            if (seconds === 0) {
+            // Only animate when the minute actually changes
+            const currentMinute = now.getMinutes();
+            if (this.lastMinute !== null && currentMinute !== this.lastMinute) {
                 this.digitalClockElement.classList.add('clock-update');
                 setTimeout(() => {
                     this.digitalClockElement.classList.remove('clock-update');
                 }, 300);
             }
+            this.lastMinute = currentMinute;
         }
         
         this.dateDisplayElement.textContent = dateString;
