@@ -439,6 +439,36 @@ body {
     transform: translateY(0);
 }
 
+/* Default wallpapers grid */
+.default-wallpapers-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.wallpaper-thumb {
+    aspect-ratio: 16 / 9;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.wallpaper-thumb:hover {
+    border-color: #a855f7;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+}
+
+.wallpaper-thumb:active {
+    transform: scale(0.98);
+}
+
 /* Toggle switch */
 .toggle-switch {
     position: relative;

@@ -70,6 +70,17 @@ This file contains the structure and layout for the psuedo-desktop environment t
                         <div class="setting-input-group">
                             <input type="text" id="wallpaperInput" placeholder="wallpapers/default.jpg">
                             <button onclick="saveWallpaper()">Apply</button>
+                            <button onclick="removeWallpaper()">Remove</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>Default Wallpapers:</label>
+                        <div class="default-wallpapers-grid">
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Beams.png')" style="background-image: url('default_wallpapers/Beams.png')"></div>
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Concentric_Circles.png')" style="background-image: url('default_wallpapers/Concentric_Circles.png')"></div>
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Gridded_Circles.png')" style="background-image: url('default_wallpapers/Gridded_Circles.png')"></div>
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Purple_Grid.png')" style="background-image: url('default_wallpapers/Purple_Grid.png')"></div>
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Purple_Nebula.png')" style="background-image: url('default_wallpapers/Purple_Nebula.png')"></div>
                         </div>
                     </div>
                     <div class="setting-item">

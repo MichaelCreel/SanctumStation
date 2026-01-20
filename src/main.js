@@ -677,6 +677,36 @@ async function saveWallpaper() {
     }
 }
 
+async function removeWallpaper() {
+    try {
+        const result = await window.pywebview.api.set_wallpaper('None');
+        if (result) {
+            await loadWallpaper();
+            document.getElementById('wallpaperInput').value = '';
+        } else {
+            alert('Failed to remove wallpaper.');
+        }
+    } catch (error) {
+        console.error('Error removing wallpaper:', error);
+        alert('Error removing wallpaper.');
+    }
+}
+
+async function setDefaultWallpaper(path) {
+    try {
+        const result = await window.pywebview.api.set_wallpaper(path);
+        if (result) {
+            await loadWallpaper();
+            document.getElementById('wallpaperInput').value = path;
+        } else {
+            alert('Failed to set wallpaper.');
+        }
+    } catch (error) {
+        console.error('Error setting wallpaper:', error);
+        alert('Error setting wallpaper.');
+    }
+}
+
 async function saveDayGradient() {
     const enabled = document.getElementById('dayGradientToggle').checked;
     try {

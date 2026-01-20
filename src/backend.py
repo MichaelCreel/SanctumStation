@@ -716,13 +716,20 @@ class SettingsManagerAPI:
             return None
         
         try:
+            # Resolve path - handle src: prefix for files in src directory
+            wallpaper_path = wallpaper
+            if wallpaper_path.startswith('src:'):
+                # Replace src: with actual src directory path
+                src_dir = os.path.dirname(__file__)
+                wallpaper_path = os.path.join(src_dir, wallpaper_path[4:])
+            
             # Get the mime type
-            mime_type, _ = mimetypes.guess_type(wallpaper)
+            mime_type, _ = mimetypes.guess_type(wallpaper_path)
             if not mime_type:
                 mime_type = 'image/png'  # Default to PNG
             
             # Read the file as binary
-            with open(wallpaper, 'rb') as f:
+            with open(wallpaper_path, 'rb') as f:
                 image_data = f.read()
             
             # Encode to base64
