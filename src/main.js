@@ -1,6 +1,6 @@
 /*
 JavaScript Frontend for Sanctum Station
-This file handles interactive elements and transfer to the python backend for the psuedo-desktop environment to be used.
+This file handles interactive elements and transfer to the python backend for the pseudo-desktop environment to be used.
 */
 
 // Clock functionality
@@ -73,9 +73,6 @@ class DesktopClock {
         }
         
         this.dateDisplayElement.textContent = dateString;
-        
-        // Update sun glow on clock update
-        this.updateSunGlow();
     }
 
     updateSunGlow() {
