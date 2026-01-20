@@ -31,7 +31,7 @@ class DesktopClock {
                 this.lastClockUpdate += 1000; // Increment to prevent drift
                 // Handle case where animation may have been paused
                 if (timestamp - this.lastClockUpdate > 2000) {
-                    this.lastClockUpdate = timestamp;
+                    this.lastClockUpdate = timestamp - 1000;
                 }
             }
             
@@ -41,7 +41,7 @@ class DesktopClock {
                 this.lastGlowUpdate += 60000; // Increment to prevent drift
                 // Handle case where animation may have been paused
                 if (timestamp - this.lastGlowUpdate > 120000) {
-                    this.lastGlowUpdate = timestamp;
+                    this.lastGlowUpdate = timestamp - 60000;
                 }
             }
             
