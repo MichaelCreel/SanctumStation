@@ -31,7 +31,6 @@ The current version of Sanctum Station is not ready for full release and is inte
 
 ## Known Issues
 
-- App currently freezes when using X11. This is likely caused by animation rendering mismanagement.
 - App currently has no way to connect your mobile device to your computer. This is planned for a future release.
 - App currently has no mobile gestures or support. This is because of the issue above.
 
