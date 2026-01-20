@@ -9,14 +9,36 @@ class DesktopClock {
         this.digitalClockElement = document.getElementById('digitalClock');
         this.dateDisplayElement = document.getElementById('dateDisplay');
         this.sunGlowElement = document.getElementById('sunGlow');
+        this.lastGlowColor = null; // Track last glow color to avoid unnecessary updates
         this.init();
     }
 
     init() {
         this.updateClock();
-        // Update every minute for performance, but still update clock every second
-        setInterval(() => this.updateClock(), 1000);
-        setInterval(() => this.updateSunGlow(), 60000); // Update glow every minute
+        this.lastClockUpdate = 0;
+        this.lastGlowUpdate = 0;
+        // Use requestAnimationFrame for smoother updates and reduced X11 load
+        this.startAnimationLoop();
+    }
+
+    startAnimationLoop() {
+        const animate = (timestamp) => {
+            // Update clock every second
+            if (timestamp - this.lastClockUpdate >= 1000) {
+                this.updateClock();
+                this.lastClockUpdate = timestamp;
+            }
+            
+            // Update sun glow every minute
+            if (timestamp - this.lastGlowUpdate >= 60000) {
+                this.updateSunGlow();
+                this.lastGlowUpdate = timestamp;
+            }
+            
+            requestAnimationFrame(animate);
+        };
+        
+        requestAnimationFrame(animate);
     }
 
     updateClock() {
@@ -39,10 +61,15 @@ class DesktopClock {
         
         if (this.digitalClockElement.textContent !== timeString) {
             this.digitalClockElement.textContent = timeString;
-            this.digitalClockElement.classList.add('clock-update');
-            setTimeout(() => {
-                this.digitalClockElement.classList.remove('clock-update');
-            }, 300);
+            // Reduce animation frequency on X11 by adding the class conditionally
+            // Only animate if it's a minute change (seconds ending in 0)
+            const seconds = now.getSeconds();
+            if (seconds === 0) {
+                this.digitalClockElement.classList.add('clock-update');
+                setTimeout(() => {
+                    this.digitalClockElement.classList.remove('clock-update');
+                }, 300);
+            }
         }
         
         this.dateDisplayElement.textContent = dateString;
@@ -113,10 +140,10 @@ class DesktopClock {
         
         const colorString = `rgba(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)}, ${intensity})`;
         
-        if (this.sunGlowElement) {
+        // Only update if color has changed to reduce X11 rendering load
+        if (this.sunGlowElement && this.lastGlowColor !== colorString) {
             this.sunGlowElement.style.setProperty('--sun-color', colorString);
-        } else {
-            console.log('Sun glow element not found!'); // Debug output
+            this.lastGlowColor = colorString;
         }
     }
 
@@ -644,7 +671,7 @@ setInterval(async () => {
     } catch (error) {
         console.error('Failed to update notification badge:', error);
     }
-}, 2000); // Check every 2 seconds
+}, 10000); // Check every 10 seconds (reduced from 2s to minimize X11 load)
 
 async function toggleSettings() {
     const overlay = document.getElementById('settingsOverlay');

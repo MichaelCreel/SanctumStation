@@ -52,7 +52,7 @@ body {
     background: linear-gradient(to top, var(--sun-color, rgba(138, 43, 226, 0.3)) 0%, transparent 75%);
     pointer-events: none;
     z-index: 1;
-    transition: all 2s ease;
+    /* Removed long transition to reduce X11 rendering load */
 }
 
 /* Notification button */
