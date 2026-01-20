@@ -17,31 +17,41 @@ class DesktopClock {
     init() {
         this.updateClock();
         this.updateSunGlow(); // Initialize sun glow immediately
-        this.lastClockUpdate = 0;
-        this.lastGlowUpdate = 0;
+        this.lastClockUpdate = null;
+        this.lastGlowUpdate = null;
+        this.isFirstFrame = true;
         // Use requestAnimationFrame for smoother updates and reduced X11 load
         this.startAnimationLoop();
     }
 
     startAnimationLoop() {
         const animate = (timestamp) => {
+            // Initialize timestamps on first frame
+            if (this.isFirstFrame) {
+                this.lastClockUpdate = timestamp;
+                this.lastGlowUpdate = timestamp;
+                this.isFirstFrame = false;
+            }
+            
             // Update clock every second
             if (timestamp - this.lastClockUpdate >= 1000) {
                 this.updateClock();
+                const previousUpdate = this.lastClockUpdate;
                 this.lastClockUpdate += 1000; // Increment to prevent drift
                 // Handle case where animation may have been paused
-                if (timestamp - this.lastClockUpdate > 2000) {
-                    this.lastClockUpdate = timestamp - 1000;
+                if (timestamp - previousUpdate > 3000) {
+                    this.lastClockUpdate = timestamp;
                 }
             }
             
             // Update sun glow every minute
             if (timestamp - this.lastGlowUpdate >= 60000) {
                 this.updateSunGlow();
+                const previousUpdate = this.lastGlowUpdate;
                 this.lastGlowUpdate += 60000; // Increment to prevent drift
                 // Handle case where animation may have been paused
-                if (timestamp - this.lastGlowUpdate > 120000) {
-                    this.lastGlowUpdate = timestamp - 60000;
+                if (timestamp - previousUpdate > 180000) {
+                    this.lastGlowUpdate = timestamp;
                 }
             }
             
