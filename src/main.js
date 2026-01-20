@@ -36,10 +36,9 @@ class DesktopClock {
             // Update clock every second
             if (timestamp - this.lastClockUpdate >= 1000) {
                 this.updateClock();
-                const previousUpdate = this.lastClockUpdate;
                 this.lastClockUpdate += 1000; // Increment to prevent drift
                 // Handle case where animation may have been paused
-                if (timestamp - previousUpdate > 3000) {
+                if (timestamp - this.lastClockUpdate > 3000) {
                     this.lastClockUpdate = timestamp;
                 }
             }
@@ -47,10 +46,9 @@ class DesktopClock {
             // Update sun glow every minute
             if (timestamp - this.lastGlowUpdate >= 60000) {
                 this.updateSunGlow();
-                const previousUpdate = this.lastGlowUpdate;
                 this.lastGlowUpdate += 60000; // Increment to prevent drift
                 // Handle case where animation may have been paused
-                if (timestamp - previousUpdate > 180000) {
+                if (timestamp - this.lastGlowUpdate > 180000) {
                     this.lastGlowUpdate = timestamp;
                 }
             }
