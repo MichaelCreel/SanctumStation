@@ -24,8 +24,9 @@ active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
 fullscreen = False # Whether the app is in fullscreen mode or not
 
-
-# Handles initialization of app components
+# Handles the initialization of the environment components and apps
+# This initializes both essential and non-essential components
+# Called on startup of the backend
 def initialize():
     global available_update
     if not init_settings():
@@ -40,7 +41,8 @@ def initialize():
         print("FATAL: Failed to initialize webview.\n\nFATAL 0")
         return False
 
-# Initializes environment settings
+# Initializes the environment settings from data/settings.yaml
+# Returns True on success, False on failure
 def init_settings():
     global version, wallpaper, fonts, updates, day_gradient, fullscreen
     try:
@@ -76,7 +78,8 @@ def init_settings():
         print(f"IS: Error reading settings file: {e}")
         return False
 
-# Initializes downloaded apps
+# Initializes apps from src/apps/ directory
+# Returns True on success, False on failure
 def init_apps():
     global apps
     apps = []
@@ -117,7 +120,10 @@ def init_apps():
         print(f"IA: Error initializing apps: {e}")
         return False
 
-# Launches an app
+# Launches an app by finding it by its name
+# Returns True on success, False on failure
+# This injects the app into the webview and starts the backend thread
+# This includes the code for the close button and app container
 def launch_app(app_name):
     global active_apps, webview_window
     
@@ -251,7 +257,8 @@ def launch_app(app_name):
         print(f"LA: Error launching app '{app_name}': {e}")
         return False
 
-# Runs the backend logic of an app
+# Runs the backend script of the app in its own thread
+# Passes a stop_event to signal when to stop
 def run_app_backend(app_name, py_path, app_dir, stop_event):
     try:
         original_cwd = os.getcwd()
@@ -289,6 +296,7 @@ def run_app_backend(app_name, py_path, app_dir, stop_event):
         if app_name in active_apps:
             del active_apps[app_name]
 
+# Stops a running app by finding it by its name
 def stop_app(app_name):
     global active_apps
     
@@ -302,14 +310,15 @@ def stop_app(app_name):
     
     return False
 
+# Returns a list of currently running apps
 def get_running_apps():
     return list(active_apps.keys())
 
-# Initializes webview
+# Initializes the webview window
+# Sets up the API for app interaction with the backend
 def init_webview():
     global webview_window
     try:
-        # Create file manager instance
         file_manager = FileManagerAPI()
         settings_manager = SettingsManagerAPI()
         notification_manager = NotificationManagerAPI()
@@ -474,21 +483,25 @@ def init_webview():
         print(f"IW: Error initializing webview: {e}")
         return False
 
+# Called when webview is ready
+# Applies the initial fullscreen setting based on the value taken from settings
 def on_webview_ready():
-    """Called when webview is ready - apply initial fullscreen setting"""
     global fullscreen, webview_window
     if fullscreen and webview_window:
         print("Applying fullscreen setting from startup...")
         webview_window.toggle_fullscreen()
 
-# Handles app starting and running
+# Handles app startup
 def main():
     initialize()
 
 # Shared notifications storage at module level
 _notifications = {}
 
+# API for managing the app notifications within the environment
 class NotificationManagerAPI:
+    # Sends a notification with a message
+    # Finds the calling app by inspecting the call stack
     def send_notification(self, message):
         global _notifications
         # Trace back through the call stack to find which app module called this
@@ -514,6 +527,8 @@ class NotificationManagerAPI:
         print(f"Notifications dict id: {id(_notifications)}")
         return {"success": True, "notification_id": notification_id, "source": calling_app}
     
+    # Deletes a notification by finding it by its ID
+    # Returns success status
     def delete_notification(self, notification_id):
         global _notifications
         if notification_id in _notifications:
@@ -522,6 +537,8 @@ class NotificationManagerAPI:
         else:
             return {"success": False, "error": "Notification ID not found"}
     
+    # Returns all current notifications
+    # Returns a success status
     def get_notifications(self):
         global _notifications
         # Return all notifications with their IDs
@@ -535,6 +552,7 @@ class NotificationManagerAPI:
             ]
         }
     
+    # Clears all notifications in the dictionary
     def clear_all_notifications(self):
         global _notifications
         _notifications.clear()
@@ -694,6 +712,7 @@ class AppManagerAPI:
         global apps
         return apps
 
+# API for managing the settings for the environment from within
 class SettingsManagerAPI:
     # Gets current settings
     def get_settings(self):
@@ -706,8 +725,8 @@ class SettingsManagerAPI:
             "fullscreen": fullscreen
         }
     
+    # Gets wallpaper as base64 data URL
     def get_wallpaper_data(self):
-        """Read wallpaper file and return as base64 data URL"""
         global wallpaper
         import base64
         import mimetypes
@@ -741,6 +760,7 @@ class SettingsManagerAPI:
             print(f"SettingsManagerAPI: Error reading wallpaper file: {e}")
             return None
     
+    # Sets wallpaper path
     def set_wallpaper(self, wallpaper_path):
         global wallpaper
         wallpaper = wallpaper_path
@@ -756,6 +776,7 @@ class SettingsManagerAPI:
             return False
         return True
     
+    # Sets day gradient preference
     def set_day_gradient(self, enabled):
         global day_gradient
         day_gradient = enabled
@@ -771,6 +792,7 @@ class SettingsManagerAPI:
             return False
         return True
     
+    # Sets fullscreen preference
     def set_fullscreen(self, enabled):
         global fullscreen, webview_window
         fullscreen = enabled
@@ -791,6 +813,7 @@ class SettingsManagerAPI:
             return False
         return True
     
+    # Sets font path for a given weight
     def set_font(self, weight, font_path):
         global fonts
         fonts[weight] = font_path
@@ -806,6 +829,7 @@ class SettingsManagerAPI:
             return False
         return True
     
+    # Sets update preference
     def set_updates(self, channel):
         global updates
         updates = channel
@@ -821,14 +845,15 @@ class SettingsManagerAPI:
             return False
         return True
 
-# Check if it is a newer version
+# Checks if the installed version is older than the latest version
 def is_newer_version(installed, latest):
     def version_tuple(v):
         return tuple(map(int, (v.lstrip('v').split("."))))
     
     return version_tuple(latest) > version_tuple(installed)
 
-# Check for updates
+# Checks for updates from GitHub releases
+# Returns update info if available, None otherwise
 def check_for_updates():
     global version, updates
     url = "https://api.github.com/repos/MichaelCreel/SanctumStation/releases"
