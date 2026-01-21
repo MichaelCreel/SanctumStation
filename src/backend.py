@@ -491,10 +491,6 @@ def on_webview_ready():
         print("Applying fullscreen setting from startup...")
         webview_window.toggle_fullscreen()
 
-# Handles app startup
-def main():
-    initialize()
-
 # Shared notifications storage at module level
 _notifications = {}
 
@@ -889,7 +885,7 @@ def check_for_updates():
         print(f"Error checking for updates: {e}")
         return None
 
-# Handles app starting and running  
+# Handles environment startup
 def main():
     initialize()
 
