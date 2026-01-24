@@ -69,13 +69,13 @@ def init_settings():
         print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}")
         return True
     except FileNotFoundError:
-        print("IS: Settings file not found. Using default settings.")
+        print("IS-E1: Settings file not found. Using default settings.")
         return False
     except yaml.YAMLError as e:
-        print(f"IS: Error parsing YAML file: {e}")
+        print(f"IS-E2: Error parsing YAML file: {e}")
         return False
     except Exception as e:
-        print(f"IS: Error reading settings file: {e}")
+        print(f"IS-E3: Error reading settings file: {e}")
         return False
 
 # Initializes apps from src/apps/ directory
@@ -114,10 +114,10 @@ def init_apps():
         print(f"IA: Found {len(apps)} valid apps")
         return True
     except FileNotFoundError:
-        print("IA: Apps directory not found. No apps will be loaded.")
+        print("IA-E1: Apps directory not found. No apps will be loaded.")
         return False
     except Exception as e:
-        print(f"IA: Error initializing apps: {e}")
+        print(f"IA-E2: Error initializing apps: {e}")
         return False
 
 # Launches an app by finding it by its name
@@ -254,7 +254,7 @@ def launch_app(app_name):
         return True
         
     except Exception as e:
-        print(f"LA: Error launching app '{app_name}': {e}")
+        print(f"LA-E1: Error launching app '{app_name}': {e}")
         return False
 
 # Runs the backend script of the app in its own thread
@@ -290,7 +290,7 @@ def run_app_backend(app_name, py_path, app_dir, stop_event):
         print(f"RAB: App '{app_name}' backend finished")
         
     except Exception as e:
-        print(f"RAB: Error running app '{app_name}' backend: {e}")
+        print(f"RAB-E1: Error running app '{app_name}' backend: {e}")
     finally:
         os.chdir(original_cwd)
         if app_name in active_apps:
@@ -480,7 +480,7 @@ def init_webview():
         webview.start(debug=True, func=on_webview_ready)
         return True
     except Exception as e:
-        print(f"IW: Error initializing webview: {e}")
+        print(f"IW-E1: Error initializing webview: {e}")
         return False
 
 # Called when webview is ready
@@ -488,7 +488,7 @@ def init_webview():
 def on_webview_ready():
     global fullscreen, webview_window
     if fullscreen and webview_window:
-        print("Applying fullscreen setting from startup...")
+        print("OWR: Applying fullscreen setting from startup...")
         webview_window.toggle_fullscreen()
 
 # Shared notifications storage at module level
@@ -518,9 +518,9 @@ class NotificationManagerAPI:
             "timestamp": time.time(),
             "source": calling_app
         }
-        print(f"Notification sent: {calling_app} - {message} (ID: {notification_id})")
-        print(f"Total notifications: {len(_notifications)}")
-        print(f"Notifications dict id: {id(_notifications)}")
+        print(f"NMA: Notification sent: {calling_app} - {message} (ID: {notification_id})")
+        print(f"NMA: Total notifications: {len(_notifications)}")
+        print(f"NMA: Notifications dict id: {id(_notifications)}")
         return {"success": True, "notification_id": notification_id, "source": calling_app}
     
     # Deletes a notification by finding it by its ID
@@ -577,7 +577,7 @@ class FileManagerAPI:
                     continue
             return items
         except Exception as e:
-            print(f"FMAPI: Error listing directory {path}: {e}")
+            print(f"FMAPI-E1: Error listing directory {path}: {e}")
             return []
 
     # Reads the contents of a file
@@ -586,7 +586,7 @@ class FileManagerAPI:
             with open(path, "r") as file:
                 return file.read()
         except Exception as e:
-            print(f"FMAPI: Error reading file {path}: {e}")
+            print(f"FMAPI-E2: Error reading file {path}: {e}")
             return ""
         
     # Writes content to a file
@@ -596,7 +596,7 @@ class FileManagerAPI:
                 file.write(content)
             return True
         except Exception as e:
-            print(f"FMAPI: Error writing file {path}: {e}")
+            print(f"FMAPI-E3: Error writing file {path}: {e}")
             return False
         
     # Deletes a file
@@ -605,7 +605,7 @@ class FileManagerAPI:
             os.remove(path)
             return True
         except Exception as e:
-            print(f"FMAPI: Error deleting file {path}: {e}")
+            print(f"FMAPI-E4: Error deleting file {path}: {e}")
             return False
     
     # Deletes a directory
@@ -615,7 +615,7 @@ class FileManagerAPI:
             shutil.rmtree(path)
             return True
         except Exception as e:
-            print(f"FMAPI: Error deleting directory {path}: {e}")
+            print(f"FMAPI-E5: Error deleting directory {path}: {e}")
             return False
     
     # Creates a directory
@@ -624,7 +624,7 @@ class FileManagerAPI:
             os.makedirs(path, exist_ok=True)
             return True
         except Exception as e:
-            print(f"FMAPI: Error creating directory {path}: {e}")
+            print(f"FMAPI-E6: Error creating directory {path}: {e}")
             return False
     
     # Creates an empty file
@@ -634,7 +634,7 @@ class FileManagerAPI:
                 pass
             return True
         except Exception as e:
-            print(f"FMAPI: Error creating file {path}: {e}")
+            print(f"FMAPI-E7: Error creating file {path}: {e}")
             return False
     
     # Renames a file or directory
@@ -645,7 +645,7 @@ class FileManagerAPI:
             os.rename(old_path, new_path)
             return {'success': True, 'new_path': new_path}
         except Exception as e:
-            print(f"FMAPI: Error renaming {old_path}: {e}")
+            print(f"FMAPI-E8: Error renaming {old_path}: {e}")
             return {'success': False, 'error': str(e)}
     
     # Moves a file or directory
@@ -655,7 +655,7 @@ class FileManagerAPI:
             shutil.move(src, dest)
             return True
         except Exception as e:
-            print(f"FMAPI: Error moving {src} to {dest}: {e}")
+            print(f"FMAPI-E9: Error moving {src} to {dest}: {e}")
             return False
         
     # Copies a file or directory
@@ -668,7 +668,7 @@ class FileManagerAPI:
                 shutil.copy2(src, dest)
             return True
         except Exception as e:
-            print(f"FMAPI: Error copying {src} to {dest}: {e}")
+            print(f"FMAPI-E10: Error copying {src} to {dest}: {e}")
             return False
         
     # Gets file or directory metadata
@@ -682,7 +682,7 @@ class FileManagerAPI:
                 "is_directory": os.path.isdir(path)
             }
         except Exception as e:
-            print(f"FMAPI: Error getting metadata for {path}: {e}")
+            print(f"FMAPI-E11: Error getting metadata for {path}: {e}")
             return {}
 
     # Checks if a file or directory exists
@@ -743,7 +743,7 @@ class SettingsManagerAPI:
             # Return as data URL
             return f"data:{mime_type};base64,{b64_data}"
         except Exception as e:
-            print(f"SettingsManagerAPI: Error reading wallpaper file: {e}")
+            print(f"SMA-E1: Error reading wallpaper file: {e}")
             return None
     
     # Sets wallpaper path
@@ -758,7 +758,7 @@ class SettingsManagerAPI:
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
-            print(f"SettingsManagerAPI: Error setting wallpaper: {e}")
+            print(f"SMA-E2: Error setting wallpaper: {e}")
             return False
         return True
     
@@ -774,7 +774,7 @@ class SettingsManagerAPI:
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
-            print(f"SettingsManagerAPI: Error setting day_gradient: {e}")
+            print(f"SMA-E3: Error setting day_gradient: {e}")
             return False
         return True
     
@@ -795,7 +795,7 @@ class SettingsManagerAPI:
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
-            print(f"SettingsManagerAPI: Error setting fullscreen: {e}")
+            print(f"SMA-E4: Error setting fullscreen: {e}")
             return False
         return True
     
@@ -811,7 +811,7 @@ class SettingsManagerAPI:
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
-            print(f"SettingsManagerAPI: Error setting font {weight}: {e}")
+            print(f"SMA-E5: Error setting font {weight}: {e}")
             return False
         return True
     
@@ -827,7 +827,7 @@ class SettingsManagerAPI:
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
-            print(f"SettingsManagerAPI: Error setting updates: {e}")
+            print(f"SMA-E6: Error setting updates: {e}")
             return False
         return True
 
@@ -872,7 +872,7 @@ def check_for_updates():
                 print("No updates available.")
             return None
     except Exception as e:
-        print(f"Error checking for updates: {e}")
+        print(f"CFU-E1: Error checking for updates: {e}")
         return None
 
 # Handles environment startup
