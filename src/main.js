@@ -9,14 +9,39 @@ class DesktopClock {
         this.digitalClockElement = document.getElementById('digitalClock');
         this.dateDisplayElement = document.getElementById('dateDisplay');
         this.sunGlowElement = document.getElementById('sunGlow');
+        this.lastMinute = -1;
+        this.lastHour = -1;
         this.init();
     }
 
     init() {
         this.updateClock();
-        // Update every minute for performance, but still update clock every second
-        setInterval(() => this.updateClock(), 1000);
-        setInterval(() => this.updateSunGlow(), 60000); // Update glow every minute
+        this.updateSunGlow(); // Initial sun glow update
+        // Use requestAnimationFrame for smoother updates, only render when minute changes
+        this.startClockLoop();
+    }
+
+    startClockLoop() {
+        const updateLoop = () => {
+            const now = new Date();
+            const currentMinute = now.getMinutes();
+            
+            // Only update DOM when the minute actually changes
+            if (currentMinute !== this.lastMinute) {
+                this.updateClock();
+                this.lastMinute = currentMinute;
+                
+                // Update sun glow every 5 minutes for smooth transitions
+                if (currentMinute % 5 === 0) {
+                    this.updateSunGlow();
+                }
+            }
+            
+            // Check again in 1 second using requestAnimationFrame
+            setTimeout(() => requestAnimationFrame(updateLoop), 1000);
+        };
+        
+        requestAnimationFrame(updateLoop);
     }
 
     updateClock() {
@@ -37,23 +62,27 @@ class DesktopClock {
         
         const dateString = `${dayName} ${monthName} ${date} ${year}`;
         
-        if (this.digitalClockElement.textContent !== timeString) {
-            this.digitalClockElement.textContent = timeString;
-            this.digitalClockElement.classList.add('clock-update');
-            setTimeout(() => {
-                this.digitalClockElement.classList.remove('clock-update');
-            }, 300);
-        }
-        
-        this.dateDisplayElement.textContent = dateString;
-        
-        // Update sun glow on clock update
-        this.updateSunGlow();
+        // Batch DOM updates using requestAnimationFrame
+        requestAnimationFrame(() => {
+            if (this.digitalClockElement.textContent !== timeString) {
+                this.digitalClockElement.textContent = timeString;
+                this.digitalClockElement.classList.add('clock-update');
+                setTimeout(() => {
+                    requestAnimationFrame(() => {
+                        this.digitalClockElement.classList.remove('clock-update');
+                    });
+                }, 300);
+            }
+            
+            this.dateDisplayElement.textContent = dateString;
+        });
     }
 
     updateSunGlow() {
-        const now = new Date();
-        let hour = now.getHours() + now.getMinutes() / 60;
+        // Use requestAnimationFrame for smooth visual updates
+        requestAnimationFrame(() => {
+            const now = new Date();
+            let hour = now.getHours() + now.getMinutes() / 60;
         
         // Testing Times
         // hour = 7.0; // Test dawn transition (purple to orange-red)
@@ -111,13 +140,14 @@ class DesktopClock {
             intensity = 0.3;
         }
         
-        const colorString = `rgba(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)}, ${intensity})`;
-        
-        if (this.sunGlowElement) {
-            this.sunGlowElement.style.setProperty('--sun-color', colorString);
-        } else {
-            console.log('Sun glow element not found!'); // Debug output
-        }
+            const colorString = `rgba(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)}, ${intensity})`;
+            
+            if (this.sunGlowElement) {
+                this.sunGlowElement.style.setProperty('--sun-color', colorString);
+            } else {
+                console.log('Sun glow element not found!'); // Debug output
+            }
+        });
     }
 
     interpolateColor(color1, color2, progress) {
@@ -628,12 +658,15 @@ setInterval(async () => {
             const badge = document.getElementById('notificationBadge');
             const count = result.notifications.length;
             
-            if (count === 0) {
-                badge.style.display = 'none';
-            } else {
-                badge.textContent = count;
-                badge.style.display = 'flex';
-            }
+            // Use requestAnimationFrame for DOM updates
+            requestAnimationFrame(() => {
+                if (count === 0) {
+                    badge.style.display = 'none';
+                } else {
+                    badge.textContent = count;
+                    badge.style.display = 'flex';
+                }
+            });
             
             // If notification panel is open, reload it
             const notificationPanel = document.getElementById('notificationPanel');
@@ -644,7 +677,7 @@ setInterval(async () => {
     } catch (error) {
         console.error('Failed to update notification badge:', error);
     }
-}, 2000); // Check every 2 seconds
+}, 5000); // Check every 5 seconds (reduced from 2s)
 
 async function toggleSettings() {
     const overlay = document.getElementById('settingsOverlay');
