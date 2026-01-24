@@ -40,6 +40,8 @@ def initialize():
     
     if not init_webview():
         print("FATAL: Failed to initialize webview.\n\nFATAL 0")
+        if webview_window:
+            webview_window.evaluate_js(f'displayError("FATAL 0")')
         return False
 
 # Initializes the environment settings from data/settings.yaml
@@ -71,12 +73,18 @@ def init_settings():
         return True
     except FileNotFoundError:
         print("IS-E1: Settings file not found. Using default settings.")
+        if webview_window:
+            webview_window.evaluate_js('displayError("IS-E1")')
         return False
     except yaml.YAMLError as e:
         print(f"IS-E2: Error parsing YAML file: {e}")
+        if webview_window:
+            webview_window.evaluate_js('displayError("IS-E2")')
         return False
     except Exception as e:
         print(f"IS-E3: Error reading settings file: {e}")
+        if webview_window:
+            webview_window.evaluate_js('displayError("IS-E3")')
         return False
 
 # Initializes apps from src/apps/ directory
@@ -116,9 +124,13 @@ def init_apps():
         return True
     except FileNotFoundError:
         print("IA-E1: Apps directory not found. No apps will be loaded.")
+        if webview_window:
+            webview_window.evaluate_js('displayError("IA-E1")')
         return False
     except Exception as e:
         print(f"IA-E2: Error initializing apps: {e}")
+        if webview_window:
+            webview_window.evaluate_js('displayError("IA-E2")')
         return False
 
 # Launches an app by finding it by its name
@@ -236,26 +248,53 @@ def launch_app(app_name):
         if webview_window:
             webview_window.evaluate_js(inject_script)
         
+        # Always load the app module (even if it doesn't have main/run)
+        # This allows call_app_function to work for apps that only provide API functions
         if app_name not in active_apps:
-            # Create stop event for this app
-            stop_event = threading.Event()
-            app_thread = threading.Thread(
-                target=run_app_backend, 
-                args=(app_name, app_info["pypath"], app_info["app_dir"], stop_event),
-                daemon=True
-            )
-            app_thread.start()
-            active_apps[app_name] = {
-                "thread": app_thread,
-                "container_id": app_container_id,
-                "stop_event": stop_event
-            }
+            # Load the app module first
+            try:
+                app_dir = app_info["app_dir"]
+                py_path = app_info["pypath"]
+                py_file = os.path.join(app_dir, "app.py") if not os.path.isabs(py_path) else py_path
+                
+                if os.path.exists(py_file):
+                    spec = importlib.util.spec_from_file_location(f"app_{app_name}", py_file)
+                    app_module = importlib.util.module_from_spec(spec)
+                    sys.modules[f"app_{app_name}"] = app_module
+                    spec.loader.exec_module(app_module)
+                    
+                    # Only start a backend thread if the app has main() or run()
+                    if hasattr(app_module, 'main') or hasattr(app_module, 'run'):
+                        stop_event = threading.Event()
+                        app_thread = threading.Thread(
+                            target=run_app_backend_thread, 
+                            args=(app_name, app_module, stop_event),
+                            daemon=True
+                        )
+                        app_thread.start()
+                        active_apps[app_name] = {
+                            "thread": app_thread,
+                            "container_id": app_container_id,
+                            "stop_event": stop_event
+                        }
+                    else:
+                        # App has no background thread, just track the container
+                        active_apps[app_name] = {
+                            "thread": None,
+                            "container_id": app_container_id,
+                            "stop_event": None
+                        }
+            except Exception as e:
+                print(f"LA: Error loading app module: {e}")
+                # Continue anyway, app might still work without backend
         
         print(f"LA: Successfully launched app '{app_name}'")
         return True
         
     except Exception as e:
         print(f"LA-E1: Error launching app '{app_name}': {e}")
+        if webview_window:
+            webview_window.evaluate_js('displayError("LA-E1")')
         return False
 
 # Runs the backend script of the app in its own thread
@@ -292,10 +331,38 @@ def run_app_backend(app_name, py_path, app_dir, stop_event):
         
     except Exception as e:
         print(f"RAB-E1: Error running app '{app_name}' backend: {e}")
+        if webview_window:
+            webview_window.evaluate_js('displayError("RAB-E1")')
     finally:
         os.chdir(original_cwd)
         if app_name in active_apps:
             del active_apps[app_name]
+
+# Runs the main/run function of an already-loaded app module in a thread
+def run_app_backend_thread(app_name, app_module, stop_event):
+    try:
+        # Pass stop_event to app's main/run function if it accepts it
+        if hasattr(app_module, 'main'):
+            import inspect
+            sig = inspect.signature(app_module.main)
+            if len(sig.parameters) > 0:
+                app_module.main(stop_event)
+            else:
+                app_module.main()
+        elif hasattr(app_module, 'run'):
+            import inspect
+            sig = inspect.signature(app_module.run)
+            if len(sig.parameters) > 0:
+                app_module.run(stop_event)
+            else:
+                app_module.run()
+        
+        print(f"RAB: App '{app_name}' backend finished")
+        
+    except Exception as e:
+        print(f"RAB-E1: Error running app '{app_name}' backend: {e}")
+        if webview_window:
+            webview_window.evaluate_js('displayError("RAB-E1")')
 
 # Stops a running app by finding it by its name
 def stop_app(app_name):
@@ -616,6 +683,8 @@ class FileManagerAPI:
             return items
         except Exception as e:
             print(f"FMAPI-E1: Error listing directory {path}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E1")')
             return []
 
     # Reads the contents of a file
@@ -625,6 +694,8 @@ class FileManagerAPI:
                 return file.read()
         except Exception as e:
             print(f"FMAPI-E2: Error reading file {path}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E2")')
             return ""
         
     # Writes content to a file
@@ -635,6 +706,8 @@ class FileManagerAPI:
             return True
         except Exception as e:
             print(f"FMAPI-E3: Error writing file {path}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E3")')
             return False
         
     # Deletes a file
@@ -644,6 +717,8 @@ class FileManagerAPI:
             return True
         except Exception as e:
             print(f"FMAPI-E4: Error deleting file {path}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E4")')
             return False
     
     # Deletes a directory
@@ -654,6 +729,8 @@ class FileManagerAPI:
             return True
         except Exception as e:
             print(f"FMAPI-E5: Error deleting directory {path}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E5")')
             return False
     
     # Creates a directory
@@ -663,6 +740,8 @@ class FileManagerAPI:
             return True
         except Exception as e:
             print(f"FMAPI-E6: Error creating directory {path}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E6")')
             return False
     
     # Creates an empty file
@@ -673,6 +752,8 @@ class FileManagerAPI:
             return True
         except Exception as e:
             print(f"FMAPI-E7: Error creating file {path}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E7")')
             return False
     
     # Renames a file or directory
@@ -684,6 +765,8 @@ class FileManagerAPI:
             return {'success': True, 'new_path': new_path}
         except Exception as e:
             print(f"FMAPI-E8: Error renaming {old_path}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E8")')
             return {'success': False, 'error': str(e)}
     
     # Moves a file or directory
@@ -694,6 +777,8 @@ class FileManagerAPI:
             return True
         except Exception as e:
             print(f"FMAPI-E9: Error moving {src} to {dest}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E9")')
             return False
         
     # Copies a file or directory
@@ -707,6 +792,8 @@ class FileManagerAPI:
             return True
         except Exception as e:
             print(f"FMAPI-E10: Error copying {src} to {dest}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E10")')
             return False
         
     # Gets file or directory metadata
@@ -721,6 +808,8 @@ class FileManagerAPI:
             }
         except Exception as e:
             print(f"FMAPI-E11: Error getting metadata for {path}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("FMAPI-E11")')
             return {}
 
     # Checks if a file or directory exists
@@ -782,6 +871,8 @@ class SettingsManagerAPI:
             return f"data:{mime_type};base64,{b64_data}"
         except Exception as e:
             print(f"SMA-E1: Error reading wallpaper file: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("SMA-E1")')
             return None
     
     # Sets wallpaper path
@@ -797,6 +888,8 @@ class SettingsManagerAPI:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E2: Error setting wallpaper: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("SMA-E2")')
             return False
         return True
     
@@ -813,6 +906,8 @@ class SettingsManagerAPI:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E3: Error setting day_gradient: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("SMA-E3")')
             return False
         return True
     
@@ -834,6 +929,8 @@ class SettingsManagerAPI:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E4: Error setting fullscreen: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("SMA-E4")')
             return False
         return True
     
@@ -850,6 +947,8 @@ class SettingsManagerAPI:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E5: Error setting font {weight}: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("SMA-E5")')
             return False
         return True
     
@@ -866,6 +965,8 @@ class SettingsManagerAPI:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E6: Error setting updates: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("SMA-E6")')
             return False
         return True
 
@@ -912,6 +1013,8 @@ def check_for_updates():
                 return None
         except Exception as e:
             print(f"CFU-E1: Error checking for updates: {e}")
+            if webview_window:
+                webview_window.evaluate_js('displayError("CFU-E1")')
             return None
 
 # Handles environment startup
