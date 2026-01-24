@@ -843,37 +843,38 @@ def is_newer_version(installed, latest):
 def check_for_updates():
     global version, updates
     url = "https://api.github.com/repos/MichaelCreel/SanctumStation/releases"
-    try:
-        response = requests.get(url, timeout=20)
-        if response.status_code == 200:
-            releases = response.json()
-            latest_release = releases[0]
-            latest_version = "v" + latest_release["tag_name"]
-            is_prerelease = latest_release["prerelease"]
-            release_type = "Pre-release" if is_prerelease else "Stable Release"
-            download_url = latest_release["html_url"]
-            description = latest_release.get("body", "No description available.")
+    if updates != "none":
+        try:
+            response = requests.get(url, timeout=20)
+            if response.status_code == 200:
+                releases = response.json()
+                latest_release = releases[0]
+                latest_version = "v" + latest_release["tag_name"]
+                is_prerelease = latest_release["prerelease"]
+                release_type = "Pre-release" if is_prerelease else "Stable Release"
+                download_url = latest_release["html_url"]
+                description = latest_release.get("body", "No description available.")
 
-            print(f"Latest Version: {latest_version} ({release_type}) - {download_url}")
+                print(f"Latest Version: {latest_version} ({release_type}) - {download_url}")
 
-            if is_newer_version(version, latest_version):
-                if updates == "release" and is_prerelease:
-                    print("Prerelease skipped by preference.")
-                    return None
+                if is_newer_version(version, latest_version):
+                    if updates == "release" and is_prerelease:
+                        print("Prerelease skipped by preference.")
+                        return None
+                    else:
+                        print(f"Update available: {latest_version}, {release_type}")
+                        return {
+                            "version": latest_version,
+                            "type": release_type,
+                            "url": download_url,
+                            "description": description
+                        }
                 else:
-                    print(f"Update available: {latest_version}, {release_type}")
-                    return {
-                        "version": latest_version,
-                        "type": release_type,
-                        "url": download_url,
-                        "description": description
-                    }
-            else:
-                print("No updates available.")
+                    print("No updates available.")
+                return None
+        except Exception as e:
+            print(f"CFU-E1: Error checking for updates: {e}")
             return None
-    except Exception as e:
-        print(f"CFU-E1: Error checking for updates: {e}")
-        return None
 
 # Handles environment startup
 def main():
