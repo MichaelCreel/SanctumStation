@@ -1,191 +1,191 @@
-[
 {
+"FATAL 0": {
     "code": "FATAL 0",
     "source": "Webview",
     "issue": "Webview failed to initialize properly.",
     "effects": "The environment may not function properly.",
     "fix": "Try restarting the environment. If the issue persists, ensure that Webview is installed in the environment or reinstall the environment."
 },
-{
+"IS-E1": {
     "code": "IS-E1",
     "source": "Settings Initialization",
     "issue": "Settings file not found.",
     "effects": "Default settings will be used.",
     "fix": "Change settings of the environment to create a new settings file."
 },
-{
+"IS-E2": {
     "code": "IS-E2",
     "source": "Settings Initialization",
     "issue": "Error parsing YAML file.",
     "effects": "Default settings will be used.",
     "fix": "Change settings of the environment to rewrite the settings file. If the issue persists, manually check the settings.yaml file in the environment directory with settings.yaml on the GitHub repository."
 },
-{
+"IS-E3": {
     "code": "IS-E3",
-    "source": "Settings Initialization", 
+    "source": "Settings Initialization",
     "issue": "Error reading settings file.",
     "effects": "Default settings will be used.",
     "fix": "Relaunch environment. If the issue persists, change the settings of the environment to rewrite the settings file or manually check the settings.yaml file in the environment directory with settings.yaml on the GitHub repository."
 },
-{
+"IA-E1": {
     "code": "IA-E1",
     "source": "App Initialization",
     "issue": "Apps directory not found.",
     "effects": "No apps will be loaded into the environment.",
     "fix": "Relaunch environment. If the issue persists, ensure that the apps directory exists in the environment directory or reinstall the environment."
 },
-{
+"IA-E2": {
     "code": "IA-E2",
     "source": "App Initialization",
     "issue": "Error initializing apps.",
     "effects": "No apps will be loaded into the environment.",
-    "fix": "Relaunch environment. If the issu{e persists, ensure that the apps in the apps directory are valid or reinstall the environment."
+    "fix": "Relaunch environment. If the issue persists, ensure that the apps in the apps directory are valid or reinstall the environment."
 },
-{
+"LA-E1": {
     "code": "LA-E1",
     "source": "App Launching",
     "issue": "Error launching app.",
     "effects": "The app will fail to launch.",
     "fix": "Try launching the app again. If the issue persists, ensure that the app is valid. Check output for app-specific errors."
 },
-{
+"RAB-E1": {
     "code": "RAB-E1",
     "source": "App Backend",
     "issue": "Error running app backend.",
     "effects": "The app may not function properly or crash.",
     "fix": "Try restarting the app. If the issue persists, ensure the app is valid. Check output for app-specific errors."
 },
-{
+"IW-E1": {
     "code": "IW-E1",
     "source": "Webview Initialization",
     "issue": "Error initializing webview.",
     "effects": "The environment may not function properly.",
     "fix": "Try restarting the environment. If the issue persists, ensure that Webview is installed in the environment or reinstall the environment."
 },
-{
+"FMAPI-E1": {
     "code": "FMAPI-E1",
     "source": "File Management API",
     "issue": "Error accessing directory.",
     "effects": "Some directories may be skipped in file operations.",
     "fix": "Ensure that the directories being accessed exist and have the proper permissions."
 },
-{
+"FMAPI-E2": {
     "code": "FMAPI-E2",
     "source": "File Management API",
     "issue": "Error reading file.",
     "effects": "The file may not be read properly.",
     "fix": "Ensure that the file being accessed exists and has the proper permissions."
 },
-{
+"FMAPI-E3": {
     "code": "FMAPI-E3",
     "source": "File Management API",
     "issue": "Error writing file.",
     "effects": "The file may not be written properly.",
     "fix": "Ensure that the file being accessed exists and has the proper permissions."
 },
-{
+"FMAPI-E4": {
     "code": "FMAPI-E4",
     "source": "File Management API",
     "issue": "Error deleting file.",
     "effects": "The file may not be deleted properly.",
     "fix": "Ensure that the file being accessed exists and has the proper permissions."
 },
-{
+"FMAPI-E5": {
     "code": "FMAPI-E5",
     "source": "File Management API",
     "issue": "Error deleting directory.",
     "effects": "The directory may not be deleted properly.",
     "fix": "Ensure that the directory being accessed exists and has the proper permissions."
 },
-{
+"FMAPI-E6": {
     "code": "FMAPI-E6",
     "source": "File Management API",
     "issue": "Error creating directory.",
     "effects": "The directory may not be created properly.",
     "fix": "Ensure that the parent directory exists and has the proper permissions."
 },
-{
+"FMAPI-E7": {
     "code": "FMAPI-E7",
     "source": "File Management API",
     "issue": "Error creating file.",
     "effects": "The file may not be created properly.",
     "fix": "Ensure that the parent directory exists and has the proper permissions."
 },
-{
+"FMAPI-E8": {
     "code": "FMAPI-E8",
     "source": "File Management API",
     "issue": "Error renaming file or directory.",
     "effects": "The file or directory may not be renamed properly.",
     "fix": "Ensure that the source file or directory exists and has the proper permissions."
 },
-{
+"FMAPI-E9": {
     "code": "FMAPI-E9",
     "source": "File Management API",
     "issue": "Error moving file or directory.",
     "effects": "The file or directory may not be moved properly.",
     "fix": "Ensure that the source file or directory exists and has the proper permissions."
 },
-{
+"FMAPI-E10": {
     "code": "FMAPI-E10",
     "source": "File Management API",
     "issue": "Error copying file or directory.",
     "effects": "The file or directory may not be copied properly.",
     "fix": "Ensure that the source file or directory exists and has the proper permissions."
 },
-{
+"FMAPI-E11": {
     "code": "FMAPI-E11",
     "source": "File Management API",
     "issue": "Error getting metadata for file or directory.",
     "effects": "Metadata may not be retrieved properly.",
     "fix": "Ensure that the file or directory exists and has the proper permissions."
 },
-{
+"SMA-E1": {
     "code": "SMA-E1",
     "source": "Settings Manager API",
     "issue": "Error reading wallpaper file.",
     "effects": "Wallpaper may not be displayed properly.",
     "fix": "Ensure that the wallpaper file exists and has the proper permissions."
 },
-{
+"SMA-E2": {
     "code": "SMA-E2",
     "source": "Settings Manager API",
     "issue": "Error writing wallpaper file.",
     "effects": "Wallpaper may not be saved properly.",
     "fix": "Ensure that the wallpaper file exists and has the proper permissions."
 },
-{
+"SMA-E3": {
     "code": "SMA-E3",
     "source": "Settings Manager API",
     "issue": "Error setting day gradient.",
     "effects": "Day gradient setting may not be saved properly.",
     "fix": "Ensure that the settings file exists and has the proper permissions."
 },
-{
+"SMA-E4": {
     "code": "SMA-E4",
     "source": "Settings Manager API",
     "issue": "Error setting fullscreen.",
     "effects": "Fullscreen setting may not be saved properly.",
     "fix": "Ensure that the settings file exists and has the proper permissions."
 },
-{
+"SMA-E5": {
     "code": "SMA-E5",
     "source": "Settings Manager API",
     "issue": "Error setting font.",
     "effects": "Font setting may not be saved properly.",
     "fix": "Ensure that the settings file exists and has the proper permissions."
 },
-{
+"SMA-E6": {
     "code": "SMA-E6",
     "source": "Settings Manager API",
     "issue": "Error setting updates preference.",
     "effects": "Updates preference may not be saved properly.",
     "fix": "Ensure that the settings file exists and has the proper permissions."
 },
-{
+"CFU-E1": {
     "code": "CFU-E1",
     "source": "Check for Updates",
     "issue": "Error checking for updates.",
     "effects": "The environment may not be able to check for updates.",
     "fix": "Ensure that the environment has internet access and try again."
 }
-]
+}
