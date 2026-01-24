@@ -16,6 +16,7 @@ class DesktopClock {
 
     init() {
         this.updateClock();
+        this.updateSunGlow(); // Initial sun glow update
         // Use requestAnimationFrame for smoother updates, only render when minute changes
         this.startClockLoop();
     }
@@ -24,18 +25,16 @@ class DesktopClock {
         const updateLoop = () => {
             const now = new Date();
             const currentMinute = now.getMinutes();
-            const currentHour = now.getHours();
             
             // Only update DOM when the minute actually changes
             if (currentMinute !== this.lastMinute) {
                 this.updateClock();
                 this.lastMinute = currentMinute;
-            }
-            
-            // Only update sun glow when the hour changes
-            if (currentHour !== this.lastHour) {
-                this.updateSunGlow();
-                this.lastHour = currentHour;
+                
+                // Update sun glow every 5 minutes for smooth transitions
+                if (currentMinute % 5 === 0) {
+                    this.updateSunGlow();
+                }
             }
             
             // Check again in 1 second using requestAnimationFrame
