@@ -775,6 +775,149 @@ body {
     border-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Error overlay */
+.error-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1300;
+    backdrop-filter: blur(8px);
+}
+
+.error-popup {
+    background: rgba(28, 28, 32, 0.98);
+    border: 1px solid rgba(220, 38, 38, 0.5);
+    border-radius: 16px;
+    padding: 2rem;
+    min-width: 500px;
+    max-width: 650px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 48px rgba(220, 38, 38, 0.4);
+    animation: slideIn 0.3s ease;
+}
+
+.error-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.error-header h2 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: rgba(220, 38, 38, 1);
+    margin: 0;
+}
+
+.error-close-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.error-close-btn:hover {
+    color: rgba(255, 255, 255, 1);
+    transform: scale(1.1);
+}
+
+.error-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.error-code-section {
+    background: rgba(220, 38, 38, 0.15);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border-left: 4px solid rgba(220, 38, 38, 0.8);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.error-code-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.error-code-value {
+    font-size: 1.3rem;
+    color: rgba(220, 38, 38, 1);
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+}
+
+.error-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.error-info-item label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.error-info-item span,
+.error-info-item p {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+    line-height: 1.6;
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.error-dismiss-btn {
+    flex: 1;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.8), rgba(185, 28, 28, 0.8));
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+}
+
+.error-dismiss-btn:hover {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 1), rgba(185, 28, 28, 1));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
+}
+
+.error-dismiss-btn:active {
+    transform: translateY(0);
+}
+
 /* Central area */
 .central-area {
     position: fixed;

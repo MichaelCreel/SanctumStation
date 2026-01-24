@@ -5,6 +5,7 @@
 
 import webview
 import yaml
+import json
 import os
 import threading
 import importlib.util
@@ -322,6 +323,7 @@ def init_webview():
         file_manager = FileManagerAPI()
         settings_manager = SettingsManagerAPI()
         notification_manager = NotificationManagerAPI()
+        error_manager = ErrorManagerAPI()
         
         class API:
             def launch_app(self, app_name):
@@ -348,6 +350,13 @@ def init_webview():
             
             def clear_all_notifications(self):
                 return notification_manager.clear_all_notifications()
+
+            # Error Management - Delegate to ErrorManagerAPI
+            def display_error(self, code):
+                return error_manager.display_error(code)
+            
+            def get_error(self, code):
+                return error_manager.get_error(code)
 
             # File Management - Delegate to FileManagerAPI
             def list_directory(self, path):
@@ -553,6 +562,35 @@ class NotificationManagerAPI:
         global _notifications
         _notifications.clear()
         return {"success": True}
+
+#API for managing errors within the environment
+class ErrorManagerAPI:
+    # Displays an error message
+    def display_error(self, code):
+        error_data = self.get_error(code)
+        return error_data
+
+    def get_error(self, code):
+        try:
+            with open("src/errors.json", "r") as f:
+                errors = json.load(f)
+                return errors.get(str(code), {
+                    "code": code,
+                    "source": "Unknown",
+                    "issue": "Unknown error code.",
+                    "effects": "Unknown effects.",
+                    "fix": "Please post an issue on the GitHub repository including the steps taken to get this error."
+                })
+        except Exception as e:
+            print(f"Error loading errors.json: {e}")
+            return {
+                "code": code,
+                "source": "Error Manager",
+                "issue": "Could not load error information.",
+                "effects": "Error details unavailable.",
+                "fix": "Check errors.json file."
+            }
+
 
 # API for file management between the app and the system(s)
 class FileManagerAPI:

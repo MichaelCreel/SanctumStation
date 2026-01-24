@@ -855,6 +855,34 @@ function dismissUpdate() {
     updateOverlay.style.display = 'none';
 }
 
+// Display an error popup
+async function displayError(errorCode) {
+    try {
+        const errorData = await window.pywebview.api.display_error(errorCode);
+        
+        if (errorData) {
+            // Populate error popup with data
+            document.getElementById('errorCode').textContent = errorData.code || errorCode;
+            document.getElementById('errorSource').textContent = errorData.source || 'Unknown';
+            document.getElementById('errorIssue').textContent = errorData.issue || 'No issue description available.';
+            document.getElementById('errorEffects').textContent = errorData.effects || 'Unknown effects.';
+            document.getElementById('errorFix').textContent = errorData.fix || 'No fix information available.';
+            
+            // Show the overlay
+            const errorOverlay = document.getElementById('errorOverlay');
+            errorOverlay.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('Error displaying error popup:', error);
+    }
+}
+
+// Dismiss the error popup
+function dismissError() {
+    const errorOverlay = document.getElementById('errorOverlay');
+    errorOverlay.style.display = 'none';
+}
+
 // Listen for fullscreen changes (not needed for pywebview but kept for compatibility)
 document.addEventListener('fullscreenchange', async () => {
     const toggle = document.getElementById('fullscreenToggle');
@@ -884,6 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.SanctumStation = {
         clock,
         interactions,
-        responsive
+        responsive,
+        displayError  // Make displayError accessible globally
     };
 });

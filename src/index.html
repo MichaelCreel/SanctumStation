@@ -142,6 +142,41 @@ This file contains the structure and layout for the psuedo-desktop environment t
             </div>
         </div>
 
+        <!-- Error overlay -->
+        <div class="error-overlay" id="errorOverlay" style="display: none;">
+            <div class="error-popup">
+                <div class="error-header">
+                    <h2>Error</h2>
+                    <button class="error-close-btn" onclick="dismissError()">✕</button>
+                </div>
+                <div class="error-content">
+                    <div class="error-code-section">
+                        <span class="error-code-label">ERROR CODE:</span>
+                        <span class="error-code-value" id="errorCode"></span>
+                    </div>
+                    <div class="error-info-item">
+                        <label>SOURCE:</label>
+                        <span id="errorSource"></span>
+                    </div>
+                    <div class="error-info-item">
+                        <label>ISSUE:</label>
+                        <p id="errorIssue"></p>
+                    </div>
+                    <div class="error-info-item">
+                        <label>EFFECTS:</label>
+                        <p id="errorEffects"></p>
+                    </div>
+                    <div class="error-info-item">
+                        <label>FIX:</label>
+                        <p id="errorFix"></p>
+                    </div>
+                    <div class="error-actions">
+                        <button class="error-dismiss-btn" onclick="dismissError()">Dismiss</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Central area with clock and button -->
         <div class="central-area">
             <!-- Clock area -->
