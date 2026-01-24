@@ -690,16 +690,6 @@ class FileManagerAPI:
         return os.path.exists(path)
     def exists(self, path):
         return os.path.exists(path)
-    
-    # Creates an empty file
-    def create_file(self, path):
-        try:
-            with open(path, "w") as file:
-                pass
-            return True
-        except Exception as e:
-            print(f"FMAPI CF: Error creating file {path}: {e}")
-            return False
 
 # API for managing apps within the environment
 class AppManagerAPI:
