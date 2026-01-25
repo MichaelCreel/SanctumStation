@@ -14,6 +14,8 @@ import requests
 import time
 import inspect
 
+MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
+
 apps = [] # List of apps found in the apps directory
 version = "v0.0.0" # The current version of the app
 updates = "release" # Update preference: "release" or "all"
@@ -139,7 +141,7 @@ def init_apps():
 # This includes the code for the close button and app container
 def launch_app(app_name):
     global active_apps, webview_window
-    
+
     app_info = None
     for app in apps:
         if app["name"] == app_name:
@@ -635,6 +637,7 @@ class ErrorManagerAPI:
     # Displays an error message
     def display_error(self, code):
         error_data = self.get_error(code)
+        self.log_error(error_data)
         return error_data
 
     def get_error(self, code):
@@ -657,6 +660,13 @@ class ErrorManagerAPI:
                 "effects": "Error details unavailable.",
                 "fix": "Check errors.json file."
             }
+    
+    def log_error(self, error_data):
+        if os.path.exists("data/error_log.txt") and os.path.getsize("data/error_log.txt") > MAX_ERROR_LOG_SIZE:
+            os.rename("data/error_log.txt", "data/old_error_log.txt")
+
+        with open("data/error_log.txt", "a") as f:
+            f.write(json.dumps(error_data) + "\n")
 
 
 # API for file management between the app and the system(s)
