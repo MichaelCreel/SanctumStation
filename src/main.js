@@ -986,7 +986,7 @@ async function launchAppFromPalette(appName) {
 }
 
 // Setup command palette event listeners
-document.addEventListener('DOMContentLoaded', () => {
+function setupCommandPalette() {
     // Ctrl+Space to open
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.code === 'Space') {
@@ -1045,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-});
+}
 
 // Listen for fullscreen changes (not needed for pywebview but kept for compatibility)
 document.addEventListener('fullscreenchange', async () => {
@@ -1065,6 +1065,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Global variable to store update URL
     window.updateUrl = '';
+    
+    // Setup command palette after DOM is ready
+    setupCommandPalette();
     
     // Wait for pywebview API to be ready before loading wallpaper
     waitForPywebview(() => {
