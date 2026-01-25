@@ -575,10 +575,10 @@ def on_webview_ready():
 # Shared notifications storage at module level
 _notifications = {}
 
-def fuzzy_search_apps(query, limit=5, score_cutoff=70):
+def fuzzy_search_apps(query):
     global app_names
 
-    match = fuzz_process.extract(query, app_names, limit=limit, score_cutoff=score_cutoff)
+    match = fuzz_process.extract(query, app_names, limit=5, score_cutoff=70)
     
     return match
 
