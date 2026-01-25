@@ -514,6 +514,10 @@ def init_webview():
                 global available_update
                 return available_update
             
+            # Fuzzy search for apps
+            def fuzzy_search_apps(self, query):
+                return fuzzy_search_apps(query)
+            
             # Generic app function call - allows apps to expose their own API
             def call_app_function(self, app_name, function_name, *args, **kwargs):
                 try:
@@ -578,7 +582,7 @@ _notifications = {}
 def fuzzy_search_apps(query):
     global app_names
 
-    match = fuzz_process.extract(query, app_names, limit=5, score_cutoff=70)
+    match = fuzz_process.extract(query, app_names, limit=5, score_cutoff=50)
     
     return match
 
