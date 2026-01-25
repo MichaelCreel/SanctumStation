@@ -883,6 +883,170 @@ function dismissError() {
     errorOverlay.style.display = 'none';
 }
 
+// Command Palette functionality
+let commandPaletteSelectedIndex = -1;
+let commandPaletteResults = [];
+
+function showCommandPalette() {
+    const overlay = document.getElementById('commandPaletteOverlay');
+    const input = document.getElementById('commandPaletteInput');
+    overlay.style.display = 'flex';
+    input.value = '';
+    input.focus();
+    commandPaletteSelectedIndex = -1;
+    commandPaletteResults = [];
+    
+    // Clear results and show initial message
+    const resultsContainer = document.getElementById('commandPaletteResults');
+    resultsContainer.innerHTML = '<div class="command-palette-empty">Type to search apps...</div>';
+}
+
+function hideCommandPalette() {
+    const overlay = document.getElementById('commandPaletteOverlay');
+    overlay.style.display = 'none';
+    commandPaletteSelectedIndex = -1;
+    commandPaletteResults = [];
+}
+
+async function searchApps(query) {
+    if (!query.trim()) {
+        const resultsContainer = document.getElementById('commandPaletteResults');
+        resultsContainer.innerHTML = '<div class="command-palette-empty">Type to search apps...</div>';
+        commandPaletteResults = [];
+        return;
+    }
+
+    try {
+        // Call backend fuzzy search
+        const results = await window.pywebview.api.fuzzy_search_apps(query);
+        
+        if (!results || results.length === 0) {
+            const resultsContainer = document.getElementById('commandPaletteResults');
+            resultsContainer.innerHTML = '<div class="command-palette-empty">No apps found</div>';
+            commandPaletteResults = [];
+            return;
+        }
+
+        // Store results for keyboard navigation
+        commandPaletteResults = results;
+        commandPaletteSelectedIndex = 0;
+
+        // Get full app list to find icons
+        const apps = await window.pywebview.api.get_apps();
+        const appsMap = {};
+        apps.forEach(app => {
+            appsMap[app.name] = app;
+        });
+
+        // Render results
+        const resultsContainer = document.getElementById('commandPaletteResults');
+        resultsContainer.innerHTML = results.map((result, index) => {
+            const [appName, score] = result;
+            const app = appsMap[appName];
+            const iconHtml = app && app.icon 
+                ? `<img src="${app.icon}" class="command-result-icon" alt="${appName}">`
+                : '<div class="command-result-icon-placeholder"></div>';
+            
+            return `
+                <div class="command-result-item ${index === 0 ? 'selected' : ''}" 
+                     data-index="${index}" 
+                     data-app-name="${appName}"
+                     onclick="launchAppFromPalette('${appName}')">
+                    ${iconHtml}
+                    <div class="command-result-text">
+                        <div class="command-result-name">${appName}</div>
+                        <div class="command-result-score">Match: ${score.toFixed(0)}%</div>
+                    </div>
+                    <div class="command-result-badge">LAUNCH</div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error searching apps:', error);
+        const resultsContainer = document.getElementById('commandPaletteResults');
+        resultsContainer.innerHTML = '<div class="command-palette-empty">Error searching apps</div>';
+    }
+}
+
+function updateCommandPaletteSelection() {
+    const items = document.querySelectorAll('.command-result-item');
+    items.forEach((item, index) => {
+        if (index === commandPaletteSelectedIndex) {
+            item.classList.add('selected');
+            item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
+async function launchAppFromPalette(appName) {
+    hideCommandPalette();
+    await window.pywebview.api.launch_app(appName);
+}
+
+// Setup command palette event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Ctrl+Space to open
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.code === 'Space') {
+            e.preventDefault();
+            const overlay = document.getElementById('commandPaletteOverlay');
+            if (overlay.style.display === 'none') {
+                showCommandPalette();
+            } else {
+                hideCommandPalette();
+            }
+        }
+    });
+
+    // Search input handler with debounce
+    let searchTimeout;
+    const input = document.getElementById('commandPaletteInput');
+    if (input) {
+        input.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchApps(e.target.value);
+            }, 150);
+        });
+
+        // Keyboard navigation in command palette
+        input.addEventListener('keydown', (e) => {
+            if (commandPaletteResults.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                commandPaletteSelectedIndex = (commandPaletteSelectedIndex + 1) % commandPaletteResults.length;
+                updateCommandPaletteSelection();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                commandPaletteSelectedIndex = (commandPaletteSelectedIndex - 1 + commandPaletteResults.length) % commandPaletteResults.length;
+                updateCommandPaletteSelection();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (commandPaletteSelectedIndex >= 0 && commandPaletteResults[commandPaletteSelectedIndex]) {
+                    const appName = commandPaletteResults[commandPaletteSelectedIndex][0];
+                    launchAppFromPalette(appName);
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                hideCommandPalette();
+            }
+        });
+    }
+
+    // Click outside to close
+    const overlay = document.getElementById('commandPaletteOverlay');
+    if (overlay) {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                hideCommandPalette();
+            }
+        });
+    }
+});
+
 // Listen for fullscreen changes (not needed for pywebview but kept for compatibility)
 document.addEventListener('fullscreenchange', async () => {
     const toggle = document.getElementById('fullscreenToggle');
