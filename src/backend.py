@@ -3,7 +3,6 @@
 # This file handles logic for the psuedo-desktop environment to be used.
 ################################################################################
 
-import webview
 import yaml
 import json
 import os
@@ -28,6 +27,19 @@ available_update = None  # Stores update info if available
 active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
 fullscreen = False # Whether the app is in fullscreen mode or not
+
+IS_MOBILE = (
+    hasattr(sys, 'getandroidapilevel') or  # Android
+    sys.platform == 'ios' or  # iOS
+    'briefcase' in sys.modules or  # BeeWare
+    any(keyword in sys.platform.lower() for keyword in ['android', 'samsung'])  # Android variants
+)
+if IS_MOBILE:
+    import toga
+    print("Running on mobile platform")
+else:
+    import webview
+    print("Running on desktop platform")
 
 # Handles the initialization of the environment components and apps
 # This initializes both essential and non-essential components
