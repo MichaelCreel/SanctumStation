@@ -22,6 +22,7 @@ The current version of Sanctum Station is not ready for full release and is inte
 - PyWebView
 - PyYAML
 - Requests
+- Rapid Fuzz
 
 ## Installation
 
