@@ -640,6 +640,7 @@ class ErrorManagerAPI:
         self.log_error(error_data)
         return error_data
 
+    # Returns the error information for a given code
     def get_error(self, code):
         try:
             with open("src/errors.json", "r") as f:
@@ -661,6 +662,7 @@ class ErrorManagerAPI:
                 "fix": "Check errors.json file."
             }
     
+    # Logs the error data to data/error_log.txt and manages log size
     def log_error(self, error_data):
         if os.path.exists("data/error_log.txt") and os.path.getsize("data/error_log.txt") > MAX_ERROR_LOG_SIZE:
             os.rename("data/error_log.txt", "data/old_error_log.txt")
