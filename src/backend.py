@@ -13,10 +13,12 @@ import sys
 import requests
 import time
 import inspect
+from rapidfuzz import process as fuzz_process
 
 MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
 
 apps = [] # List of apps found in the apps directory
+app_names = [] # List of app names
 version = "v0.0.0" # The current version of the app
 updates = "release" # Update preference: "release" or "all"
 wallpaper = "None" # The current wallpaper setting
@@ -118,6 +120,7 @@ def init_apps():
                         "pypath": py_path,
                         "app_dir": os.path.abspath(app_path)  # Use absolute path for backend
                     })
+                    app_names.append(app)
                     print(f"IA: Added app '{app}' with icon: {icon_url}")
                 else:
                     print(f"IA: App '{app}' missing required files (app.html or app.py)")
@@ -571,6 +574,13 @@ def on_webview_ready():
 
 # Shared notifications storage at module level
 _notifications = {}
+
+def fuzzy_search_apps(query, limit=5, score_cutoff=70):
+    global app_names
+
+    match = fuzz_process.extract(query, app_names, limit=limit, score_cutoff=score_cutoff)
+    
+    return match
 
 # API for managing the app notifications within the environment
 class NotificationManagerAPI:
