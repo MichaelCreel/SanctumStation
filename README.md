@@ -28,8 +28,8 @@ The current version of Sanctum Station is not ready for full release and is inte
 
 1. Install all dependencies
 2. Download the Sanctum Station zip file from [Releases](https://github.com/MichaelCreel/SanctumStation/releases)
-3. Run `backend.py` from the project folder (Ex: `python3 ./src/backend.py)
-  - Running `backend.py` from `src/` will not work properly
+3. Run `backend.py` from the project folder (Ex: `python3 ./src/backend.py`)
+ - Running `backend.py` from `src/` will not work properly
 
 ## Known Issues
 
