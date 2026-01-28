@@ -150,16 +150,6 @@ def init_apps():
             webview_window.evaluate_js('displayError("IA-E2")')
         return False
 
-# Returns the proper storage path based on platform
-def get_storage_path(sub_path, is_data=True):
-    if IS_MOBILE:
-        from toga import App
-        app = App.app
-        base = app.paths.data if is_data else app.paths.app
-        return base / sub_path
-    else:
-        return os.path.join(os.getcwd(), sub_path)
-
 # Launches an app by finding it by its name
 # Returns True on success, False on failure
 # This injects the app into the webview and starts the backend thread
@@ -865,6 +855,16 @@ class FileManagerAPI:
         return os.path.exists(path)
     def exists(self, path):
         return os.path.exists(path)
+    
+    # Returns the proper storage path based on platform
+    def get_storage_path(sub_path, is_data=True):
+        if IS_MOBILE:
+            from toga import App
+            app = App.app
+            base = app.paths.data if is_data else app.paths.app
+            return base / sub_path
+        else:
+            return os.path.join(os.getcwd(), sub_path)
 
 # API for managing apps within the environment
 class AppManagerAPI:
