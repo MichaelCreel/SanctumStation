@@ -12,7 +12,7 @@ import sys
 import requests
 import time
 import inspect
-from rapidfuzz import process as fuzz_process
+from fuzzywuzzy import process as fuzzy_process
 
 MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
 
@@ -612,9 +612,9 @@ _notifications = {}
 def fuzzy_search_apps(query):
     global app_names
 
-    match = fuzz_process.extract(query, app_names, limit=5, score_cutoff=50)
-    
-    return match
+    results = fuzzy_process.extract(query, app_names, limit=5)
+    filtered = [r for r in results if r[1] >= 50]
+    return filtered
 
 # API for managing the app notifications within the environment
 class NotificationManagerAPI:
