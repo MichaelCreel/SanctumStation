@@ -16,6 +16,23 @@ from rapidfuzz import process as fuzz_process
 
 MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
 
+# Determine platform early
+IS_MOBILE = (
+    hasattr(sys, 'getandroidapilevel') or  # Android
+    sys.platform == 'ios' or  # iOS
+    'briefcase' in sys.modules or  # BeeWare
+    any(keyword in sys.platform.lower() for keyword in ['android', 'samsung'])  # Android variants
+)
+
+# Get the base directory (where backend.py is located)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# On mobile: BASE_DIR is ...sanctumstation/src, data is at ...sanctumstation/data
+# On desktop: BASE_DIR is .../src, data is at ../data
+DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data") if IS_MOBILE else os.path.join(os.path.dirname(BASE_DIR), "data")
+
+print(f"BASE_DIR: {BASE_DIR}")
+print(f"DATA_DIR: {DATA_DIR}")
+
 apps = [] # List of apps found in the apps directory
 app_names = [] # List of app names
 version = "v0.0.0" # The current version of the app
@@ -28,12 +45,6 @@ active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
 fullscreen = False # Whether the app is in fullscreen mode or not
 
-IS_MOBILE = (
-    hasattr(sys, 'getandroidapilevel') or  # Android
-    sys.platform == 'ios' or  # iOS
-    'briefcase' in sys.modules or  # BeeWare
-    any(keyword in sys.platform.lower() for keyword in ['android', 'samsung'])  # Android variants
-)
 if IS_MOBILE:
     import toga
     print("Running on mobile platform")
@@ -54,18 +65,25 @@ def initialize():
     # Check for updates
     available_update = check_for_updates()
     
-    if not init_webview():
-        print("FATAL: Failed to initialize webview.\n\nFATAL 0")
-        if webview_window:
-            webview_window.evaluate_js(f'displayError("FATAL 0")')
-        return False
+    # Only initialize webview on desktop
+    if not IS_MOBILE:
+        if not init_webview():
+            print("FATAL: Failed to initialize webview.\n\nFATAL 0")
+            if webview_window:
+                webview_window.evaluate_js(f'displayError("FATAL 0")')
+            return False
+    else:
+        print("Mobile platform detected - skipping webview initialization")
+        return True
 
 # Initializes the environment settings from data/settings.yaml
 # Returns True on success, False on failure
 def init_settings():
     global version, wallpaper, fonts, updates, day_gradient, fullscreen
     try:
-        with open("data/settings.yaml", "r") as file:
+        settings_path = os.path.join(DATA_DIR, "settings.yaml")
+        print(f"Loading settings from: {settings_path}")
+        with open(settings_path, "r") as file:
             settings = yaml.safe_load(file) or {}
         
         if "version" in settings:
