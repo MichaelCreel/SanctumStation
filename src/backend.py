@@ -3,7 +3,6 @@
 # This file handles logic for the psuedo-desktop environment to be used.
 ################################################################################
 
-import yaml
 import json
 import os
 import threading
@@ -14,15 +13,31 @@ import time
 import inspect
 from fuzzywuzzy import process as fuzzy_process
 
-MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
-
-# Determine platform early
+# Determine platform early (before importing yaml)
 IS_MOBILE = (
     hasattr(sys, 'getandroidapilevel') or  # Android
     sys.platform == 'ios' or  # iOS
     'briefcase' in sys.modules or  # BeeWare
     any(keyword in sys.platform.lower() for keyword in ['android', 'samsung'])  # Android variants
 )
+
+# Import yaml and force pure Python on mobile (no C extensions)
+import yaml
+if IS_MOBILE:
+    # Force pure Python implementation on mobile
+    from yaml import SafeLoader, SafeDumper
+    yaml_loader = SafeLoader
+    print("Using pure Python YAML loader for mobile")
+else:
+    # Try to use C loader on desktop for speed, fall back to pure Python
+    try:
+        from yaml import CSafeLoader as yaml_loader
+        print("Using C-optimized YAML loader")
+    except ImportError:
+        from yaml import SafeLoader as yaml_loader
+        print("Using pure Python YAML loader")
+
+MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
 
 # Get the base directory (where backend.py is located)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -84,7 +99,7 @@ def init_settings():
         settings_path = os.path.join(DATA_DIR, "settings.yaml")
         print(f"Loading settings from: {settings_path}")
         with open(settings_path, "r") as file:
-            settings = yaml.safe_load(file) or {}
+            settings = yaml.load(file, Loader=yaml_loader) or {}
         
         if "version" in settings:
             version = settings["version"]
@@ -948,7 +963,7 @@ class SettingsManagerAPI:
         # Write to settings.yaml
         try:
             with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["wallpaper"] = wallpaper_path
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
@@ -966,7 +981,7 @@ class SettingsManagerAPI:
         # Write to settings.yaml
         try:
             with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["day_gradient"] = enabled
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
@@ -989,7 +1004,7 @@ class SettingsManagerAPI:
         # Write to settings.yaml
         try:
             with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["fullscreen"] = enabled
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
@@ -1007,7 +1022,7 @@ class SettingsManagerAPI:
         # Write to settings.yaml
         try:
             with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings[f"{weight}_font"] = font_path
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
@@ -1025,7 +1040,7 @@ class SettingsManagerAPI:
         # Write to settings.yaml
         try:
             with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["updates"] = channel
             with open("data/settings.yaml", "w") as file:
                 yaml.safe_dump(settings, file)
