@@ -51,10 +51,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # On mobile: BASE_DIR is ...sanctumstation/, data is at <writable location> (set by app.py)
 # On desktop: BASE_DIR is .../src, data is at ../data
 DATA_DIR = os.path.join(BASE_DIR, "data") if IS_MOBILE else os.path.join(os.path.dirname(BASE_DIR), "data")
+APPS_DIR = os.path.join(BASE_DIR, "apps") if IS_MOBILE else os.path.join(BASE_DIR, "apps")
 
-# Note: On mobile, DATA_DIR will be overridden by app.py to use writable storage
+# Note: On mobile, DATA_DIR and APPS_DIR will be overridden by app.py to use writable storage
 print(f"BASE_DIR: {BASE_DIR}")
 print(f"DATA_DIR (initial): {DATA_DIR}")
+print(f"APPS_DIR (initial): {APPS_DIR}")
 
 apps = [] # List of apps found in the apps directory
 app_names = [] # List of app names
@@ -144,17 +146,15 @@ def init_settings():
             webview_window.evaluate_js('displayError("IS-E3")')
         return False
 
-# Initializes apps from src/apps/ directory
+# Initializes apps from apps/ directory
 # Returns True on success, False on failure
 def init_apps():
     global apps
     apps = []
     try:
         import os
-        # Apps are now in src/apps/ so they can be served by the webview HTTP server
-        # On mobile: backend.py is in sanctumstation/, apps in sanctumstation/src/apps
-        # On desktop: backend.py is in src/, apps in src/apps
-        app_dir = os.path.join(BASE_DIR, "src", "apps") if IS_MOBILE else os.path.join(BASE_DIR, "apps")
+        # Use APPS_DIR which points to writable location on mobile
+        app_dir = APPS_DIR
         for app in os.listdir(app_dir):
             if os.path.isdir(os.path.join(app_dir, app)):
                 app_path = os.path.join(app_dir, app)
@@ -168,6 +168,7 @@ def init_apps():
                     if os.path.exists(icon_path):
                         icon_url = f"apps/{app}/icon.png"
                         print(f"IA: Icon URL for {app}: {icon_url}")
+                    
                     apps.append({
                         "name": app,
                         "icon": icon_url,
@@ -906,7 +907,7 @@ class FileManagerAPI:
         
         Args:
             sub_path: Relative path to append to base directory
-            is_data: If True, use data directory; if False, use app/src directory
+            is_data: If True, use data directory; if False, use apps directory
         
         Returns:
             Absolute path as string
@@ -914,9 +915,8 @@ class FileManagerAPI:
         if is_data:
             base = DATA_DIR
         else:
-            # On mobile: BASE_DIR is sanctumstation/, src files are in sanctumstation/src/
-            # On desktop: BASE_DIR is already src/
-            base = os.path.join(BASE_DIR, "src") if IS_MOBILE else BASE_DIR
+            # Use apps directory (writable on mobile)
+            base = APPS_DIR
         
         if sub_path:
             return os.path.join(base, sub_path)
