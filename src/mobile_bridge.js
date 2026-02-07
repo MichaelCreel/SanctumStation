@@ -83,7 +83,7 @@
             'display_error', 'get_error',
             'list_directory', 'read_file', 'write_file', 'delete_file', 'delete_directory',
             'create_directory', 'create_file', 'rename_item', 'move_item', 'copy_item',
-            'get_metadata', 'exists',
+            'get_metadata', 'exists', 'get_storage_path',
             'get_fonts', 'get_version', 'get_wallpaper', 'get_wallpaper_data',
             'get_day_gradient', 'get_fullscreen',
             'get_settings', 'set_wallpaper', 'set_day_gradient', 'set_fullscreen',

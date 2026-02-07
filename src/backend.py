@@ -48,12 +48,13 @@ MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
 
 # Get the base directory (where backend.py is located)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# On mobile: BASE_DIR is ...sanctumstation/src, data is at ...sanctumstation/data
+# On mobile: BASE_DIR is ...sanctumstation/, data is at <writable location> (set by app.py)
 # On desktop: BASE_DIR is .../src, data is at ../data
-DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data") if IS_MOBILE else os.path.join(os.path.dirname(BASE_DIR), "data")
+DATA_DIR = os.path.join(BASE_DIR, "data") if IS_MOBILE else os.path.join(os.path.dirname(BASE_DIR), "data")
 
+# Note: On mobile, DATA_DIR will be overridden by app.py to use writable storage
 print(f"BASE_DIR: {BASE_DIR}")
-print(f"DATA_DIR: {DATA_DIR}")
+print(f"DATA_DIR (initial): {DATA_DIR}")
 
 apps = [] # List of apps found in the apps directory
 app_names = [] # List of app names
@@ -151,7 +152,9 @@ def init_apps():
     try:
         import os
         # Apps are now in src/apps/ so they can be served by the webview HTTP server
-        app_dir = os.path.join(os.path.dirname(__file__), "apps")
+        # On mobile: backend.py is in sanctumstation/, apps in sanctumstation/src/apps
+        # On desktop: backend.py is in src/, apps in src/apps
+        app_dir = os.path.join(BASE_DIR, "src", "apps") if IS_MOBILE else os.path.join(BASE_DIR, "apps")
         for app in os.listdir(app_dir):
             if os.path.isdir(os.path.join(app_dir, app)):
                 app_path = os.path.join(app_dir, app)
@@ -518,6 +521,9 @@ def init_webview():
             
             def exists(self, path):
                 return file_manager.exists(path)
+            
+            def get_storage_path(self, sub_path="", is_data=True):
+                return file_manager.get_storage_path(sub_path, is_data)
             
             # Settings access
             def get_fonts(self):
@@ -893,18 +899,28 @@ class FileManagerAPI:
     # Checks if a file or directory exists
     def exists(self, path):
         return os.path.exists(path)
-    def exists(self, path):
-        return os.path.exists(path)
     
     # Returns the proper storage path based on platform
-    def get_storage_path(sub_path, is_data=True):
-        if IS_MOBILE:
-            from toga import App
-            app = App.app
-            base = app.paths.data if is_data else app.paths.app
-            return base / sub_path
+    def get_storage_path(self, sub_path="", is_data=True):
+        """Get absolute path for storage location.
+        
+        Args:
+            sub_path: Relative path to append to base directory
+            is_data: If True, use data directory; if False, use app/src directory
+        
+        Returns:
+            Absolute path as string
+        """
+        if is_data:
+            base = DATA_DIR
         else:
-            return os.path.join(os.getcwd(), sub_path)
+            # On mobile: BASE_DIR is sanctumstation/, src files are in sanctumstation/src/
+            # On desktop: BASE_DIR is already src/
+            base = os.path.join(BASE_DIR, "src") if IS_MOBILE else BASE_DIR
+        
+        if sub_path:
+            return os.path.join(base, sub_path)
+        return base
 
 # API for managing apps within the environment
 class AppManagerAPI:
@@ -969,10 +985,11 @@ class SettingsManagerAPI:
         wallpaper = wallpaper_path
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
                 settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["wallpaper"] = wallpaper_path
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E2: Error setting wallpaper: {e}")
@@ -987,10 +1004,11 @@ class SettingsManagerAPI:
         day_gradient = enabled
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
                 settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["day_gradient"] = enabled
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E3: Error setting day_gradient: {e}")
@@ -1010,10 +1028,11 @@ class SettingsManagerAPI:
         
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
                 settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["fullscreen"] = enabled
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E4: Error setting fullscreen: {e}")
@@ -1028,10 +1047,11 @@ class SettingsManagerAPI:
         fonts[weight] = font_path
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
                 settings = yaml.load(file, Loader=yaml_loader) or {}
             settings[f"{weight}_font"] = font_path
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E5: Error setting font {weight}: {e}")
@@ -1046,10 +1066,11 @@ class SettingsManagerAPI:
         updates = channel
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
                 settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["updates"] = channel
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E6: Error setting updates: {e}")
