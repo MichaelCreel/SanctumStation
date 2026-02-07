@@ -4,11 +4,24 @@
  */
 
 (function() {
+    // Detect if we're on mobile by checking if loading from the mobile HTTP server
+    // Mobile: http://127.0.0.1:5000/index.html
+    // Desktop: file:///.../index.html or pywebview custom protocol
+    const isMobileServer = window.location.protocol === 'http:' && 
+                           window.location.hostname === '127.0.0.1' &&
+                           window.location.port === '5000';
+    
     let checkCount = 0;
     const maxChecks = 20; // Check for 2 seconds
     
     function checkAndInitialize() {
         checkCount++;
+        
+        if (isMobileServer) {
+            console.log('Mobile HTTP server detected, initializing mobile bridge');
+            initializeMobileBridge();
+            return;
+        }
         
         if (window.pywebview && window.pywebview.api) {
             if (typeof window.pywebview.api.get_apps === 'function') {
@@ -24,6 +37,7 @@
         }
         
         if (checkCount >= maxChecks) {
+            console.log('Timeout reached without detecting desktop pywebview');
             initializeMobileBridge();
             return;
         }
@@ -86,5 +100,9 @@
         console.log('Mobile API bridge initialized');
     }
     
-    setTimeout(checkAndInitialize, 50);
+    if (isMobileServer) {
+        checkAndInitialize();
+    } else {
+        setTimeout(checkAndInitialize, 50);
+    }
 })();
