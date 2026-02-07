@@ -8,7 +8,6 @@ import os
 import threading
 import importlib.util
 import sys
-import requests
 import time
 import inspect
 from fuzzywuzzy import process as fuzzy_process
@@ -36,6 +35,14 @@ else:
     except ImportError:
         from yaml import SafeLoader as yaml_loader
         print("Using pure Python YAML loader")
+
+# Import requests (needed for update checking)
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+    print("Warning: requests library not available, update checking disabled")
 
 MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
 
@@ -1062,6 +1069,11 @@ def is_newer_version(installed, latest):
 # Returns update info if available, None otherwise
 def check_for_updates():
     global version, updates
+    
+    # Skip if requests not available
+    if not REQUESTS_AVAILABLE:
+        return None
+    
     url = "https://api.github.com/repos/MichaelCreel/SanctumStation/releases"
     if updates != "none":
         try:
