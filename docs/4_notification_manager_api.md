@@ -22,14 +22,17 @@ def notify(message):
 These are the functions that the Notification Mangager API exposes.
 
 **Send Notification**
+
 send_notification
 
 Sends a notification.
 
 *Input*
+
 String
 
 *Output*
+
 True Success
 Notification ID
 Source
