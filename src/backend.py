@@ -817,6 +817,10 @@ class FileManagerAPI:
     # Lists contents of a directory
     def list_directory(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             items = []
             for item in os.listdir(path):
                 full_path = os.path.join(path, item)
@@ -843,6 +847,10 @@ class FileManagerAPI:
     # Reads the contents of a file
     def read_file(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             with open(path, "r") as file:
                 return file.read()
         except Exception as e:
@@ -854,6 +862,10 @@ class FileManagerAPI:
     # Writes content to a file
     def write_file(self, path, content):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             with open(path, "w") as file:
                 file.write(content)
             return True
@@ -866,6 +878,10 @@ class FileManagerAPI:
     # Deletes a file
     def delete_file(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             os.remove(path)
             return True
         except Exception as e:
@@ -877,6 +893,10 @@ class FileManagerAPI:
     # Deletes a directory
     def delete_directory(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             import shutil
             shutil.rmtree(path)
             return True
@@ -889,6 +909,10 @@ class FileManagerAPI:
     # Creates a directory
     def create_directory(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             os.makedirs(path, exist_ok=True)
             return True
         except Exception as e:
@@ -900,6 +924,10 @@ class FileManagerAPI:
     # Creates an empty file
     def create_file(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             with open(path, "w") as file:
                 pass
             return True
@@ -952,6 +980,9 @@ class FileManagerAPI:
     # Gets file or directory metadata
     def get_metadata(self, path):
         try:
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             stats = os.stat(path)
             return {
                 "size": stats.st_size,
@@ -967,6 +998,8 @@ class FileManagerAPI:
 
     # Checks if a file or directory exists
     def exists(self, path):
+        if not os.path.isabs(path):
+            path = os.path.join(DATA_DIR, path)
         return os.path.exists(path)
     
     # Returns the proper storage path based on platform
