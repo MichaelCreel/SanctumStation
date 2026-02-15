@@ -9,6 +9,7 @@ This file contains the structure and layout for the psuedo-desktop environment t
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sanctum Station</title>
     <link rel="stylesheet" href="style.css">
+    <script src="console_bridge.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="mobile_bridge.js"></script>
 </head>
@@ -93,7 +94,7 @@ This file contains the structure and layout for the psuedo-desktop environment t
                         <label for="dayGradientToggle">Time of Day Gradient:</label>
                         <div class="setting-input-group">
                             <label class="toggle-switch">
-                                <input type="checkbox" id="dayGradientToggle" onchange="saveDayGradient()">
+                                <input type="checkbox" id="dayGradientToggle" onchange="saveDayGradient()"
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>

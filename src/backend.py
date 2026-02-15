@@ -10,6 +10,7 @@ import importlib.util
 import sys
 import time
 import inspect
+import concurrent.futures
 from fuzzywuzzy import process as fuzzy_process
 
 # Determine platform early (before importing yaml)
@@ -68,6 +69,7 @@ fonts = {} # Dictionary of font weights
 available_update = None  # Stores update info if available
 active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
+main_event_loop = None # Reference to the main event loop (for mobile async calls)
 fullscreen = False # Whether the app is in fullscreen mode or not
 
 if IS_MOBILE:
@@ -306,8 +308,62 @@ def launch_app(app_name):
         }})();
         """
         
+        # Inject the script directly if webview is available
+        inject_via_return = False
+        print(f"LA: webview_window = {webview_window}, IS_MOBILE = {IS_MOBILE}")
+        
         if webview_window:
-            webview_window.evaluate_js(inject_script)
+            print(f"LA: webview_window exists, type = {type(webview_window)}")
+            try:
+                if IS_MOBILE:
+                    # Toga WebView uses evaluate_javascript() which is async
+                    # Must be called from the main thread's event loop
+                    import asyncio
+                    if main_event_loop:
+                        print(f"LA: Scheduling injection on main event loop")
+                        # Create a future to wait for the result
+                        result_future = concurrent.futures.Future()
+                        
+                        def do_injection():
+                            """This runs on the main thread where the event loop exists"""
+                            try:
+                                # Create the coroutine on the main thread
+                                coro = webview_window.evaluate_javascript(inject_script)
+                                # Schedule it as a task
+                                task = asyncio.create_task(coro)
+                                # Set result when done
+                                def on_done(t):
+                                    if t.exception():
+                                        result_future.set_exception(t.exception())
+                                    else:
+                                        result_future.set_result(True)
+                                task.add_done_callback(on_done)
+                            except Exception as e:
+                                result_future.set_exception(e)
+                        
+                        # Schedule the injection on the main thread
+                        main_event_loop.call_soon_threadsafe(do_injection)
+                        
+                        # Wait for completion (with timeout)
+                        result_future.result(timeout=5.0)
+                        print(f"LA: Injection successful!")
+                    else:
+                        print(f"LA: main_event_loop not available, falling back to JavaScript eval")
+                        inject_via_return = True
+                else:
+                    # Desktop pywebview uses evaluate_js()
+                    print(f"LA: Attempting injection via pywebview.evaluate_js()")
+                    webview_window.evaluate_js(inject_script)
+                    print(f"LA: Injection successful!")
+            except Exception as e:
+                print(f"LA: Error injecting script: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback to returning script for JavaScript to execute
+                inject_via_return = True
+        else:
+            print(f"LA: webview_window is None, will return script for JavaScript")
+            inject_via_return = True
         
         # Always load the app module (even if it doesn't have main/run)
         # This allows call_app_function to work for apps that only provide API functions
@@ -350,12 +406,24 @@ def launch_app(app_name):
                 # Continue anyway, app might still work without backend
         
         print(f"LA: Successfully launched app '{app_name}'")
-        return True
+        
+        # Only return the injection script if direct injection failed
+        if inject_via_return:
+            print(f"LA: Returning injection script for JavaScript to execute (length: {len(inject_script)} chars)")
+            return {"success": True, "inject_script": inject_script}
+        else:
+            return True
         
     except Exception as e:
         print(f"LA-E1: Error launching app '{app_name}': {e}")
         if webview_window:
-            webview_window.evaluate_js('displayError("LA-E1")')
+            if IS_MOBILE:
+                try:
+                    webview_window.evaluate_javascript('displayError("LA-E1")')
+                except:
+                    pass
+            else:
+                webview_window.evaluate_js('displayError("LA-E1")')
         return False
 
 # Runs the backend script of the app in its own thread

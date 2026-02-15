@@ -97,6 +97,24 @@
             };
         });
         
+        // Override launch_app to handle script injection on mobile
+        window.pywebview.api.launch_app = async function(appName) {
+            const result = await callAPI('launch_app', appName);
+            
+            // If backend returns a script to inject, execute it
+            if (result && result.inject_script) {
+                try {
+                    eval(result.inject_script);
+                    return true;
+                } catch (error) {
+                    console.error('Error injecting app:', error);
+                    return false;
+                }
+            }
+            
+            return result;
+        };
+        
         console.log('Mobile API bridge initialized');
     }
     
