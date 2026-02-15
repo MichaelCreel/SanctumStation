@@ -22,11 +22,10 @@ def load_board(name):
         if not file_api:
             return {"success": False, "error": "File API not available"}
         
-        whiteboard_dir = file_api.get_storage_path("whiteboard", is_data=True)
-        file_path = os.path.join(whiteboard_dir, f"{name}.json")
+        file_path = f"whiteboard/{name}.json"
         
         # Check if file exists
-        if not os.path.exists(file_path):
+        if not file_api.exists(file_path):
             return {"success": False, "error": "Board not found"}
         
         # Read the file content
@@ -49,10 +48,9 @@ def save_board(name, data):
             return {"success": False, "error": "File API not available"}
         
         # Ensure whiteboard directory exists
-        whiteboard_dir = file_api.get_storage_path("whiteboard", is_data=True)
-        os.makedirs(whiteboard_dir, exist_ok=True)
+        os.makedirs("data/whiteboard", exist_ok=True)
         
-        file_path = os.path.join(whiteboard_dir, f"{name}.json")
+        file_path = f"whiteboard/{name}.json"
         
         # Convert data to JSON string
         json_content = json.dumps(data)
@@ -75,15 +73,22 @@ def list_boards():
         if not file_api:
             return {"success": False, "error": "File API not available"}
         
-        whiteboard_dir = file_api.get_storage_path("whiteboard", is_data=True)
-        if not os.path.exists(whiteboard_dir):
+        data_dir = "whiteboard"
+        if not file_api.exists(data_dir):
             return {"success": True, "boards": []}
         
         # Get all .json files in whiteboard directory
         boards = []
-        for file in os.listdir(whiteboard_dir):
-            if file.endswith(".json"):
-                # Remove .json extension
+        for file in file_api.list_directory(data_dir):
+            # file is a dict with 'name', 'type', etc. from list_directory
+            if isinstance(file, dict):
+                filename = file.get('name', '')
+                if filename.endswith(".json"):
+                    # Remove .json extension
+                    board_name = filename[:-5]
+                    boards.append(board_name)
+            elif isinstance(file, str) and file.endswith(".json"):
+                # Fallback for string filenames
                 board_name = file[:-5]
                 boards.append(board_name)
         

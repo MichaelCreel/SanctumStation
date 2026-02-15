@@ -30,8 +30,7 @@ def load_tasks():
     try:
         file_api = get_file_api()
         if file_api:
-            todo_dir = file_api.get_storage_path("to-do-list", is_data=True)
-            file_path = os.path.join(todo_dir, "tasks.yaml")
+            file_path = "to-do-list/tasks.yaml"
             content = file_api.read_file(file_path)
             if content:
                 tasks = yaml.safe_load(content) or {}
@@ -60,9 +59,8 @@ def save_task(task_text):
         file_api = get_file_api()
         if file_api:
             # Ensure directory exists
-            todo_dir = file_api.get_storage_path("to-do-list", is_data=True)
-            os.makedirs(todo_dir, exist_ok=True)
-            file_path = os.path.join(todo_dir, "tasks.yaml")
+            os.makedirs("data/to-do-list", exist_ok=True)
+            file_path = "to-do-list/tasks.yaml"
             yaml_content = yaml.safe_dump(tasks)
             file_api.write_file(file_path, yaml_content)
             next_id += 1
@@ -82,9 +80,8 @@ def delete_task(task_id):
             
             file_api = get_file_api()
             if file_api:
-                todo_dir = file_api.get_storage_path("to-do-list", is_data=True)
-                os.makedirs(todo_dir, exist_ok=True)
-                file_path = os.path.join(todo_dir, "tasks.yaml")
+                os.makedirs("data/to-do-list", exist_ok=True)
+                file_path = "to-do-list/tasks.yaml"
                 yaml_content = yaml.safe_dump(tasks)
                 file_api.write_file(file_path, yaml_content)
                 return {"success": True, "tasks": tasks}
@@ -105,9 +102,8 @@ def toggle_task(task_id):
             
             file_api = get_file_api()
             if file_api:
-                todo_dir = file_api.get_storage_path("to-do-list", is_data=True)
-                os.makedirs(todo_dir, exist_ok=True)
-                file_path = os.path.join(todo_dir, "tasks.yaml")
+                os.makedirs("data/to-do-list", exist_ok=True)
+                file_path = "to-do-list/tasks.yaml"
                 yaml_content = yaml.safe_dump(tasks)
                 file_api.write_file(file_path, yaml_content)
                 return {"success": True, "tasks": tasks}
