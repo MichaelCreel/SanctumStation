@@ -17,8 +17,10 @@ def save_note(title, content):
         return {"success": False, "error": "File API not available"}
     
     try:
-        os.makedirs("data/notes", exist_ok=True)
-        file_path = f"data/notes/{title}.md"
+        # Get absolute path for notes directory
+        notes_dir = file_api.get_storage_path("notes", is_data=True)
+        os.makedirs(notes_dir, exist_ok=True)
+        file_path = os.path.join(notes_dir, f"{title}.md")
         success = file_api.write_file(file_path, content)
         if success:
             return {"success": True}
@@ -33,7 +35,8 @@ def load_note(title):
         return {"success": False, "error": "File API not available"}
     
     try:
-        file_path = f"data/notes/{title}.md"
+        notes_dir = file_api.get_storage_path("notes", is_data=True)
+        file_path = os.path.join(notes_dir, f"{title}.md")
         content = file_api.read_file(file_path)
         if content is not None:
             return {"success": True, "content": content}
@@ -48,7 +51,8 @@ def delete_note(title):
         return {"success": False, "error": "File API not available"}
     
     try:
-        file_path = f"data/notes/{title}.md"
+        notes_dir = file_api.get_storage_path("notes", is_data=True)
+        file_path = os.path.join(notes_dir, f"{title}.md")
         success = file_api.delete_file(file_path)
         if success:
             return {"success": True}
@@ -63,9 +67,9 @@ def list_notes():
         return {"success": False, "error": "File API not available"}
     
     try:
-        os.makedirs("data/notes", exist_ok=True)
-        directory_path = "data/notes/"
-        files = file_api.list_directory(directory_path)
+        notes_dir = file_api.get_storage_path("notes", is_data=True)
+        os.makedirs(notes_dir, exist_ok=True)
+        files = file_api.list_directory(notes_dir)
         
         # Filter for .md files and remove extension
         notes = []

@@ -22,7 +22,8 @@ def load_board(name):
         if not file_api:
             return {"success": False, "error": "File API not available"}
         
-        file_path = f"data/whiteboard/{name}.json"
+        whiteboard_dir = file_api.get_storage_path("whiteboard", is_data=True)
+        file_path = os.path.join(whiteboard_dir, f"{name}.json")
         
         # Check if file exists
         if not os.path.exists(file_path):
@@ -47,10 +48,11 @@ def save_board(name, data):
         if not file_api:
             return {"success": False, "error": "File API not available"}
         
-        # Ensure data/whiteboard directory exists
-        os.makedirs("data/whiteboard", exist_ok=True)
+        # Ensure whiteboard directory exists
+        whiteboard_dir = file_api.get_storage_path("whiteboard", is_data=True)
+        os.makedirs(whiteboard_dir, exist_ok=True)
         
-        file_path = f"data/whiteboard/{name}.json"
+        file_path = os.path.join(whiteboard_dir, f"{name}.json")
         
         # Convert data to JSON string
         json_content = json.dumps(data)
@@ -73,13 +75,13 @@ def list_boards():
         if not file_api:
             return {"success": False, "error": "File API not available"}
         
-        data_dir = "data/whiteboard"
-        if not os.path.exists(data_dir):
+        whiteboard_dir = file_api.get_storage_path("whiteboard", is_data=True)
+        if not os.path.exists(whiteboard_dir):
             return {"success": True, "boards": []}
         
-        # Get all .json files in data directory
+        # Get all .json files in whiteboard directory
         boards = []
-        for file in os.listdir(data_dir):
+        for file in os.listdir(whiteboard_dir):
             if file.endswith(".json"):
                 # Remove .json extension
                 board_name = file[:-5]
