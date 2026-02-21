@@ -312,57 +312,18 @@ def launch_app(app_name):
         inject_via_return = False
         print(f"LA: webview_window = {webview_window}, IS_MOBILE = {IS_MOBILE}")
         
-        if webview_window:
-            print(f"LA: webview_window exists, type = {type(webview_window)}")
+        if webview_window and not IS_MOBILE:
+            # Desktop: use direct injection via webview.evaluate_js()
+            print(f"LA: Using desktop direct injection")
             try:
-                if IS_MOBILE:
-                    # Toga WebView uses evaluate_javascript() which is async
-                    # Must be called from the main thread's event loop
-                    import asyncio
-                    if main_event_loop:
-                        print(f"LA: Scheduling injection on main event loop")
-                        # Create a future to wait for the result
-                        result_future = concurrent.futures.Future()
-                        
-                        def do_injection():
-                            """This runs on the main thread where the event loop exists"""
-                            try:
-                                # Create the coroutine on the main thread
-                                coro = webview_window.evaluate_javascript(inject_script)
-                                # Schedule it as a task
-                                task = asyncio.create_task(coro)
-                                # Set result when done
-                                def on_done(t):
-                                    if t.exception():
-                                        result_future.set_exception(t.exception())
-                                    else:
-                                        result_future.set_result(True)
-                                task.add_done_callback(on_done)
-                            except Exception as e:
-                                result_future.set_exception(e)
-                        
-                        # Schedule the injection on the main thread
-                        main_event_loop.call_soon_threadsafe(do_injection)
-                        
-                        # Wait for completion (with timeout)
-                        result_future.result(timeout=5.0)
-                        print(f"LA: Injection successful!")
-                    else:
-                        print(f"LA: main_event_loop not available, falling back to JavaScript eval")
-                        inject_via_return = True
-                else:
-                    # Desktop pywebview uses evaluate_js()
-                    print(f"LA: Attempting injection via pywebview.evaluate_js()")
-                    webview_window.evaluate_js(inject_script)
-                    print(f"LA: Injection successful!")
+                webview_window.evaluate_js(inject_script)
+                print(f"LA: Desktop injection successful!")
             except Exception as e:
-                print(f"LA: Error injecting script: {e}")
-                import traceback
-                traceback.print_exc()
-                # Fallback to returning script for JavaScript to execute
+                print(f"LA: Error with desktop injection: {e}")
                 inject_via_return = True
         else:
-            print(f"LA: webview_window is None, will return script for JavaScript")
+            # Mobile: always use fallback method (return script for mobile_bridge.js to execute)
+            print(f"LA: Using mobile fallback injection (returning script to HTTP)")
             inject_via_return = True
         
         # Always load the app module (even if it doesn't have main/run)
