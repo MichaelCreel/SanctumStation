@@ -529,17 +529,56 @@
 
             function getMousePos(e) {
                 const rect = canvas.getBoundingClientRect();
+                // Handle both mouse and touch events
+                let clientX, clientY;
+                
+                if (e.touches && e.touches.length > 0) {
+                    // Touch event
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    // Touch end event
+                    clientX = e.changedTouches[0].clientX;
+                    clientY = e.changedTouches[0].clientY;
+                } else {
+                    // Mouse event
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                
                 return {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
                 };
             }
 
-            // Event listeners
+            // Wrapper functions to prevent default touch behavior
+            function handleTouchStart(e) {
+                e.preventDefault();
+                startDrawing(e);
+            }
+
+            function handleTouchMove(e) {
+                e.preventDefault();
+                draw(e);
+            }
+
+            function handleTouchEnd(e) {
+                e.preventDefault();
+                stopDrawing();
+            }
+
+            // Event listeners for mouse
             canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', stopDrawing);
             canvas.addEventListener('mouseout', stopDrawing);
+
+            // Event listeners for touch
+            canvas.addEventListener('touchstart', handleTouchStart);
+            canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchend', handleTouchEnd);
+            canvas.addEventListener('touchcancel', handleTouchEnd);
 
             // Clear canvas
             window.clearCanvas = async function() {
