@@ -15,7 +15,6 @@ def save_note(title, content):
         return {"success": False, "error": "File API not available"}
     
     try:
-        os.makedirs("data/notes", exist_ok=True)
         file_path = f"notes/{title}.md"
         success = file_api.write_file(file_path, content)
         if success:

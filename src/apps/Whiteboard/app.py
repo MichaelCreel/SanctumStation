@@ -41,9 +41,6 @@ def save_board(name, data):
         if not file_api:
             return {"success": False, "error": "File API not available"}
         
-        # Ensure whiteboard directory exists
-        os.makedirs("data/whiteboard", exist_ok=True)
-        
         file_path = f"whiteboard/{name}.json"
         
         # Convert data to JSON string
