@@ -157,7 +157,10 @@ def init_apps():
         import os
         # Use APPS_DIR which points to writable location on mobile
         app_dir = APPS_DIR
-        for app in os.listdir(app_dir):
+        print(f"IA: Scanning apps directory: {app_dir}")
+        dir_contents = os.listdir(app_dir)
+        print(f"IA: Found {len(dir_contents)} items: {dir_contents}")
+        for app in dir_contents:
             if os.path.isdir(os.path.join(app_dir, app)):
                 app_path = os.path.join(app_dir, app)
                 icon_path = os.path.join(app_path, "icon.png")
@@ -181,7 +184,10 @@ def init_apps():
                     app_names.append(app)
                     print(f"IA: Added app '{app}' with icon: {icon_url}")
                 else:
-                    print(f"IA: App '{app}' missing required files (app.html or app.py)")
+                    print(f"IA: App '{app}' missing required files:")
+                    print(f"  App path: {app_path}")
+                    print(f"  app.html exists: {os.path.exists(html_path)} - {html_path}")
+                    print(f"  app.py exists: {os.path.exists(py_path)} - {py_path}")
         
         print(f"IA: Found {len(apps)} valid apps")
         return True
