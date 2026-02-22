@@ -460,8 +460,8 @@ def stop_app(app_name):
     
     if app_name in active_apps:
         print(f"SA: Stopping app '{app_name}'")
-        # Signal the app to stop
-        if "stop_event" in active_apps[app_name]:
+        # Signal the app to stop (only if it has a background thread)
+        if "stop_event" in active_apps[app_name] and active_apps[app_name]["stop_event"] is not None:
             active_apps[app_name]["stop_event"].set()
         del active_apps[app_name]
         return True
@@ -990,6 +990,25 @@ class AppManagerAPI:
     def list_apps(self):
         global apps
         return apps
+    
+    # Generic app function call - allows apps to expose their own API
+    def call_app_function(self, app_name, function_name, *args, **kwargs):
+        try:
+            module_name = f"app_{app_name}"
+            if module_name not in sys.modules:
+                return {"success": False, "message": f"App '{app_name}' not running"}
+            
+            app_module = sys.modules[module_name]
+            
+            if not hasattr(app_module, function_name):
+                return {"success": False, "message": f"Function '{function_name}' not found in app '{app_name}'"}
+            
+            func = getattr(app_module, function_name)
+            result = func(*args, **kwargs)
+            return result
+            
+        except Exception as e:
+            return {"success": False, "message": f"Error calling {function_name}: {str(e)}"}
 
 # API for managing the settings for the environment from within
 class SettingsManagerAPI:

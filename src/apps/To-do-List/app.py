@@ -5,16 +5,14 @@
 import sys
 import yaml
 import os
+import backend
 
 next_id = 0
 tasks = {}
 
 # Helper function to get FileManagerAPI from main backend
 def get_file_api():
-    main_backend = sys.modules.get('__main__')
-    if main_backend and hasattr(main_backend, 'FileManagerAPI'):
-        return main_backend.FileManagerAPI()
-    return None
+    return backend.FileManagerAPI()
 
 # Helper function to send notifications
 def send_notification(message):

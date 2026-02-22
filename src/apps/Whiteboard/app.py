@@ -5,16 +5,10 @@
 import json
 import sys
 import os
+import backend
 
 def get_file_api():
-    try:
-        main_backend = sys.modules.get('__main__')
-        if main_backend and hasattr(main_backend, 'FileManagerAPI'):
-            return main_backend.FileManagerAPI()
-        return None
-    except Exception as e:
-        print(f"Error accessing FileManagerAPI: {e}")
-        return None
+    return backend.FileManagerAPI()
 
 def load_board(name):
     try:

@@ -4,12 +4,10 @@
 
 import sys
 import os
+import backend
 
 def get_file_api():
-    main_backend = sys.modules.get('__main__')
-    if main_backend and hasattr(main_backend, 'FileManagerAPI'):
-        return main_backend.FileManagerAPI()
-    return None
+    return backend.FileManagerAPI()
 
 def save_note(title, content):
     file_api = get_file_api()
