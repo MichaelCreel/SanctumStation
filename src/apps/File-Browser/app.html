@@ -236,8 +236,8 @@
 
     <script>
         (function() {
-            // Get user home directory - default to /home/michael
-            let currentPath = '/home/michael';
+            // Get user home directory - will be set async from backend
+            let currentPath = '';
             let selectedItem = null;
             let clipboardItem = null;
             let clipboardAction = null;
@@ -247,11 +247,18 @@
             // Initialize immediately since DOMContentLoaded may have already fired
             console.log('File Browser script loaded');
             
+            // Get the correct storage path for this platform
+            async function initializePath() {
+                const result = await pywebview.api.get_storage_path('', true);
+                currentPath = result || '/home/michael'; // Fallback
+                document.getElementById('pathBar').value = currentPath;
+                await loadDirectory(currentPath);
+            }
+            
             // Use setTimeout to ensure DOM is ready
-            setTimeout(() => {
+            setTimeout(async () => {
                 console.log('File Browser initializing...');
-                console.log('Starting path:', currentPath);
-                loadDirectory(currentPath);
+                await initializePath();
                 setupEventListeners();
             }, 100);
 

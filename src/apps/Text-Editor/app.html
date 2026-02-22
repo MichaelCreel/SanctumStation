@@ -267,16 +267,24 @@
         (function() {
             console.log('Text Editor script loaded');
 
-            let currentPath = '/home/michael';
+            let currentPath = '';
             let currentFile = null;
             let currentItems = [];
             let selectedItem = null;
             let isModified = false;
 
+            // Initialize path and directory
+            async function initializePath() {
+                const result = await pywebview.api.get_storage_path('', true);
+                currentPath = result || '/home/michael'; // Fallback
+                document.getElementById('currentPath').textContent = currentPath;
+                await loadDirectory(currentPath);
+            }
+
             // Initialize
-            setTimeout(() => {
+            setTimeout(async () => {
                 console.log('Text Editor initializing...');
-                loadDirectory(currentPath);
+                await initializePath();
             }, 100);
 
         async function loadDirectory(path) {
