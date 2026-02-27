@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .notes-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            backdrop-filter: blur(10px);
+            align-items: center;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .toolbar-group:first-child {
+            flex-grow: 1;
+            min-width: 200px;
+        }
+
+        .toolbar-actions {
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .note-title-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 500;
+            width: 100%;
+            min-width: 200px;
+            transition: all 0.3s ease;
+        }
+
+        .note-title-input:focus {
+            outline: none;
+            border-color: #a855f7;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .note-title-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .toolbar-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            min-width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .toolbar-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .toolbar-btn:active {
+            transform: translateY(0);
+        }
+
+        .toolbar-btn-primary {
+            background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            border-color: #a855f7;
+        }
+
+        .toolbar-btn-primary:hover {
+            background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+            border-color: #c084fc;
+        }
+
+        /* Editor */
+        .editor {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            overflow-y: auto;
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #ffffff;
+            backdrop-filter: blur(10px);
+            outline: none;
+        }
+
+        .editor:focus {
+            border-color: rgba(168, 85, 247, 0.5);
+        }
+
+        .editor p {
+            margin-bottom: 1rem;
+        }
+
+        .editor h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            margin-top: 1.5rem;
+            color: #a855f7;
+        }
+
+        .editor h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            margin-top: 1.25rem;
+            color: #c084fc;
+        }
+
+        .editor h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            margin-top: 1rem;
+            color: #d8b4fe;
+        }
+
+        .editor ul,
+        .editor ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .editor li {
+            margin-bottom: 0.5rem;
+        }
+
+        .editor a {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        .editor code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .editor pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+
+        .editor pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        .editor blockquote {
+            border-left: 4px solid #a855f7;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Custom scrollbar */
+        .editor::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .editor::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .editor::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.5);
+            border-radius: 4px;
+        }
+
+        .editor::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 85, 247, 0.7);
+        }
+
+        /* Save Indicator */
+        .save-indicator {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            backdrop-filter: blur(10px);
+        }
+
+        .save-indicator.show {
+            opacity: 1;
+        }
+
+        .save-indicator.saving {
+            background: rgba(168, 85, 247, 0.9);
+        }
+
+        .save-indicator.error {
+            background: rgba(239, 68, 68, 0.9);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            min-width: 400px;
+            max-width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+            color: #a855f7;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .note-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .note-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #a855f7;
+            transform: translateX(4px);
+        }
+
+        .note-item-title {
+            font-size: 1rem;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .note-item-delete {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .note-item-delete:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .no-notes {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 2rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .notes-container {
+                padding: 0.5rem;
+            }
+            
+            .toolbar {
+                padding: 0.75rem;
+                gap: 0.5rem;
+            }
+            
+            .toolbar-group {
+                gap: 0.25rem;
+            }
+            
+            .toolbar-btn {
+                padding: 0.4rem 0.6rem;
+                font-size: 0.85rem;
+                min-width: 32px;
+                height: 32px;
+            }
+            
+            .note-title-input {
+                min-width: 150px;
+                font-size: 0.9rem;
+            }
+            
+            .editor {
+                padding: 1rem;
+                font-size: 0.95rem;
+            }
+            
+            .modal-content {
+                min-width: 300px;
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="notes-container">
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <input type="text" id="noteTitle" class="note-title-input" placeholder="Untitled Note">
+            </div>
+            
+            <div class="toolbar-group">
+                <button class="toolbar-btn" onclick="window.formatText('bold')" title="Bold (Ctrl+B)">
+                    <strong>B</strong>
+                </button>
+                <button class="toolbar-btn" onclick="window.formatText('italic')" title="Italic (Ctrl+I)">
+                    <em>I</em>
+                </button>
+                <button class="toolbar-btn" onclick="window.formatText('underline')" title="Underline (Ctrl+U)">
+                    <u>U</u>
+                </button>
+                <button class="toolbar-btn" onclick="window.formatText('strikethrough')" title="Strikethrough">
+                    <s>S</s>
+                </button>
+            </div>
+            
+            <div class="toolbar-group">
+                <button class="toolbar-btn" onclick="window.formatHeading(1)" title="Heading 1">H1</button>
+                <button class="toolbar-btn" onclick="window.formatHeading(2)" title="Heading 2">H2</button>
+                <button class="toolbar-btn" onclick="window.formatHeading(3)" title="Heading 3">H3</button>
+            </div>
+            
+            <div class="toolbar-group">
+                <button class="toolbar-btn" onclick="window.formatText('insertUnorderedList')" title="Bullet List">
+                    ☰
+                </button>
+                <button class="toolbar-btn" onclick="window.formatText('insertOrderedList')" title="Numbered List">
+                    ≡
+                </button>
+                <button class="toolbar-btn" onclick="window.insertLink()" title="Insert Link">
+                    🔗
+                </button>
+                <button class="toolbar-btn" onclick="window.insertCode()" title="Code Block">
+                    &lt;/&gt;
+                </button>
+            </div>
+            
+            <div class="toolbar-group toolbar-actions">
+                <button class="toolbar-btn" onclick="window.showLoadModal()" title="Load Note">
+                    Open
+                </button>
+                <button class="toolbar-btn toolbar-btn-primary" onclick="window.saveNote()" title="Save Note">
+                    Save
+                </button>
+                <button class="toolbar-btn" onclick="window.newNote()" title="New Note">
+                    New
+                </button>
+            </div>
+        </div>
+        
+        <!-- Editor -->
+        <div id="editor" class="editor" contenteditable="true">
+            <p>Start typing your note...</p>
+        </div>
+        
+        <!-- Auto-save indicator -->
+        <div id="saveIndicator" class="save-indicator"></div>
+    </div>
+    
+    <!-- Load Notes Modal -->
+    <div id="loadModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Load Note</h2>
+                <button class="modal-close" onclick="window.closeLoadModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="notesList" class="notes-list">
+                    <p class="no-notes">No notes found</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        (function() {
+            'use strict';
+            
+            let currentNote = 'Untitled Note';
+            let autoSaveTimeout = null;
+            let isSaving = false;
+            
+            const editor = document.getElementById('editor');
+            const titleInput = document.getElementById('noteTitle');
+            const saveIndicator = document.getElementById('saveIndicator');
+            
+            // Initialize
+            function init() {
+                // Set up event listeners
+                editor.addEventListener('input', handleEditorInput);
+                titleInput.addEventListener('input', handleTitleInput);
+                
+                // Handle keyboard shortcuts
+                editor.addEventListener('keydown', handleKeyboardShortcuts);
+                
+                // Load a default note or create new
+                newNote();
+            }
+            
+            // Handle editor input with auto-save
+            function handleEditorInput() {
+                clearTimeout(autoSaveTimeout);
+                autoSaveTimeout = setTimeout(() => {
+                    saveNote(false); // Auto-save without showing indicator
+                }, 2000); // Save after 2 seconds of no typing
+            }
+            
+            // Handle title input
+            function handleTitleInput() {
+                currentNote = titleInput.value.trim() || 'Untitled Note';
+                clearTimeout(autoSaveTimeout);
+                autoSaveTimeout = setTimeout(() => {
+                    saveNote(false);
+                }, 2000);
+            }
+            
+            // Handle keyboard shortcuts
+            function handleKeyboardShortcuts(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    switch(e.key.toLowerCase()) {
+                        case 'b':
+                            e.preventDefault();
+                            formatText('bold');
+                            break;
+                        case 'i':
+                            e.preventDefault();
+                            formatText('italic');
+                            break;
+                        case 'u':
+                            e.preventDefault();
+                            formatText('underline');
+                            break;
+                        case 's':
+                            e.preventDefault();
+                            saveNote(true);
+                            break;
+                    }
+                }
+            }
+            
+            // Format text
+            window.formatText = function(command) {
+                document.execCommand(command, false, null);
+                editor.focus();
+            };
+            
+            // Format heading
+            window.formatHeading = function(level) {
+                document.execCommand('formatBlock', false, `<h${level}>`);
+                editor.focus();
+            };
+            
+            // Insert link
+            window.insertLink = function() {
+                const url = prompt('Enter URL:');
+                if (url) {
+                    document.execCommand('createLink', false, url);
+                }
+                editor.focus();
+            };
+            
+            // Insert code block
+            window.insertCode = function() {
+                const code = prompt('Enter code:');
+                if (code) {
+                    const codeElement = document.createElement('code');
+                    codeElement.textContent = code;
+                    insertNodeAtCursor(codeElement);
+                }
+                editor.focus();
+            };
+            
+            // Helper to insert node at cursor
+            function insertNodeAtCursor(node) {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    range.insertNode(node);
+                    range.setStartAfter(node);
+                    range.setEndAfter(node);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }
+            
+            // Convert HTML to Markdown
+            function htmlToMarkdown(html) {
+                let markdown = html;
+                
+                // Clean up HTML
+                markdown = markdown.replace(/<br\s*\/?>/gi, '\n');
+                
+                // Headers
+                markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n');
+                markdown = markdown.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n');
+                markdown = markdown.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n');
+                markdown = markdown.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n');
+                markdown = markdown.replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n');
+                markdown = markdown.replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n');
+                
+                // Bold and italic
+                markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+                markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+                markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
+                markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
+                
+                // Strikethrough
+                markdown = markdown.replace(/<strike[^>]*>(.*?)<\/strike>/gi, '~~$1~~');
+                markdown = markdown.replace(/<s[^>]*>(.*?)<\/s>/gi, '~~$1~~');
+                markdown = markdown.replace(/<del[^>]*>(.*?)<\/del>/gi, '~~$1~~');
+                
+                // Underline (not standard markdown, using HTML)
+                markdown = markdown.replace(/<u[^>]*>(.*?)<\/u>/gi, '<u>$1</u>');
+                
+                // Links
+                markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
+                
+                // Code
+                markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
+                markdown = markdown.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gi, '```\n$1\n```');
+                
+                // Lists
+                markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gis, (match, content) => {
+                    return content.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
+                });
+                markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gis, (match, content) => {
+                    let index = 1;
+                    return content.replace(/<li[^>]*>(.*?)<\/li>/gi, () => `${index++}. $1\n`);
+                });
+                
+                // Paragraphs
+                markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
+                markdown = markdown.replace(/<div[^>]*>(.*?)<\/div>/gi, '$1\n');
+                
+                // Remove remaining HTML tags
+                markdown = markdown.replace(/<[^>]*>/g, '');
+                
+                // Clean up entities
+                markdown = markdown.replace(/&nbsp;/g, ' ');
+                markdown = markdown.replace(/&amp;/g, '&');
+                markdown = markdown.replace(/&lt;/g, '<');
+                markdown = markdown.replace(/&gt;/g, '>');
+                markdown = markdown.replace(/&quot;/g, '"');
+                
+                // Clean up excessive newlines
+                markdown = markdown.replace(/\n{3,}/g, '\n\n');
+                markdown = markdown.trim();
+                
+                return markdown;
+            }
+            
+            // Convert Markdown to HTML (simple implementation)
+            function markdownToHtml(markdown) {
+                let html = markdown;
+                
+                // Escape HTML first
+                html = html.replace(/&/g, '&amp;')
+                           .replace(/</g, '&lt;')
+                           .replace(/>/g, '&gt;');
+                
+                // Code blocks (before other processing)
+                html = html.replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>');
+                
+                // Headers
+                html = html.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>');
+                html = html.replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>');
+                html = html.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>');
+                html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+                html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+                html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+                
+                // Bold and italic
+                html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+                html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+                html = html.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+                html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+                html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+                
+                // Strikethrough
+                html = html.replace(/~~(.+?)~~/g, '<s>$1</s>');
+                
+                // Inline code
+                html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+                
+                // Links
+                html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+                
+                // Unordered lists
+                html = html.replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>');
+                html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+                
+                // Ordered lists
+                html = html.replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>');
+                
+                // Paragraphs
+                const lines = html.split('\n');
+                let inList = false;
+                let result = [];
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    
+                    if (line.startsWith('<h') || line.startsWith('<ul') || 
+                        line.startsWith('</ul') || line.startsWith('<pre') || 
+                        line.startsWith('</pre') || line === '') {
+                        result.push(line);
+                    } else if (line.startsWith('<li>')) {
+                        if (!inList) {
+                            result.push('<ul>');
+                            inList = true;
+                        }
+                        result.push(line);
+                    } else {
+                        if (inList) {
+                            result.push('</ul>');
+                            inList = false;
+                        }
+                        if (line) {
+                            result.push('<p>' + line + '</p>');
+                        }
+                    }
+                }
+                
+                if (inList) {
+                    result.push('</ul>');
+                }
+                
+                return result.join('\n');
+            }
+            
+            // Save note
+            window.saveNote = async function(showIndicator = true) {
+                if (isSaving) return;
+                isSaving = true;
+                
+                const title = titleInput.value.trim() || 'Untitled Note';
+                const htmlContent = editor.innerHTML;
+                const markdownContent = htmlToMarkdown(htmlContent);
+                
+                if (showIndicator) {
+                    showSaveIndicator('Saving...', 'saving');
+                }
+                
+                try {
+                    const result = await window.pywebview.api.call_app_function('Notes', 'save_note', title, markdownContent);
+                    
+                    if (result.success) {
+                        currentNote = title;
+                        if (showIndicator) {
+                            showSaveIndicator('Saved!', 'success');
+                        }
+                    } else {
+                        if (showIndicator) {
+                            showSaveIndicator('Error: ' + (result.error || 'Failed to save'), 'error');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error saving note:', error);
+                    if (showIndicator) {
+                        showSaveIndicator('Error saving note', 'error');
+                    }
+                }
+                
+                isSaving = false;
+            };
+            
+            // Load note
+            window.loadNote = async function(title) {
+                try {
+                    const result = await window.pywebview.api.call_app_function('Notes', 'load_note', title);
+                    
+                    if (result.success) {
+                        titleInput.value = title;
+                        currentNote = title;
+                        
+                        // Convert markdown to HTML and set editor content
+                        const htmlContent = markdownToHtml(result.content);
+                        editor.innerHTML = htmlContent;
+                        
+                        closeLoadModal();
+                        showSaveIndicator('Loaded: ' + title, 'success');
+                    } else {
+                        showSaveIndicator('Error: ' + (result.error || 'Failed to load'), 'error');
+                    }
+                } catch (error) {
+                    console.error('Error loading note:', error);
+                    showSaveIndicator('Error loading note', 'error');
+                }
+            };
+            
+            // Delete note
+            window.deleteNote = async function(title, event) {
+                event.stopPropagation();
+                
+                if (!confirm(`Delete note "${title}"?`)) {
+                    return;
+                }
+                
+                try {
+                    const result = await window.pywebview.api.call_app_function('Notes', 'delete_note', title);
+                    
+                    if (result.success) {
+                        showSaveIndicator('Deleted: ' + title, 'success');
+                        showLoadModal(); // Refresh the list
+                    } else {
+                        showSaveIndicator('Error: ' + (result.error || 'Failed to delete'), 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting note:', error);
+                    showSaveIndicator('Error deleting note', 'error');
+                }
+            };
+            
+            // New note
+            window.newNote = function() {
+                titleInput.value = 'Untitled Note';
+                currentNote = 'Untitled Note';
+                editor.innerHTML = '<p>Start typing your note...</p>';
+                editor.focus();
+            };
+            
+            // Show load modal
+            window.showLoadModal = async function() {
+                const modal = document.getElementById('loadModal');
+                const notesList = document.getElementById('notesList');
+                
+                modal.classList.add('active');
+                
+                try {
+                    const result = await window.pywebview.api.call_app_function('Notes', 'list_notes');
+                    
+                    if (result.success && result.notes.length > 0) {
+                        notesList.innerHTML = result.notes.map(note => `
+                            <div class="note-item" onclick="window.loadNote('${note}')">
+                                <span class="note-item-title">${note}</span>
+                                <button class="note-item-delete" onclick="window.deleteNote('${note}', event)">Delete</button>
+                            </div>
+                        `).join('');
+                    } else {
+                        notesList.innerHTML = '<p class="no-notes">No notes found</p>';
+                    }
+                } catch (error) {
+                    console.error('Error listing notes:', error);
+                    notesList.innerHTML = '<p class="no-notes">Error loading notes</p>';
+                }
+            };
+            
+            // Close load modal
+            window.closeLoadModal = function() {
+                const modal = document.getElementById('loadModal');
+                modal.classList.remove('active');
+            };
+            
+            // Show save indicator
+            function showSaveIndicator(message, type = 'success') {
+                saveIndicator.textContent = message;
+                saveIndicator.className = 'save-indicator show';
+                
+                if (type === 'saving') {
+                    saveIndicator.classList.add('saving');
+                } else if (type === 'error') {
+                    saveIndicator.classList.add('error');
+                }
+                
+                setTimeout(() => {
+                    saveIndicator.classList.remove('show');
+                }, 3000);
+            }
+            
+            // Initialize when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-do List</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .todo-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: rgba(30, 30, 46, 0.95);
+            padding: 2rem;
+        }
+
+        .header {
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .input-section {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
+        #taskInput {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.875rem 1rem;
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        #taskInput:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.6);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        #taskInput::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        #addBtn {
+            background: rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 0.875rem 2rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        #addBtn:hover {
+            background: rgba(99, 102, 241, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        #addBtn:active {
+            transform: translateY(0);
+        }
+
+        .task-list {
+            flex: 1;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .task-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(4px);
+        }
+
+        .task-item.completed {
+            opacity: 0.6;
+        }
+
+        .task-item.completed .task-text {
+            text-decoration: line-through;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .task-checkbox {
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            margin-right: 1rem;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .task-checkbox:hover {
+            border-color: rgba(99, 102, 241, 0.6);
+        }
+
+        .task-checkbox.checked {
+            background: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.8);
+        }
+
+        .task-checkbox.checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 1rem;
+            color: #ffffff;
+            word-wrap: break-word;
+        }
+
+        .delete-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 1rem;
+        }
+
+        .delete-btn:hover {
+            background: rgba(239, 68, 68, 0.4);
+            transform: scale(1.05);
+        }
+
+        .delete-btn:active {
+            transform: scale(0.95);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: rgba(255, 255, 255, 0.3);
+            text-align: center;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+        }
+
+        /* Scrollbar styling */
+        .task-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .task-list::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .task-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .task-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .stats {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+<body>
+    <div class="todo-container">
+        <div class="input-section">
+            <input type="text" id="taskInput" placeholder="What needs to be done?" />
+            <button id="addBtn" onclick="window.addTaskHandler && window.addTaskHandler()">Add Task</button>
+        </div>
+
+        <div class="task-list" id="taskList">
+            <div class="empty-state">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                </svg>
+                <p>No tasks yet. Add one to get started!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load tasks from backend
+        async function loadTasks() {
+            try {
+                const tasks = await window.pywebview.api.call_app_function('To-do-List', 'load_tasks');
+                renderTasks(tasks);
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+
+        // Add a new task
+        async function addTask() {
+            const input = document.getElementById('taskInput');
+            const taskText = input.value.trim();
+            
+            if (!taskText) {
+                return;
+            }
+            
+            try {
+                const result = await window.pywebview.api.call_app_function('To-do-List', 'save_task', taskText);
+                if (result.success) {
+                    renderTasks(result.tasks);
+                    input.value = '';
+                } else {
+                    console.error('Failed to save task:', result);
+                    alert('Failed to save task: ' + (result.error || result.message));
+                }
+            } catch (error) {
+                console.error('Error adding task:', error);
+                alert('Error adding task: ' + error);
+            }
+        }
+        
+        // Expose to window for onclick handler
+        window.addTaskHandler = addTask;
+
+        // Toggle task completion
+        async function toggleTask(taskId) {
+            try {
+                const result = await window.pywebview.api.call_app_function('To-do-List', 'toggle_task', taskId);
+                if (result.success) {
+                    renderTasks(result.tasks);
+                }
+            } catch (error) {
+                console.error('Error toggling task:', error);
+            }
+        }
+
+        // Delete a task
+        async function deleteTask(taskId) {
+            try {
+                const result = await window.pywebview.api.call_app_function('To-do-List', 'delete_task', taskId);
+                if (result.success) {
+                    renderTasks(result.tasks);
+                }
+            } catch (error) {
+                console.error('Error deleting task:', error);
+            }
+        }
+
+        // Render tasks to the UI
+        function renderTasks(tasks) {
+            const taskList = document.getElementById('taskList');
+            
+            if (!tasks || Object.keys(tasks).length === 0) {
+                taskList.innerHTML = `
+                    <div class="empty-state">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                        <p>No tasks yet. Add one to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            for (const [id, task] of Object.entries(tasks)) {
+                const completedClass = task.completed ? 'completed' : '';
+                const checkedClass = task.completed ? 'checked' : '';
+                
+                html += `
+                    <div class="task-item ${completedClass}">
+                        <div class="task-checkbox ${checkedClass}" onclick="toggleTask('${id}')"></div>
+                        <div class="task-text">${escapeHtml(task.text)}</div>
+                        <button class="delete-btn" onclick="deleteTask('${id}')">Delete</button>
+                    </div>
+                `;
+            }
+            
+            taskList.innerHTML = html;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize when script runs
+        setTimeout(() => {
+            const input = document.getElementById('taskInput');
+            if (input) {
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        addTask();
+                    }
+                });
+            }
+            
+            // Load initial tasks
+            loadTasks();
+        }, 100);
+    </script>
+</body>
+</html>
