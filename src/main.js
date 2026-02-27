@@ -559,6 +559,19 @@ async function loadWallpaper() {
     }
 }
 
+async function loadLogo() {
+    try {
+        const settings = await window.pywebview.api.get_settings();
+        const logoType = settings.logo || 'default';
+        const logoImg = document.querySelector('.center-button-icon img');
+        if (logoImg) {
+            logoImg.src = logoType === 'solid' ? 'logo_solid.png' : 'logo.png';
+        }
+    } catch (error) {
+        console.error('Error loading logo:', error);
+    }
+}
+
 // Wait for pywebview API to be ready
 function waitForPywebview(callback, maxAttempts = 50) {
     let attempts = 0;
@@ -688,6 +701,14 @@ async function toggleSettings() {
         document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
         document.getElementById('fullscreenToggle').checked = settings.fullscreen === true;
         document.getElementById('updatesSelect').value = settings.updates || 'release';
+        
+        // Update logo selection
+        const selectedLogo = settings.logo || 'default';
+        document.querySelectorAll('.logo-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        document.getElementById(`logo${selectedLogo.charAt(0).toUpperCase() + selectedLogo.slice(1)}`).classList.add('selected');
+        
         overlay.style.display = 'flex';
     } else {
         overlay.style.display = 'none';
@@ -804,6 +825,30 @@ async function saveUpdates() {
     } catch (error) {
         console.error('Error setting updates channel:', error);
         alert('Error setting updates channel.');
+    }
+}
+
+async function selectLogo(logoType) {
+    try {
+        const result = await window.pywebview.api.set_logo(logoType);
+        if (result) {
+            // Update visual selection
+            document.querySelectorAll('.logo-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.getElementById(`logo${logoType.charAt(0).toUpperCase() + logoType.slice(1)}`).classList.add('selected');
+            
+            // Update the center button logo
+            const logoImg = document.querySelector('.center-button-icon img');
+            if (logoImg) {
+                logoImg.src = logoType === 'solid' ? 'logo_solid.png' : 'logo.png';
+            }
+        } else {
+            alert('Failed to update logo preference.');
+        }
+    } catch (error) {
+        console.error('Error setting logo:', error);
+        alert('Error setting logo.');
     }
 }
 
@@ -1073,6 +1118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     waitForPywebview(() => {
         loadWallpaper();
         loadDayGradient();
+        loadLogo();
         checkForUpdateNotification();
     });
     

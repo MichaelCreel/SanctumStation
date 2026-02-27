@@ -65,6 +65,7 @@ version = "v0.0.0" # The current version of the app
 updates = "release" # Update preference: "release" or "all"
 wallpaper = "None" # The current wallpaper setting
 day_gradient = True # Whether to include the time of day gradient overlay on the desktop
+logo = "default" # Logo preference: "default" or "solid"
 fonts = {} # Dictionary of font weights
 available_update = None  # Stores update info if available
 active_apps = {} # Dict to track running app instances
@@ -106,7 +107,7 @@ def initialize():
 # Initializes the environment settings from data/settings.yaml
 # Returns True on success, False on failure
 def init_settings():
-    global version, wallpaper, fonts, updates, day_gradient, fullscreen
+    global version, wallpaper, fonts, updates, day_gradient, fullscreen, logo
     try:
         settings_path = os.path.join(DATA_DIR, "settings.yaml")
         print(f"Loading settings from: {settings_path}")
@@ -123,6 +124,8 @@ def init_settings():
             updates = settings["updates"]
         if "fullscreen" in settings:
             fullscreen = settings["fullscreen"]
+        if "logo" in settings:
+            logo = settings["logo"]
         
         # Load all font weights
         font_keys = ['black_font', 'extra_bold_font', 'bold_font', 'semi_bold_font', 
@@ -130,7 +133,7 @@ def init_settings():
         for key in font_keys:
             if key in settings:
                 fonts[key] = settings[key]
-        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}")
+        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}\n    -logo={logo}")
         return True
     except FileNotFoundError:
         print("IS-E1: Settings file not found. Using default settings.")
@@ -604,6 +607,9 @@ def init_webview():
             def set_updates(self, channel):
                 return settings_manager.set_updates(channel)
             
+            def set_logo(self, logo_type):
+                return settings_manager.set_logo(logo_type)
+            
             def get_available_update(self):
                 global available_update
                 return available_update
@@ -1023,13 +1029,14 @@ class AppManagerAPI:
 class SettingsManagerAPI:
     # Gets current settings
     def get_settings(self):
-        global version, wallpaper, fonts, day_gradient, updates, fullscreen
+        global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo
         return {
             "wallpaper": wallpaper,
             "fonts": fonts,
             "day_gradient": day_gradient,
             "updates": updates,
-            "fullscreen": fullscreen
+            "fullscreen": fullscreen,
+            "logo": logo
         }
     
     # Gets wallpaper as base64 data URL
@@ -1166,6 +1173,25 @@ class SettingsManagerAPI:
             print(f"SMA-E6: Error setting updates: {e}")
             if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("SMA-E6")')
+            return False
+        return True
+    
+    # Sets logo preference
+    def set_logo(self, logo_type):
+        global logo
+        logo = logo_type
+        # Write to settings.yaml
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["logo"] = logo_type
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E7: Error setting logo preference: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E7")')
             return False
         return True
 

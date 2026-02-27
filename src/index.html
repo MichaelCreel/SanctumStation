@@ -95,6 +95,23 @@ This file contains the structure and layout for the psuedo-desktop environment t
                         </div>
                     </div>
                     <div class="setting-item">
+                        <label>Logo Style:</label>
+                        <div class="logo-selection-grid">
+                            <div class="logo-option" onclick="selectLogo('default')" id="logoDefault">
+                                <div class="logo-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                    <img src="logo.png" alt="Default Logo">
+                                </div>
+                                <div class="logo-label">Default</div>
+                            </div>
+                            <div class="logo-option" onclick="selectLogo('solid')" id="logoSolid">
+                                <div class="logo-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                    <img src="logo_solid.png" alt="Solid Logo">
+                                </div>
+                                <div class="logo-label">Solid</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
                         <label for="dayGradientToggle">Time of Day Gradient:</label>
                         <div class="setting-input-group">
                             <label class="toggle-switch">
