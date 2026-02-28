@@ -1178,6 +1178,7 @@ class SettingsManagerAPI:
     
     # Sets logo preference
     def set_logo(self, logo_type):
+        print(f"Setting logo to: {logo_type}")
         global logo
         logo = logo_type
         # Write to settings.yaml
@@ -1188,6 +1189,7 @@ class SettingsManagerAPI:
             settings["logo"] = logo_type
             with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
+            print(f"Logo successfully set to: {logo_type}")
         except Exception as e:
             print(f"SMA-E7: Error setting logo preference: {e}")
             if webview_window and not IS_MOBILE:

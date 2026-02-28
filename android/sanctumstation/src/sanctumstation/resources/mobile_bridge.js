@@ -3,18 +3,13 @@
  * Translates pywebview API calls to HTTP requests for mobile Flask backend
  */
 
-console.log('[Mobile Bridge] Script loaded - starting initialization');
-
 (function() {
-    console.log('[Mobile Bridge] IIFE started');
     // Detect if we're on mobile by checking if loading from the mobile HTTP server
     // Mobile: http://127.0.0.1:5000/index.html
     // Desktop: file:///.../index.html or pywebview custom protocol
     const isMobileServer = window.location.protocol === 'http:' && 
                            window.location.hostname === '127.0.0.1' &&
                            window.location.port === '5000';
-    
-    console.log(`[Mobile Bridge] Detection: protocol=${window.location.protocol}, hostname=${window.location.hostname}, port=${window.location.port}, isMobileServer=${isMobileServer}`);
     
     let checkCount = 0;
     const maxChecks = 20; // Check for 2 seconds
@@ -51,14 +46,11 @@ console.log('[Mobile Bridge] Script loaded - starting initialization');
     }
     
     function initializeMobileBridge() {
-        console.log('[Mobile Bridge] initializeMobileBridge called');
         console.log('Initializing mobile API bridge...');
         
         window.pywebview = {
             api: {}
         };
-        
-        console.log('[Mobile Bridge] Created window.pywebview');
         
         async function callAPI(method, ...args) {
             try {
@@ -86,6 +78,7 @@ console.log('[Mobile Bridge] Script loaded - starting initialization');
         }
         
         const apiMethods = [
+            'js_log',
             'launch_app', 'stop_app', 'get_apps', 'get_running_apps',
             'send_notification', 'delete_notification', 'get_notifications', 'clear_all_notifications',
             'display_error', 'get_error',
@@ -95,7 +88,7 @@ console.log('[Mobile Bridge] Script loaded - starting initialization');
             'get_fonts', 'get_version', 'get_wallpaper', 'get_wallpaper_data',
             'get_day_gradient', 'get_fullscreen',
             'get_settings', 'set_wallpaper', 'set_day_gradient', 'set_fullscreen',
-            'set_font', 'set_updates', 'get_available_update',
+            'set_font', 'set_updates', 'set_logo', 'get_available_update',
             'fuzzy_search_apps', 'call_app_function'
         ];
         
@@ -107,46 +100,28 @@ console.log('[Mobile Bridge] Script loaded - starting initialization');
         
         // Override launch_app to handle script injection on mobile
         window.pywebview.api.launch_app = async function(appName) {
-            console.log(`[Mobile Bridge] Launching app: ${appName}`);
+            const result = await callAPI('launch_app', appName);
             
-            try {
-                const result = await callAPI('launch_app', appName);
-                console.log(`[Mobile Bridge] launch_app result:`, result);
-                
-                // If backend returns a script to inject, execute it
-                if (result && result.inject_script) {
-                    console.log(`[Mobile Bridge] Received injection script (${result.inject_script.length} chars)`);
-                    try {
-                        eval(result.inject_script);
-                        console.log(`[Mobile Bridge] Successfully executed injection script`);
-                        return true;
-                    } catch (error) {
-                        console.error('[Mobile Bridge] Error executing injection script:', error);
-                        console.error('[Mobile Bridge] Stack:', error.stack);
-                        return false;
-                    }
+            // If backend returns a script to inject, execute it
+            if (result && result.inject_script) {
+                try {
+                    eval(result.inject_script);
+                    return true;
+                } catch (error) {
+                    console.error('Error injecting app:', error);
+                    return false;
                 }
-                
-                console.log(`[Mobile Bridge] Returning result:`, result);
-                return result;
-            } catch (error) {
-                console.error('[Mobile Bridge] Error in launch_app:', error);
-                return false;
             }
+            
+            return result;
         };
         
         console.log('Mobile API bridge initialized');
     }
-    
-    console.log('[Mobile Bridge] About to checkAndInitialize, isMobileServer:', isMobileServer);
     
     if (isMobileServer) {
         checkAndInitialize();
     } else {
         setTimeout(checkAndInitialize, 50);
     }
-    
-    console.log('[Mobile Bridge] IIFE completed');
 })();
-
-console.log('[Mobile Bridge] Script execution completed');

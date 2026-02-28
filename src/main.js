@@ -3,6 +3,8 @@ JavaScript Frontend for Sanctum Station
 This file handles interactive elements and transfer to the python backend for the psuedo-desktop environment to be used.
 */
 
+console.log('[Main.js] Script loading...');
+
 // Clock functionality
 class DesktopClock {
     constructor() {
@@ -580,6 +582,37 @@ function waitForPywebview(callback, maxAttempts = 50) {
         if (window.pywebview && window.pywebview.api) {
             clearInterval(checkAPI);
             console.log('Pywebview API ready');
+            
+            // Forward console logs to Python on mobile
+            if (window.location.protocol === 'http:' && window.location.hostname === '127.0.0.1') {
+                const originalLog = console.log;
+                const originalError = console.error;
+                const originalWarn = console.warn;
+                
+                console.log = function(...args) {
+                    originalLog.apply(console, args);
+                    try {
+                        window.pywebview.api.js_log('LOG', args.join(' '));
+                    } catch (e) {}
+                };
+                
+                console.error = function(...args) {
+                    originalError.apply(console, args);
+                    try {
+                        window.pywebview.api.js_log('ERROR', args.join(' '));
+                    } catch (e) {}
+                };
+                
+                console.warn = function(...args) {
+                    originalWarn.apply(console, args);
+                    try {
+                        window.pywebview.api.js_log('WARN', args.join(' '));
+                    } catch (e) {}
+                };
+                
+                originalLog('[Main.js] Console forwarding to Python enabled');
+            }
+            
             callback();
         } else if (attempts >= maxAttempts) {
             clearInterval(checkAPI);
@@ -829,8 +862,11 @@ async function saveUpdates() {
 }
 
 async function selectLogo(logoType) {
+    console.log('selectLogo called with:', logoType);
     try {
+        console.log('Calling set_logo API...');
         const result = await window.pywebview.api.set_logo(logoType);
+        console.log('set_logo result:', result);
         if (result) {
             // Update visual selection
             document.querySelectorAll('.logo-option').forEach(option => {
@@ -843,7 +879,9 @@ async function selectLogo(logoType) {
             if (logoImg) {
                 logoImg.src = logoType === 'solid' ? 'logo_solid.png' : 'logo.png';
             }
+            console.log('Logo updated successfully in UI');
         } else {
+            console.error('set_logo returned false');
             alert('Failed to update logo preference.');
         }
     } catch (error) {
@@ -851,6 +889,10 @@ async function selectLogo(logoType) {
         alert('Error setting logo.');
     }
 }
+
+// Make sure selectLogo is globally accessible for onclick handlers
+window.selectLogo = selectLogo;
+console.log('[Main.js] selectLogo function defined and added to window object');
 
 // Check if there's an update available and show notification
 async function checkForUpdateNotification() {

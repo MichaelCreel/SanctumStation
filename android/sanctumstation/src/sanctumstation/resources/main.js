@@ -3,6 +3,8 @@ JavaScript Frontend for Sanctum Station
 This file handles interactive elements and transfer to the python backend for the psuedo-desktop environment to be used.
 */
 
+console.log('[Main.js] Script loading...');
+
 // Clock functionality
 class DesktopClock {
     constructor() {
@@ -559,6 +561,19 @@ async function loadWallpaper() {
     }
 }
 
+async function loadLogo() {
+    try {
+        const settings = await window.pywebview.api.get_settings();
+        const logoType = settings.logo || 'default';
+        const logoImg = document.querySelector('.center-button-icon img');
+        if (logoImg) {
+            logoImg.src = logoType === 'solid' ? 'logo_solid.png' : 'logo.png';
+        }
+    } catch (error) {
+        console.error('Error loading logo:', error);
+    }
+}
+
 // Wait for pywebview API to be ready
 function waitForPywebview(callback, maxAttempts = 50) {
     let attempts = 0;
@@ -567,6 +582,37 @@ function waitForPywebview(callback, maxAttempts = 50) {
         if (window.pywebview && window.pywebview.api) {
             clearInterval(checkAPI);
             console.log('Pywebview API ready');
+            
+            // Forward console logs to Python on mobile
+            if (window.location.protocol === 'http:' && window.location.hostname === '127.0.0.1') {
+                const originalLog = console.log;
+                const originalError = console.error;
+                const originalWarn = console.warn;
+                
+                console.log = function(...args) {
+                    originalLog.apply(console, args);
+                    try {
+                        window.pywebview.api.js_log('LOG', args.join(' '));
+                    } catch (e) {}
+                };
+                
+                console.error = function(...args) {
+                    originalError.apply(console, args);
+                    try {
+                        window.pywebview.api.js_log('ERROR', args.join(' '));
+                    } catch (e) {}
+                };
+                
+                console.warn = function(...args) {
+                    originalWarn.apply(console, args);
+                    try {
+                        window.pywebview.api.js_log('WARN', args.join(' '));
+                    } catch (e) {}
+                };
+                
+                originalLog('[Main.js] Console forwarding to Python enabled');
+            }
+            
             callback();
         } else if (attempts >= maxAttempts) {
             clearInterval(checkAPI);
@@ -688,6 +734,14 @@ async function toggleSettings() {
         document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
         document.getElementById('fullscreenToggle').checked = settings.fullscreen === true;
         document.getElementById('updatesSelect').value = settings.updates || 'release';
+        
+        // Update logo selection
+        const selectedLogo = settings.logo || 'default';
+        document.querySelectorAll('.logo-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        document.getElementById(`logo${selectedLogo.charAt(0).toUpperCase() + selectedLogo.slice(1)}`).classList.add('selected');
+        
         overlay.style.display = 'flex';
     } else {
         overlay.style.display = 'none';
@@ -806,6 +860,39 @@ async function saveUpdates() {
         alert('Error setting updates channel.');
     }
 }
+
+async function selectLogo(logoType) {
+    console.log('selectLogo called with:', logoType);
+    try {
+        console.log('Calling set_logo API...');
+        const result = await window.pywebview.api.set_logo(logoType);
+        console.log('set_logo result:', result);
+        if (result) {
+            // Update visual selection
+            document.querySelectorAll('.logo-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.getElementById(`logo${logoType.charAt(0).toUpperCase() + logoType.slice(1)}`).classList.add('selected');
+            
+            // Update the center button logo
+            const logoImg = document.querySelector('.center-button-icon img');
+            if (logoImg) {
+                logoImg.src = logoType === 'solid' ? 'logo_solid.png' : 'logo.png';
+            }
+            console.log('Logo updated successfully in UI');
+        } else {
+            console.error('set_logo returned false');
+            alert('Failed to update logo preference.');
+        }
+    } catch (error) {
+        console.error('Error setting logo:', error);
+        alert('Error setting logo.');
+    }
+}
+
+// Make sure selectLogo is globally accessible for onclick handlers
+window.selectLogo = selectLogo;
+console.log('[Main.js] selectLogo function defined and added to window object');
 
 // Check if there's an update available and show notification
 async function checkForUpdateNotification() {
@@ -1073,6 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     waitForPywebview(() => {
         loadWallpaper();
         loadDayGradient();
+        loadLogo();
         checkForUpdateNotification();
     });
     

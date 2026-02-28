@@ -78,6 +78,7 @@
         }
         
         const apiMethods = [
+            'js_log',
             'launch_app', 'stop_app', 'get_apps', 'get_running_apps',
             'send_notification', 'delete_notification', 'get_notifications', 'clear_all_notifications',
             'display_error', 'get_error',
@@ -87,7 +88,7 @@
             'get_fonts', 'get_version', 'get_wallpaper', 'get_wallpaper_data',
             'get_day_gradient', 'get_fullscreen',
             'get_settings', 'set_wallpaper', 'set_day_gradient', 'set_fullscreen',
-            'set_font', 'set_updates', 'get_available_update',
+            'set_font', 'set_updates', 'set_logo', 'get_available_update',
             'fuzzy_search_apps', 'call_app_function'
         ];
         
