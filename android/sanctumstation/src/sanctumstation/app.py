@@ -230,6 +230,11 @@ class SanctumStation(toga.App):
                 settings.setJavaScriptEnabled(True)
                 print("  JavaScript enabled")
                 
+                # Clear WebView cache on startup to load fresh content after updates
+                print("  Clearing WebView cache on startup...")
+                native_webview.clearCache(True)
+                print("  WebView cache cleared")
+                
                 # Disable WebContents debugging for production (removes green debug bar)
                 print("  Disabling WebContents debugging...")
                 native_webview.setWebContentsDebuggingEnabled(False)
