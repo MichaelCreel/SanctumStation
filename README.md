@@ -38,11 +38,13 @@ The current version of Sanctum Station is not ready for full release and is inte
 
 ## Known Issues
 
-- App currently has no way to connect your mobile device to your computer. This is planned for a future release.
+- The app currently has no way to connect your mobile device to your computer. This is planned for a future release.
+- The Android package occasionally fails to work with 32-bit devices. This is repeatedly fixed to stay compatible with these devices, but may not work consistently.
 
 ## Development Notes
 
 - This app is packaged using a packaging script that contains sensitive information like keystores. This script is kept hidden for security reasons. This may slow modification to the main app but should not prevent development inside the app.
+- The app uses Python 3.11 to ensure compatibility with both 32-bit and 64-bit devices. If library imports fail, check what version of Python they require to run.
 
 ## Licenses
 
