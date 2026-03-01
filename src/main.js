@@ -735,6 +735,10 @@ async function toggleSettings() {
         document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
         document.getElementById('fullscreenToggle').checked = settings.fullscreen === true;
         document.getElementById('updatesSelect').value = settings.updates || 'release';
+
+        // Hide fullscreen setting row on mobile
+        const fullscreenRow = document.getElementById('fullscreenToggle').closest('.setting-item');
+        if (fullscreenRow) fullscreenRow.style.display = settings.is_mobile ? 'none' : '';
         
         // Update logo selection
         const selectedLogo = settings.logo || 'default';
@@ -1163,6 +1167,13 @@ document.addEventListener('DOMContentLoaded', () => {
         loadDayGradient();
         loadLogo();
         checkForUpdateNotification();
+        // Hide desktop-only UI elements on mobile
+        window.pywebview.api.get_settings().then(settings => {
+            if (settings.is_mobile) {
+                const fullscreenBtn = document.getElementById('fullscreenBtn');
+                if (fullscreenBtn) fullscreenBtn.style.display = 'none';
+            }
+        }).catch(() => {});
     });
     
     window.SanctumStation = {

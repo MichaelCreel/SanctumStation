@@ -1036,7 +1036,8 @@ class SettingsManagerAPI:
             "day_gradient": day_gradient,
             "updates": updates,
             "fullscreen": fullscreen,
-            "logo": logo
+            "logo": logo,
+            "is_mobile": IS_MOBILE
         }
     
     # Gets wallpaper as base64 data URL
