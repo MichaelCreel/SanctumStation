@@ -59,3 +59,7 @@ src/sanctumstation/src/
 src/sanctumstation/data/
 src/sanctumstation/backend.py
 src/sanctumstation/resources/apps/
+
+# Ignore all generated icon variants except icon.png
+icon-*.png
+!icon.png

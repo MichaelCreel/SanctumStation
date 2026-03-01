@@ -176,6 +176,7 @@ requires = [
 ]
 
 [tool.briefcase.app.sanctumstation.android]
+icon = "icon"
 requires = [
     "toga-android~=0.5.0",
     "pyyaml",
