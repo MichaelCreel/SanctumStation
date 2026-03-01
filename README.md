@@ -32,9 +32,21 @@ The current version of Sanctum Station is not ready for full release and is inte
 
 ## Installation
 
-1. Install all dependencies
-2. Download the Sanctum Station zip file from [Releases](https://github.com/MichaelCreel/SanctumStation/releases)
-3. Run `./src/backend.py`
+**Desktop:**
+1. Install all dependencies.
+2. Download the 'Desktop' zip file from [Releases](https://github.com/MichaelCreel/SanctumStation/releases)
+3. Extract the zip file and open the extracted folder.
+4. Run `./src/backend.py`.
+
+**Mobile:** ([Installation Guide](https://michaelcreel.github.io/android-instructions/android-instructions.html))
+1. Download the 'Mobile' zip file from [Releases](https://github.com/MichaelCreel/SanctumStation/releases)
+2. Open files app.
+3. Open downloads folder.
+4. Open the downloaded zip file.
+5. Extract the files and open the extracted folder.
+6. Open the APK file.
+7. Install the app.
+8. Run the app.
 
 ## Testing Notes
 
