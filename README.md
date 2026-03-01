@@ -36,6 +36,16 @@ The current version of Sanctum Station is not ready for full release and is inte
 2. Download the Sanctum Station zip file from [Releases](https://github.com/MichaelCreel/SanctumStation/releases)
 3. Run `./src/backend.py`
 
+## Testing Notes
+
+- The app is tested mainly on three devices. Missing functionality may be missed disproportionately on some devices.
+  - **Mobile Devices**:
+    - 64 Bit Android 9 Samsung Galaxy Tab S3
+    - 32 Bit Android 13 Samsung Galaxy A13 5G
+  - **Desktop Devices**
+    - 64 Bit Linux Mint Dell Precision 7780
+      - *Why Not Report The System Version*: The system is kept up-to-date with packages and versions. No persistent versions are kept.
+
 ## Known Issues
 
 - The app currently has no way to connect your mobile device to your computer. This is planned for a future release.
