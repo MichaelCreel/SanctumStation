@@ -182,6 +182,8 @@ class APIHandler(SimpleHTTPRequestHandler):
             return settings_manager.set_updates(*args)
         elif method == 'set_logo':
             return settings_manager.set_logo(*args)
+        elif method == 'set_ui_scale':
+            return settings_manager.set_ui_scale(*args)
         else:
             raise ValueError(f"Unknown API method: {method}")
 
