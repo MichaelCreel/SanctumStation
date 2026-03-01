@@ -72,6 +72,7 @@ active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
 main_event_loop = None # Reference to the main event loop (for mobile async calls)
 fullscreen = False # Whether the app is in fullscreen mode or not
+ui_scale = 1.0 # UI scale multiplier (1.0 = 16px base font, 100%)
 
 if IS_MOBILE:
     import toga
@@ -107,7 +108,7 @@ def initialize():
 # Initializes the environment settings from data/settings.yaml
 # Returns True on success, False on failure
 def init_settings():
-    global version, wallpaper, fonts, updates, day_gradient, fullscreen, logo
+    global version, wallpaper, fonts, updates, day_gradient, fullscreen, logo, ui_scale
     try:
         settings_path = os.path.join(DATA_DIR, "settings.yaml")
         print(f"Loading settings from: {settings_path}")
@@ -126,6 +127,8 @@ def init_settings():
             fullscreen = settings["fullscreen"]
         if "logo" in settings:
             logo = settings["logo"]
+        if "ui_scale" in settings:
+            ui_scale = float(settings["ui_scale"])
         
         # Load all font weights
         font_keys = ['black_font', 'extra_bold_font', 'bold_font', 'semi_bold_font', 
@@ -133,7 +136,7 @@ def init_settings():
         for key in font_keys:
             if key in settings:
                 fonts[key] = settings[key]
-        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}\n    -logo={logo}")
+        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}\n    -logo={logo}\n    -ui_scale={ui_scale}")
         return True
     except FileNotFoundError:
         print("IS-E1: Settings file not found. Using default settings.")
@@ -609,10 +612,16 @@ def init_webview():
             
             def set_logo(self, logo_type):
                 return settings_manager.set_logo(logo_type)
+
+            def set_ui_scale(self, scale):
+                return settings_manager.set_ui_scale(scale)
             
             def get_available_update(self):
                 global available_update
                 return available_update
+
+            def js_log(self, level, message):
+                print(f"[JS/{level}] {message}")
             
             # Fuzzy search for apps
             def fuzzy_search_apps(self, query):
@@ -1029,7 +1038,7 @@ class AppManagerAPI:
 class SettingsManagerAPI:
     # Gets current settings
     def get_settings(self):
-        global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo
+        global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo, ui_scale
         return {
             "wallpaper": wallpaper,
             "fonts": fonts,
@@ -1037,7 +1046,8 @@ class SettingsManagerAPI:
             "updates": updates,
             "fullscreen": fullscreen,
             "logo": logo,
-            "is_mobile": IS_MOBILE
+            "is_mobile": IS_MOBILE,
+            "ui_scale": ui_scale
         }
     
     # Gets wallpaper as base64 data URL
@@ -1177,6 +1187,24 @@ class SettingsManagerAPI:
             return False
         return True
     
+    # Sets UI scale multiplier
+    def set_ui_scale(self, scale):
+        global ui_scale
+        ui_scale = float(scale)
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["ui_scale"] = ui_scale
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E8: Error setting ui_scale: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E8")')
+            return False
+        return True
+
     # Sets logo preference
     def set_logo(self, logo_type):
         print(f"Setting logo to: {logo_type}")

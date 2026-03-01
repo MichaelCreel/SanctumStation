@@ -10,6 +10,7 @@ medium_font: fonts/Inter-Medium.ttf
 regular_font: fonts/Inter-Regular.ttf
 semi_bold_font: fonts/Inter-SemiBold.ttf
 thin_font: fonts/Inter-Thin.ttf
+ui_scale: 1.5
 updates: release
 version: v0.6.2
 wallpaper: None

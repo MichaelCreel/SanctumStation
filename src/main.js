@@ -508,13 +508,9 @@ class ResponsiveHandler {
 
     handleResize() {
         const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-        const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-        
-        if (vw < 320) {
-            document.documentElement.style.fontSize = '14px';
-        } else {
-            document.documentElement.style.fontSize = '16px';
-        }
+        const scale = window._currentUiScale || 1.0;
+        const basePx = vw < 320 ? 14 : 16;
+        document.documentElement.style.fontSize = (basePx * scale) + 'px';
     }
 }
 
@@ -562,6 +558,22 @@ async function loadWallpaper() {
     }
 }
 
+async function loadScale() {
+    try {
+        console.log('loadScale: calling get_settings...');
+        const settings = await window.pywebview.api.get_settings();
+        console.log('loadScale: ui_scale =', settings.ui_scale);
+        applyScale(settings.ui_scale || 1.0);
+        console.log('loadScale: applied font-size =', document.documentElement.style.fontSize);
+        if (settings.is_mobile) {
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            if (fullscreenBtn) fullscreenBtn.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading UI scale:', error);
+    }
+}
+
 async function loadLogo() {
     try {
         const settings = await window.pywebview.api.get_settings();
@@ -576,7 +588,7 @@ async function loadLogo() {
 }
 
 // Wait for pywebview API to be ready
-function waitForPywebview(callback, maxAttempts = 50) {
+function waitForPywebview(callback, maxAttempts = 200) {
     let attempts = 0;
     const checkAPI = setInterval(() => {
         attempts++;
@@ -736,6 +748,12 @@ async function toggleSettings() {
         document.getElementById('fullscreenToggle').checked = settings.fullscreen === true;
         document.getElementById('updatesSelect').value = settings.updates || 'release';
 
+        // Load UI scale slider
+        const scale = window._currentUiScale || settings.ui_scale || 1.0;
+        const scalePct = Math.round(scale * 100);
+        document.getElementById('uiScaleSlider').value = scalePct;
+        document.getElementById('uiScaleLabel').textContent = scalePct + '%';
+
         // Hide fullscreen setting row on mobile
         const fullscreenRow = document.getElementById('fullscreenToggle').closest('.setting-item');
         if (fullscreenRow) fullscreenRow.style.display = settings.is_mobile ? 'none' : '';
@@ -848,6 +866,28 @@ async function toggleFullscreen() {
         if (toggle) toggle.checked = newState;
     } catch (error) {
         console.error('Error toggling fullscreen:', error);
+    }
+}
+
+function applyScale(scale) {
+    // scale is a float: 1.0 = 100% = 16px root font size
+    window._currentUiScale = scale;
+    document.documentElement.style.fontSize = (16 * scale) + 'px';
+    try { localStorage.setItem('ui_scale', scale); } catch (e) {}
+}
+
+function previewScale(pct) {
+    document.getElementById('uiScaleLabel').textContent = pct + '%';
+    applyScale(pct / 100);
+}
+
+async function saveScale(pct) {
+    const scale = pct / 100;
+    applyScale(scale);
+    try {
+        await window.pywebview.api.set_ui_scale(scale);
+    } catch (error) {
+        console.error('Error saving UI scale:', error);
     }
 }
 
@@ -1151,6 +1191,11 @@ document.addEventListener('fullscreenchange', async () => {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Sanctum Station Desktop Environment initialized');
 
+    // Apply cached scale immediately to avoid layout flash before pywebview responds
+    let cachedScale = 1.0;
+    try { cachedScale = parseFloat(localStorage.getItem('ui_scale') || '1.0'); } catch (e) {}
+    if (cachedScale !== 1.0) applyScale(cachedScale);
+
     const clock = new DesktopClock();
     const interactions = new DesktopInteractions();
     const responsive = new ResponsiveHandler();
@@ -1163,19 +1208,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Wait for pywebview API to be ready before loading wallpaper
     waitForPywebview(() => {
+        console.log('waitForPywebview: callback fired, loading resources...');
         loadWallpaper();
         loadDayGradient();
         loadLogo();
+        loadScale();
         checkForUpdateNotification();
-        // Hide desktop-only UI elements on mobile
-        window.pywebview.api.get_settings().then(settings => {
-            if (settings.is_mobile) {
-                const fullscreenBtn = document.getElementById('fullscreenBtn');
-                if (fullscreenBtn) fullscreenBtn.style.display = 'none';
-            }
-        }).catch(() => {});
     });
-    
+
     window.SanctumStation = {
         clock,
         interactions,
