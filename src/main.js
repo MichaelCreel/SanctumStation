@@ -271,6 +271,7 @@ class DesktopInteractions {
             // Load apps from Python backend
             if (window.pywebview && window.pywebview.api) {
                 this.apps = await window.pywebview.api.get_apps();
+                this.apps.sort((a, b) => a.name.localeCompare(b.name));
                 console.log('=== LOADED APPS ===');
                 console.log('Number of apps:', this.apps.length);
                 console.log('Apps data:', JSON.stringify(this.apps, null, 2));
