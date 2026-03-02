@@ -702,7 +702,7 @@ class NotificationManagerAPI:
     def send_notification(self, message):
         global _notifications
         # Trace back through the call stack to find which app module called this
-        calling_app = "System"  # Default if we can't identify the app
+        calling_app = "Unknown"  # Default if we can't identify the app
         
         for frame_info in inspect.stack():
             frame_module = inspect.getmodule(frame_info.frame)
