@@ -670,8 +670,7 @@ def init_webview():
         except Exception as e:
             print(f"Warning: Could not set window icon: {e}")
         
-        #webview.start()
-        webview.start(debug=True, func=on_webview_ready)
+        webview.start(func=on_webview_ready)
         return True
     except Exception as e:
         print(f"IW-E1: Error initializing webview: {e}")
