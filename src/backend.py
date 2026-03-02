@@ -3,19 +3,61 @@
 # This file handles logic for the psuedo-desktop environment to be used.
 ################################################################################
 
-import webview
-import yaml
 import json
 import os
 import threading
 import importlib.util
 import sys
-import requests
 import time
 import inspect
-from rapidfuzz import process as fuzz_process
+import concurrent.futures
+from fuzzywuzzy import process as fuzzy_process
+
+# Determine platform early (before importing yaml)
+IS_MOBILE = (
+    hasattr(sys, 'getandroidapilevel') or  # Android
+    sys.platform == 'ios' or  # iOS
+    'briefcase' in sys.modules or  # BeeWare
+    any(keyword in sys.platform.lower() for keyword in ['android', 'samsung'])  # Android variants
+)
+
+# Import yaml and force pure Python on mobile (no C extensions)
+import yaml
+if IS_MOBILE:
+    # Force pure Python implementation on mobile
+    from yaml import SafeLoader, SafeDumper
+    yaml_loader = SafeLoader
+    print("Using pure Python YAML loader for mobile")
+else:
+    # Try to use C loader on desktop for speed, fall back to pure Python
+    try:
+        from yaml import CSafeLoader as yaml_loader
+        print("Using C-optimized YAML loader")
+    except ImportError:
+        from yaml import SafeLoader as yaml_loader
+        print("Using pure Python YAML loader")
+
+# Import requests (needed for update checking)
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+    print("Warning: requests library not available, update checking disabled")
 
 MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
+
+# Get the base directory (where backend.py is located)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# On mobile: BASE_DIR is ...sanctumstation/, data is at <writable location> (set by app.py)
+# On desktop: BASE_DIR is .../src, data is at ../data
+DATA_DIR = os.path.join(BASE_DIR, "data") if IS_MOBILE else os.path.join(os.path.dirname(BASE_DIR), "data")
+APPS_DIR = os.path.join(BASE_DIR, "apps") if IS_MOBILE else os.path.join(BASE_DIR, "apps")
+
+# Note: On mobile, DATA_DIR and APPS_DIR will be overridden by app.py to use writable storage
+print(f"BASE_DIR: {BASE_DIR}")
+print(f"DATA_DIR (initial): {DATA_DIR}")
+print(f"APPS_DIR (initial): {APPS_DIR}")
 
 apps = [] # List of apps found in the apps directory
 app_names = [] # List of app names
@@ -23,11 +65,21 @@ version = "v0.0.0" # The current version of the app
 updates = "release" # Update preference: "release" or "all"
 wallpaper = "None" # The current wallpaper setting
 day_gradient = True # Whether to include the time of day gradient overlay on the desktop
+logo = "default" # Logo preference: "default" or "solid"
 fonts = {} # Dictionary of font weights
 available_update = None  # Stores update info if available
 active_apps = {} # Dict to track running app instances
 webview_window = None # Reference to the main webview window
+main_event_loop = None # Reference to the main event loop (for mobile async calls)
 fullscreen = False # Whether the app is in fullscreen mode or not
+ui_scale = 1.0 # UI scale multiplier (1.0 = 16px base font, 100%)
+
+if IS_MOBILE:
+    import toga
+    print("Running on mobile platform")
+else:
+    import webview
+    print("Running on desktop platform")
 
 # Handles the initialization of the environment components and apps
 # This initializes both essential and non-essential components
@@ -42,19 +94,26 @@ def initialize():
     # Check for updates
     available_update = check_for_updates()
     
-    if not init_webview():
-        print("FATAL: Failed to initialize webview.\n\nFATAL 0")
-        if webview_window:
-            webview_window.evaluate_js(f'displayError("FATAL 0")')
-        return False
+    # Only initialize webview on desktop
+    if not IS_MOBILE:
+        if not init_webview():
+            print("FATAL: Failed to initialize webview.\n\nFATAL 0")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js(f'displayError("FATAL 0")')
+            return False
+    else:
+        print("Mobile platform detected - skipping webview initialization")
+        return True
 
 # Initializes the environment settings from data/settings.yaml
 # Returns True on success, False on failure
 def init_settings():
-    global version, wallpaper, fonts, updates, day_gradient, fullscreen
+    global version, wallpaper, fonts, updates, day_gradient, fullscreen, logo, ui_scale
     try:
-        with open("data/settings.yaml", "r") as file:
-            settings = yaml.safe_load(file) or {}
+        settings_path = os.path.join(DATA_DIR, "settings.yaml")
+        print(f"Loading settings from: {settings_path}")
+        with open(settings_path, "r") as file:
+            settings = yaml.load(file, Loader=yaml_loader) or {}
         
         if "version" in settings:
             version = settings["version"]
@@ -66,6 +125,10 @@ def init_settings():
             updates = settings["updates"]
         if "fullscreen" in settings:
             fullscreen = settings["fullscreen"]
+        if "logo" in settings:
+            logo = settings["logo"]
+        if "ui_scale" in settings:
+            ui_scale = float(settings["ui_scale"])
         
         # Load all font weights
         font_keys = ['black_font', 'extra_bold_font', 'bold_font', 'semi_bold_font', 
@@ -73,34 +136,37 @@ def init_settings():
         for key in font_keys:
             if key in settings:
                 fonts[key] = settings[key]
-        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}")
+        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}\n    -logo={logo}\n    -ui_scale={ui_scale}")
         return True
     except FileNotFoundError:
         print("IS-E1: Settings file not found. Using default settings.")
-        if webview_window:
+        if webview_window and not IS_MOBILE:
             webview_window.evaluate_js('displayError("IS-E1")')
         return False
     except yaml.YAMLError as e:
         print(f"IS-E2: Error parsing YAML file: {e}")
-        if webview_window:
+        if webview_window and not IS_MOBILE:
             webview_window.evaluate_js('displayError("IS-E2")')
         return False
     except Exception as e:
         print(f"IS-E3: Error reading settings file: {e}")
-        if webview_window:
+        if webview_window and not IS_MOBILE:
             webview_window.evaluate_js('displayError("IS-E3")')
         return False
 
-# Initializes apps from src/apps/ directory
+# Initializes apps from apps/ directory
 # Returns True on success, False on failure
 def init_apps():
     global apps
     apps = []
     try:
         import os
-        # Apps are now in src/apps/ so they can be served by the webview HTTP server
-        app_dir = os.path.join(os.path.dirname(__file__), "apps")
-        for app in os.listdir(app_dir):
+        # Use APPS_DIR which points to writable location on mobile
+        app_dir = APPS_DIR
+        print(f"IA: Scanning apps directory: {app_dir}")
+        dir_contents = os.listdir(app_dir)
+        print(f"IA: Found {len(dir_contents)} items: {dir_contents}")
+        for app in dir_contents:
             if os.path.isdir(os.path.join(app_dir, app)):
                 app_path = os.path.join(app_dir, app)
                 icon_path = os.path.join(app_path, "icon.png")
@@ -113,6 +179,7 @@ def init_apps():
                     if os.path.exists(icon_path):
                         icon_url = f"apps/{app}/icon.png"
                         print(f"IA: Icon URL for {app}: {icon_url}")
+                    
                     apps.append({
                         "name": app,
                         "icon": icon_url,
@@ -123,18 +190,21 @@ def init_apps():
                     app_names.append(app)
                     print(f"IA: Added app '{app}' with icon: {icon_url}")
                 else:
-                    print(f"IA: App '{app}' missing required files (app.html or app.py)")
+                    print(f"IA: App '{app}' missing required files:")
+                    print(f"  App path: {app_path}")
+                    print(f"  app.html exists: {os.path.exists(html_path)} - {html_path}")
+                    print(f"  app.py exists: {os.path.exists(py_path)} - {py_path}")
         
         print(f"IA: Found {len(apps)} valid apps")
         return True
     except FileNotFoundError:
         print("IA-E1: Apps directory not found. No apps will be loaded.")
-        if webview_window:
+        if webview_window and not IS_MOBILE:
             webview_window.evaluate_js('displayError("IA-E1")')
         return False
     except Exception as e:
         print(f"IA-E2: Error initializing apps: {e}")
-        if webview_window:
+        if webview_window and not IS_MOBILE:
             webview_window.evaluate_js('displayError("IA-E2")')
         return False
 
@@ -250,8 +320,23 @@ def launch_app(app_name):
         }})();
         """
         
-        if webview_window:
-            webview_window.evaluate_js(inject_script)
+        # Inject the script directly if webview is available
+        inject_via_return = False
+        print(f"LA: webview_window = {webview_window}, IS_MOBILE = {IS_MOBILE}")
+        
+        if webview_window and not IS_MOBILE:
+            # Desktop: use direct injection via webview.evaluate_js()
+            print(f"LA: Using desktop direct injection")
+            try:
+                webview_window.evaluate_js(inject_script)
+                print(f"LA: Desktop injection successful!")
+            except Exception as e:
+                print(f"LA: Error with desktop injection: {e}")
+                inject_via_return = True
+        else:
+            # Mobile: always use fallback method (return script for mobile_bridge.js to execute)
+            print(f"LA: Using mobile fallback injection (returning script to HTTP)")
+            inject_via_return = True
         
         # Always load the app module (even if it doesn't have main/run)
         # This allows call_app_function to work for apps that only provide API functions
@@ -294,12 +379,24 @@ def launch_app(app_name):
                 # Continue anyway, app might still work without backend
         
         print(f"LA: Successfully launched app '{app_name}'")
-        return True
+        
+        # Only return the injection script if direct injection failed
+        if inject_via_return:
+            print(f"LA: Returning injection script for JavaScript to execute (length: {len(inject_script)} chars)")
+            return {"success": True, "inject_script": inject_script}
+        else:
+            return True
         
     except Exception as e:
         print(f"LA-E1: Error launching app '{app_name}': {e}")
-        if webview_window:
-            webview_window.evaluate_js('displayError("LA-E1")')
+        if webview_window and not IS_MOBILE:
+            if IS_MOBILE:
+                try:
+                    webview_window.evaluate_javascript('displayError("LA-E1")')
+                except:
+                    pass
+            else:
+                webview_window.evaluate_js('displayError("LA-E1")')
         return False
 
 # Runs the backend script of the app in its own thread
@@ -336,7 +433,7 @@ def run_app_backend(app_name, py_path, app_dir, stop_event):
         
     except Exception as e:
         print(f"RAB-E1: Error running app '{app_name}' backend: {e}")
-        if webview_window:
+        if webview_window and not IS_MOBILE:
             webview_window.evaluate_js('displayError("RAB-E1")')
     finally:
         os.chdir(original_cwd)
@@ -366,7 +463,7 @@ def run_app_backend_thread(app_name, app_module, stop_event):
         
     except Exception as e:
         print(f"RAB-E1: Error running app '{app_name}' backend: {e}")
-        if webview_window:
+        if webview_window and not IS_MOBILE:
             webview_window.evaluate_js('displayError("RAB-E1")')
 
 # Stops a running app by finding it by its name
@@ -375,8 +472,8 @@ def stop_app(app_name):
     
     if app_name in active_apps:
         print(f"SA: Stopping app '{app_name}'")
-        # Signal the app to stop
-        if "stop_event" in active_apps[app_name]:
+        # Signal the app to stop (only if it has a background thread)
+        if "stop_event" in active_apps[app_name] and active_apps[app_name]["stop_event"] is not None:
             active_apps[app_name]["stop_event"].set()
         del active_apps[app_name]
         return True
@@ -467,6 +564,9 @@ def init_webview():
             def exists(self, path):
                 return file_manager.exists(path)
             
+            def get_storage_path(self, sub_path="", is_data=True):
+                return file_manager.get_storage_path(sub_path, is_data)
+            
             # Settings access
             def get_fonts(self):
                 global fonts
@@ -510,9 +610,18 @@ def init_webview():
             def set_updates(self, channel):
                 return settings_manager.set_updates(channel)
             
+            def set_logo(self, logo_type):
+                return settings_manager.set_logo(logo_type)
+
+            def set_ui_scale(self, scale):
+                return settings_manager.set_ui_scale(scale)
+            
             def get_available_update(self):
                 global available_update
                 return available_update
+
+            def js_log(self, level, message):
+                print(f"[JS/{level}] {message}")
             
             # Fuzzy search for apps
             def fuzzy_search_apps(self, query):
@@ -582,9 +691,9 @@ _notifications = {}
 def fuzzy_search_apps(query):
     global app_names
 
-    match = fuzz_process.extract(query, app_names, limit=5, score_cutoff=50)
-    
-    return match
+    results = fuzzy_process.extract(query, app_names, limit=5)
+    filtered = [r for r in results if r[1] >= 50]
+    return filtered
 
 # API for managing the app notifications within the environment
 class NotificationManagerAPI:
@@ -690,6 +799,10 @@ class FileManagerAPI:
     # Lists contents of a directory
     def list_directory(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             items = []
             for item in os.listdir(path):
                 full_path = os.path.join(path, item)
@@ -709,76 +822,103 @@ class FileManagerAPI:
             return items
         except Exception as e:
             print(f"FMAPI-E1: Error listing directory {path}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E1")')
             return []
 
     # Reads the contents of a file
     def read_file(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             with open(path, "r") as file:
                 return file.read()
         except Exception as e:
             print(f"FMAPI-E2: Error reading file {path}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E2")')
             return ""
         
     # Writes content to a file
     def write_file(self, path, content):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
+            # Create parent directories if they don't exist
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            
             with open(path, "w") as file:
                 file.write(content)
             return True
         except Exception as e:
             print(f"FMAPI-E3: Error writing file {path}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E3")')
             return False
         
     # Deletes a file
     def delete_file(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             os.remove(path)
             return True
         except Exception as e:
             print(f"FMAPI-E4: Error deleting file {path}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E4")')
             return False
     
     # Deletes a directory
     def delete_directory(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             import shutil
             shutil.rmtree(path)
             return True
         except Exception as e:
             print(f"FMAPI-E5: Error deleting directory {path}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E5")')
             return False
     
     # Creates a directory
     def create_directory(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             os.makedirs(path, exist_ok=True)
             return True
         except Exception as e:
             print(f"FMAPI-E6: Error creating directory {path}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E6")')
             return False
     
     # Creates an empty file
     def create_file(self, path):
         try:
+            # Convert relative paths to absolute using DATA_DIR
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             with open(path, "w") as file:
                 pass
             return True
         except Exception as e:
             print(f"FMAPI-E7: Error creating file {path}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E7")')
             return False
     
@@ -791,7 +931,7 @@ class FileManagerAPI:
             return {'success': True, 'new_path': new_path}
         except Exception as e:
             print(f"FMAPI-E8: Error renaming {old_path}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E8")')
             return {'success': False, 'error': str(e)}
     
@@ -803,7 +943,7 @@ class FileManagerAPI:
             return True
         except Exception as e:
             print(f"FMAPI-E9: Error moving {src} to {dest}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E9")')
             return False
         
@@ -818,13 +958,16 @@ class FileManagerAPI:
             return True
         except Exception as e:
             print(f"FMAPI-E10: Error copying {src} to {dest}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E10")')
             return False
         
     # Gets file or directory metadata
     def get_metadata(self, path):
         try:
+            if not os.path.isabs(path):
+                path = os.path.join(DATA_DIR, path)
+            
             stats = os.stat(path)
             return {
                 "size": stats.st_size,
@@ -834,15 +977,36 @@ class FileManagerAPI:
             }
         except Exception as e:
             print(f"FMAPI-E11: Error getting metadata for {path}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E11")')
             return {}
 
     # Checks if a file or directory exists
     def exists(self, path):
+        if not os.path.isabs(path):
+            path = os.path.join(DATA_DIR, path)
         return os.path.exists(path)
-    def exists(self, path):
-        return os.path.exists(path)
+    
+    # Returns the proper storage path based on platform
+    def get_storage_path(self, sub_path="", is_data=True):
+        """Get absolute path for storage location.
+        
+        Args:
+            sub_path: Relative path to append to base directory
+            is_data: If True, use data directory; if False, use apps directory
+        
+        Returns:
+            Absolute path as string
+        """
+        if is_data:
+            base = DATA_DIR
+        else:
+            # Use apps directory (writable on mobile)
+            base = APPS_DIR
+        
+        if sub_path:
+            return os.path.join(base, sub_path)
+        return base
 
 # API for managing apps within the environment
 class AppManagerAPI:
@@ -850,18 +1014,40 @@ class AppManagerAPI:
     def list_apps(self):
         global apps
         return apps
+    
+    # Generic app function call - allows apps to expose their own API
+    def call_app_function(self, app_name, function_name, *args, **kwargs):
+        try:
+            module_name = f"app_{app_name}"
+            if module_name not in sys.modules:
+                return {"success": False, "message": f"App '{app_name}' not running"}
+            
+            app_module = sys.modules[module_name]
+            
+            if not hasattr(app_module, function_name):
+                return {"success": False, "message": f"Function '{function_name}' not found in app '{app_name}'"}
+            
+            func = getattr(app_module, function_name)
+            result = func(*args, **kwargs)
+            return result
+            
+        except Exception as e:
+            return {"success": False, "message": f"Error calling {function_name}: {str(e)}"}
 
 # API for managing the settings for the environment from within
 class SettingsManagerAPI:
     # Gets current settings
     def get_settings(self):
-        global version, wallpaper, fonts, day_gradient, updates, fullscreen
+        global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo, ui_scale
         return {
             "wallpaper": wallpaper,
             "fonts": fonts,
             "day_gradient": day_gradient,
             "updates": updates,
-            "fullscreen": fullscreen
+            "fullscreen": fullscreen,
+            "logo": logo,
+            "is_mobile": IS_MOBILE,
+            "ui_scale": ui_scale
         }
     
     # Gets wallpaper as base64 data URL
@@ -897,7 +1083,7 @@ class SettingsManagerAPI:
             return f"data:{mime_type};base64,{b64_data}"
         except Exception as e:
             print(f"SMA-E1: Error reading wallpaper file: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("SMA-E1")')
             return None
     
@@ -907,14 +1093,15 @@ class SettingsManagerAPI:
         wallpaper = wallpaper_path
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["wallpaper"] = wallpaper_path
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E2: Error setting wallpaper: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("SMA-E2")')
             return False
         return True
@@ -925,14 +1112,15 @@ class SettingsManagerAPI:
         day_gradient = enabled
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["day_gradient"] = enabled
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E3: Error setting day_gradient: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("SMA-E3")')
             return False
         return True
@@ -943,19 +1131,20 @@ class SettingsManagerAPI:
         fullscreen = enabled
         
         # Actually toggle the pywebview window fullscreen
-        if webview_window:
+        if webview_window and not IS_MOBILE:
             webview_window.toggle_fullscreen()
         
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["fullscreen"] = enabled
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E4: Error setting fullscreen: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("SMA-E4")')
             return False
         return True
@@ -966,14 +1155,15 @@ class SettingsManagerAPI:
         fonts[weight] = font_path
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings[f"{weight}_font"] = font_path
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E5: Error setting font {weight}: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("SMA-E5")')
             return False
         return True
@@ -984,15 +1174,55 @@ class SettingsManagerAPI:
         updates = channel
         # Write to settings.yaml
         try:
-            with open("data/settings.yaml", "r") as file:
-                settings = yaml.safe_load(file) or {}
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
             settings["updates"] = channel
-            with open("data/settings.yaml", "w") as file:
+            with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
             print(f"SMA-E6: Error setting updates: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("SMA-E6")')
+            return False
+        return True
+    
+    # Sets UI scale multiplier
+    def set_ui_scale(self, scale):
+        global ui_scale
+        ui_scale = float(scale)
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["ui_scale"] = ui_scale
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E8: Error setting ui_scale: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E8")')
+            return False
+        return True
+
+    # Sets logo preference
+    def set_logo(self, logo_type):
+        print(f"Setting logo to: {logo_type}")
+        global logo
+        logo = logo_type
+        # Write to settings.yaml
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["logo"] = logo_type
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+            print(f"Logo successfully set to: {logo_type}")
+        except Exception as e:
+            print(f"SMA-E7: Error setting logo preference: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E7")')
             return False
         return True
 
@@ -1007,6 +1237,11 @@ def is_newer_version(installed, latest):
 # Returns update info if available, None otherwise
 def check_for_updates():
     global version, updates
+    
+    # Skip if requests not available
+    if not REQUESTS_AVAILABLE:
+        return None
+    
     url = "https://api.github.com/repos/MichaelCreel/SanctumStation/releases"
     if updates != "none":
         try:
@@ -1039,7 +1274,7 @@ def check_for_updates():
                 return None
         except Exception as e:
             print(f"CFU-E1: Error checking for updates: {e}")
-            if webview_window:
+            if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("CFU-E1")')
             return None
 

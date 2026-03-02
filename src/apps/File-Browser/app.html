@@ -201,6 +201,81 @@
         .file-list::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.3);
         }
+
+        /* Confirmation Modal */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .confirm-modal.active {
+            display: flex;
+        }
+
+        .confirm-content {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .confirm-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .confirm-message {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .confirm-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .confirm-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .confirm-btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .confirm-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .confirm-btn-confirm {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        .confirm-btn-confirm:hover {
+            background: #dc2626;
+        }
     </style>
 </head>
 <body>
@@ -234,24 +309,66 @@
         </div>
     </div>
 
+    <!-- Confirmation Modal -->
+    <div class="confirm-modal" id="confirmModal">
+        <div class="confirm-content">
+            <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+            <div class="confirm-message" id="confirmMessage">Are you sure?</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-cancel" id="confirmCancel">Cancel</button>
+                <button class="confirm-btn confirm-btn-confirm" id="confirmOk">Confirm</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function() {
-            // Get user home directory - default to /home/michael
-            let currentPath = '/home/michael';
+            // Get user home directory - will be set async from backend
+            let currentPath = '';
             let selectedItem = null;
             let clipboardItem = null;
             let clipboardAction = null;
             let currentItems = []; // Store current directory items
             let sortOrder = 'name-asc'; // Default sort order
+            let confirmCallback = null;
+
+            // Custom confirm modal functions
+            function showConfirmModal(title, message) {
+                return new Promise((resolve) => {
+                    document.getElementById('confirmTitle').textContent = title;
+                    document.getElementById('confirmMessage').textContent = message;
+                    document.getElementById('confirmModal').classList.add('active');
+                    confirmCallback = resolve;
+                });
+            }
+
+            function closeConfirmModal(confirmed) {
+                document.getElementById('confirmModal').classList.remove('active');
+                if (confirmCallback) {
+                    confirmCallback(confirmed);
+                    confirmCallback = null;
+                }
+            }
+
+            // Set up modal button handlers
+            document.getElementById('confirmCancel').addEventListener('click', () => closeConfirmModal(false));
+            document.getElementById('confirmOk').addEventListener('click', () => closeConfirmModal(true));
 
             // Initialize immediately since DOMContentLoaded may have already fired
             console.log('File Browser script loaded');
             
+            // Get the correct storage path for this platform
+            async function initializePath() {
+                const result = await pywebview.api.get_storage_path('', true);
+                currentPath = result || '/home/michael'; // Fallback
+                document.getElementById('pathBar').value = currentPath;
+                await loadDirectory(currentPath);
+            }
+            
             // Use setTimeout to ensure DOM is ready
-            setTimeout(() => {
+            setTimeout(async () => {
                 console.log('File Browser initializing...');
-                console.log('Starting path:', currentPath);
-                loadDirectory(currentPath);
+                await initializePath();
                 setupEventListeners();
             }, 100);
 
@@ -487,7 +604,11 @@
                         break;
 
                     case 'delete':
-                        if (confirm(`Delete ${selectedItem.name}?`)) {
+                        const confirmed = await showConfirmModal(
+                            'Delete Item',
+                            `Delete ${selectedItem.name}?`
+                        );
+                        if (confirmed) {
                             await window.pywebview.api.delete_item(selectedItem.path);
                             refreshDirectory();
                         }

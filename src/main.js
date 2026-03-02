@@ -3,6 +3,8 @@ JavaScript Frontend for Sanctum Station
 This file handles interactive elements and transfer to the python backend for the psuedo-desktop environment to be used.
 */
 
+console.log('[Main.js] Script loading...');
+
 // Clock functionality
 class DesktopClock {
     constructor() {
@@ -269,6 +271,7 @@ class DesktopInteractions {
             // Load apps from Python backend
             if (window.pywebview && window.pywebview.api) {
                 this.apps = await window.pywebview.api.get_apps();
+                this.apps.sort((a, b) => a.name.localeCompare(b.name));
                 console.log('=== LOADED APPS ===');
                 console.log('Number of apps:', this.apps.length);
                 console.log('Apps data:', JSON.stringify(this.apps, null, 2));
@@ -505,13 +508,9 @@ class ResponsiveHandler {
 
     handleResize() {
         const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-        const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-        
-        if (vw < 320) {
-            document.documentElement.style.fontSize = '14px';
-        } else {
-            document.documentElement.style.fontSize = '16px';
-        }
+        const scale = window._currentUiScale || 1.0;
+        const basePx = vw < 320 ? 14 : 16;
+        document.documentElement.style.fontSize = (basePx * scale) + 'px';
     }
 }
 
@@ -559,14 +558,74 @@ async function loadWallpaper() {
     }
 }
 
+async function loadScale() {
+    try {
+        console.log('loadScale: calling get_settings...');
+        const settings = await window.pywebview.api.get_settings();
+        console.log('loadScale: ui_scale =', settings.ui_scale);
+        applyScale(settings.ui_scale || 1.0);
+        console.log('loadScale: applied font-size =', document.documentElement.style.fontSize);
+        if (settings.is_mobile) {
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            if (fullscreenBtn) fullscreenBtn.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading UI scale:', error);
+    }
+}
+
+async function loadLogo() {
+    try {
+        const settings = await window.pywebview.api.get_settings();
+        const logoType = settings.logo || 'default';
+        const logoImg = document.querySelector('.center-button-icon img');
+        if (logoImg) {
+            logoImg.src = logoType === 'solid' ? 'logo_solid.png' : 'logo.png';
+        }
+    } catch (error) {
+        console.error('Error loading logo:', error);
+    }
+}
+
 // Wait for pywebview API to be ready
-function waitForPywebview(callback, maxAttempts = 50) {
+function waitForPywebview(callback, maxAttempts = 200) {
     let attempts = 0;
     const checkAPI = setInterval(() => {
         attempts++;
         if (window.pywebview && window.pywebview.api) {
             clearInterval(checkAPI);
             console.log('Pywebview API ready');
+            
+            // Forward console logs to Python on mobile
+            if (window.location.protocol === 'http:' && window.location.hostname === '127.0.0.1') {
+                const originalLog = console.log;
+                const originalError = console.error;
+                const originalWarn = console.warn;
+                
+                console.log = function(...args) {
+                    originalLog.apply(console, args);
+                    try {
+                        window.pywebview.api.js_log('LOG', args.join(' '));
+                    } catch (e) {}
+                };
+                
+                console.error = function(...args) {
+                    originalError.apply(console, args);
+                    try {
+                        window.pywebview.api.js_log('ERROR', args.join(' '));
+                    } catch (e) {}
+                };
+                
+                console.warn = function(...args) {
+                    originalWarn.apply(console, args);
+                    try {
+                        window.pywebview.api.js_log('WARN', args.join(' '));
+                    } catch (e) {}
+                };
+                
+                originalLog('[Main.js] Console forwarding to Python enabled');
+            }
+            
             callback();
         } else if (attempts >= maxAttempts) {
             clearInterval(checkAPI);
@@ -688,6 +747,24 @@ async function toggleSettings() {
         document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
         document.getElementById('fullscreenToggle').checked = settings.fullscreen === true;
         document.getElementById('updatesSelect').value = settings.updates || 'release';
+
+        // Load UI scale slider
+        const scale = window._currentUiScale || settings.ui_scale || 1.0;
+        const scalePct = Math.round(scale * 100);
+        document.getElementById('uiScaleSlider').value = scalePct;
+        document.getElementById('uiScaleLabel').textContent = scalePct + '%';
+
+        // Hide fullscreen setting row on mobile
+        const fullscreenRow = document.getElementById('fullscreenToggle').closest('.setting-item');
+        if (fullscreenRow) fullscreenRow.style.display = settings.is_mobile ? 'none' : '';
+        
+        // Update logo selection
+        const selectedLogo = settings.logo || 'default';
+        document.querySelectorAll('.logo-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        document.getElementById(`logo${selectedLogo.charAt(0).toUpperCase() + selectedLogo.slice(1)}`).classList.add('selected');
+        
         overlay.style.display = 'flex';
     } else {
         overlay.style.display = 'none';
@@ -792,6 +869,28 @@ async function toggleFullscreen() {
     }
 }
 
+function applyScale(scale) {
+    // scale is a float: 1.0 = 100% = 16px root font size
+    window._currentUiScale = scale;
+    document.documentElement.style.fontSize = (16 * scale) + 'px';
+    try { localStorage.setItem('ui_scale', scale); } catch (e) {}
+}
+
+function previewScale(pct) {
+    document.getElementById('uiScaleLabel').textContent = pct + '%';
+    applyScale(pct / 100);
+}
+
+async function saveScale(pct) {
+    const scale = pct / 100;
+    applyScale(scale);
+    try {
+        await window.pywebview.api.set_ui_scale(scale);
+    } catch (error) {
+        console.error('Error saving UI scale:', error);
+    }
+}
+
 async function saveUpdates() {
     const channel = document.getElementById('updatesSelect').value;
     try {
@@ -806,6 +905,39 @@ async function saveUpdates() {
         alert('Error setting updates channel.');
     }
 }
+
+async function selectLogo(logoType) {
+    console.log('selectLogo called with:', logoType);
+    try {
+        console.log('Calling set_logo API...');
+        const result = await window.pywebview.api.set_logo(logoType);
+        console.log('set_logo result:', result);
+        if (result) {
+            // Update visual selection
+            document.querySelectorAll('.logo-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.getElementById(`logo${logoType.charAt(0).toUpperCase() + logoType.slice(1)}`).classList.add('selected');
+            
+            // Update the center button logo
+            const logoImg = document.querySelector('.center-button-icon img');
+            if (logoImg) {
+                logoImg.src = logoType === 'solid' ? 'logo_solid.png' : 'logo.png';
+            }
+            console.log('Logo updated successfully in UI');
+        } else {
+            console.error('set_logo returned false');
+            alert('Failed to update logo preference.');
+        }
+    } catch (error) {
+        console.error('Error setting logo:', error);
+        alert('Error setting logo.');
+    }
+}
+
+// Make sure selectLogo is globally accessible for onclick handlers
+window.selectLogo = selectLogo;
+console.log('[Main.js] selectLogo function defined and added to window object');
 
 // Check if there's an update available and show notification
 async function checkForUpdateNotification() {
@@ -1059,6 +1191,11 @@ document.addEventListener('fullscreenchange', async () => {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Sanctum Station Desktop Environment initialized');
 
+    // Apply cached scale immediately to avoid layout flash before pywebview responds
+    let cachedScale = 1.0;
+    try { cachedScale = parseFloat(localStorage.getItem('ui_scale') || '1.0'); } catch (e) {}
+    if (cachedScale !== 1.0) applyScale(cachedScale);
+
     const clock = new DesktopClock();
     const interactions = new DesktopInteractions();
     const responsive = new ResponsiveHandler();
@@ -1071,11 +1208,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Wait for pywebview API to be ready before loading wallpaper
     waitForPywebview(() => {
+        console.log('waitForPywebview: callback fired, loading resources...');
         loadWallpaper();
         loadDayGradient();
+        loadLogo();
+        loadScale();
         checkForUpdateNotification();
     });
-    
+
     window.SanctumStation = {
         clock,
         interactions,
