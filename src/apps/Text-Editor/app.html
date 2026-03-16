@@ -541,6 +541,9 @@
                 
                 if (success) {
                     isModified = false;
+                    // Remove the "*" marker from the file info when changes are saved
+                    const fileInfo = document.getElementById('fileInfo');
+                    fileInfo.textContent = fileInfo.textContent.replace(/\s*\*$/, '');
                     console.log('File saved:', currentFile);
                     alert('File saved successfully!');
                 } else {
