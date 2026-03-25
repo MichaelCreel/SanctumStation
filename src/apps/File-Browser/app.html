@@ -276,6 +276,82 @@
         .confirm-btn-confirm:hover {
             background: #dc2626;
         }
+
+        /* Alert/Prompt Modal */
+        .message-modal,
+        .prompt-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .message-modal.active,
+        .prompt-modal.active {
+            display: flex;
+        }
+
+        .message-content,
+        .prompt-content {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .message-title,
+        .prompt-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .message-text,
+        .prompt-message {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .prompt-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            outline: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.85);
+            color: #ffffff;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 11000;
+        }
+
+        .toast.visible {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -321,6 +397,33 @@
         </div>
     </div>
 
+    <!-- Alert Modal -->
+    <div class="message-modal" id="messageModal">
+        <div class="message-content">
+            <div class="message-title" id="messageTitle">Message</div>
+            <div class="message-text" id="messageText">Something happened.</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-confirm" id="messageOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Modal -->
+    <div class="prompt-modal" id="promptModal">
+        <div class="prompt-content">
+            <div class="prompt-title" id="promptTitle">Enter value</div>
+            <div class="prompt-message" id="promptMessage">Please enter a value below.</div>
+            <input class="prompt-input" id="promptInput" type="text" />
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-cancel" id="promptCancel">Cancel</button>
+                <button class="confirm-btn confirm-btn-confirm" id="promptOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
     <script>
         (function() {
             // Get user home directory - will be set async from backend
@@ -349,6 +452,69 @@
                     confirmCallback = null;
                 }
             }
+
+            // Message / prompt modal helpers
+            function showMessageModal(title, message) {
+                return new Promise((resolve) => {
+                    document.getElementById('messageTitle').textContent = title;
+                    document.getElementById('messageText').textContent = message;
+                    const modal = document.getElementById('messageModal');
+                    modal.classList.add('active');
+
+                    const onOk = () => {
+                        modal.classList.remove('active');
+                        document.getElementById('messageOk').removeEventListener('click', onOk);
+                        resolve();
+                    };
+
+                    document.getElementById('messageOk').addEventListener('click', onOk);
+                });
+            }
+
+            function showPromptModal(title, message, defaultValue = '') {
+                return new Promise((resolve) => {
+                    document.getElementById('promptTitle').textContent = title;
+                    document.getElementById('promptMessage').textContent = message;
+                    const input = document.getElementById('promptInput');
+                    input.value = defaultValue;
+
+                    const modal = document.getElementById('promptModal');
+                    modal.classList.add('active');
+
+                    const cleanup = () => {
+                        modal.classList.remove('active');
+                        document.getElementById('promptOk').removeEventListener('click', onOk);
+                        document.getElementById('promptCancel').removeEventListener('click', onCancel);
+                    };
+
+                    const onOk = () => {
+                        cleanup();
+                        resolve(input.value);
+                    };
+
+                    const onCancel = () => {
+                        cleanup();
+                        resolve(null);
+                    };
+
+                    document.getElementById('promptOk').addEventListener('click', onOk);
+                    document.getElementById('promptCancel').addEventListener('click', onCancel);
+
+                    // Focus input for convenience
+                    setTimeout(() => input.focus(), 0);
+                });
+            }
+
+            function showToast(message, duration = 2000) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('visible');
+                clearTimeout(toast._timeout);
+                toast._timeout = setTimeout(() => {
+                    toast.classList.remove('visible');
+                }, duration);
+            }
+
 
             // Set up modal button handlers
             document.getElementById('confirmCancel').addEventListener('click', () => closeConfirmModal(false));
@@ -550,7 +716,7 @@
         }
 
         window.createNewFolder = async function createNewFolder() {
-            const folderName = prompt('Enter folder name:');
+            const folderName = await showPromptModal('New Folder', 'Enter folder name:');
             if (!folderName) return;
 
             try {
@@ -558,7 +724,7 @@
                 await window.pywebview.api.create_folder(newPath);
                 refreshDirectory();
             } catch (error) {
-                alert(`Error creating folder: ${error}`);
+                await showMessageModal('Error', `Error creating folder: ${error}`);
             }
         }
 
@@ -585,7 +751,7 @@
             try {
                 switch (action) {
                     case 'rename':
-                        const newName = prompt('Enter new name:', selectedItem.name);
+                        const newName = await showPromptModal('Rename', 'Enter new name:', selectedItem.name);
                         if (newName && newName !== selectedItem.name) {
                             const newPath = selectedItem.path.replace(selectedItem.name, newName);
                             await window.pywebview.api.rename_item(selectedItem.path, newPath);
@@ -630,7 +796,7 @@
                         break;
                 }
             } catch (error) {
-                alert(`Error: ${error}`);
+                await showMessageModal('Error', `Error: ${error}`);
             }
         }
 
