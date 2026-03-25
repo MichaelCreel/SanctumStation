@@ -157,14 +157,15 @@ def init_settings():
 # Initializes apps from apps/ directory
 # Returns True on success, False on failure
 def init_apps():
-    global apps
+    global apps, app_names
     apps = []
+    app_names = []
     try:
         import os
         # Use APPS_DIR which points to writable location on mobile
         app_dir = APPS_DIR
         print(f"IA: Scanning apps directory: {app_dir}")
-        dir_contents = os.listdir(app_dir)
+        dir_contents = sorted(os.listdir(app_dir))
         print(f"IA: Found {len(dir_contents)} items: {dir_contents}")
         for app in dir_contents:
             if os.path.isdir(os.path.join(app_dir, app)):
@@ -172,8 +173,41 @@ def init_apps():
                 icon_path = os.path.join(app_path, "icon.png")
                 html_path = os.path.join(app_path, "app.html")
                 py_path = os.path.join(app_path, "app.py")
+                config_path = os.path.join(app_path, "app_config.json")
                 
                 if os.path.exists(html_path) and os.path.exists(py_path):
+                    app_name = app
+                    extensions = []
+                    mime_types = []
+
+                    if os.path.exists(config_path):
+                        try:
+                            with open(config_path, "r", encoding="utf-8") as config_file:
+                                app_config = json.load(config_file) or {}
+
+                            if isinstance(app_config, dict):
+                                config_name = app_config.get("name")
+                                if isinstance(config_name, str) and config_name.strip():
+                                    app_name = config_name.strip()
+
+                                config_extensions = app_config.get("extensions", [])
+                                if isinstance(config_extensions, list):
+                                    extensions = sorted({
+                                        ext.strip().lower()
+                                        for ext in config_extensions
+                                        if isinstance(ext, str) and ext.strip()
+                                    })
+
+                                config_mime_types = app_config.get("mime_types", [])
+                                if isinstance(config_mime_types, list):
+                                    mime_types = sorted({
+                                        mime.strip().lower()
+                                        for mime in config_mime_types
+                                        if isinstance(mime, str) and mime.strip()
+                                    })
+                        except Exception as config_error:
+                            print(f"IA: Warning - failed to parse app_config.json for '{app}': {config_error}")
+
                     # Use simple relative path from src/ directory
                     icon_url = None
                     if os.path.exists(icon_path):
@@ -181,14 +215,17 @@ def init_apps():
                         print(f"IA: Icon URL for {app}: {icon_url}")
                     
                     apps.append({
-                        "name": app,
+                        "id": app,
+                        "name": app_name,
                         "icon": icon_url,
+                        "extensions": extensions,
+                        "mime_types": mime_types,
                         "htmlpath": html_path,
                         "pypath": py_path,
                         "app_dir": os.path.abspath(app_path)  # Use absolute path for backend
                     })
-                    app_names.append(app)
-                    print(f"IA: Added app '{app}' with icon: {icon_url}")
+                    app_names.append(app_name)
+                    print(f"IA: Added app '{app_name}' (id='{app}') with icon: {icon_url}")
                 else:
                     print(f"IA: App '{app}' missing required files:")
                     print(f"  App path: {app_path}")
@@ -217,19 +254,22 @@ def launch_app(app_name):
 
     app_info = None
     for app in apps:
-        if app["name"] == app_name:
+        if app.get("id") == app_name or app["name"] == app_name:
             app_info = app
             break
     
     if not app_info:
         print(f"LA: App '{app_name}' not found")
         return False
+
+    app_id = app_info.get("id", app_name)
+    app_display_name = app_info.get("name", app_id)
     
     try:
         with open(app_info["htmlpath"], "r", encoding="utf-8") as f:
             app_html = f.read()
         
-        app_container_id = f"app-{app_name}-{id(app_info)}"
+        app_container_id = f"app-{app_id}-{id(app_info)}"
         
         # Use JSON to safely pass the HTML content
         import json
@@ -284,7 +324,7 @@ def launch_app(app_name):
         closeBtn.onclick = function() {{
             document.body.removeChild(appContainer);
             // Signal Python backend to stop the app
-            window.pywebview.api.stop_app('{app_name}');
+            window.pywebview.api.stop_app('{app_id}');
         }};
         
         // Parse and inject app HTML content
@@ -316,7 +356,7 @@ def launch_app(app_name):
         }});
         
         // Signal that app UI is loaded
-        console.log('App {app_name} UI loaded');
+        console.log('App {app_display_name} UI loaded');
         }})();
         """
         
@@ -340,7 +380,7 @@ def launch_app(app_name):
         
         # Always load the app module (even if it doesn't have main/run)
         # This allows call_app_function to work for apps that only provide API functions
-        if app_name not in active_apps:
+        if app_id not in active_apps:
             # Load the app module first
             try:
                 app_dir = app_info["app_dir"]
@@ -348,9 +388,9 @@ def launch_app(app_name):
                 py_file = os.path.join(app_dir, "app.py") if not os.path.isabs(py_path) else py_path
                 
                 if os.path.exists(py_file):
-                    spec = importlib.util.spec_from_file_location(f"app_{app_name}", py_file)
+                    spec = importlib.util.spec_from_file_location(f"app_{app_id}", py_file)
                     app_module = importlib.util.module_from_spec(spec)
-                    sys.modules[f"app_{app_name}"] = app_module
+                    sys.modules[f"app_{app_id}"] = app_module
                     spec.loader.exec_module(app_module)
                     
                     # Only start a backend thread if the app has main() or run()
@@ -358,18 +398,18 @@ def launch_app(app_name):
                         stop_event = threading.Event()
                         app_thread = threading.Thread(
                             target=run_app_backend_thread, 
-                            args=(app_name, app_module, stop_event),
+                            args=(app_id, app_module, stop_event),
                             daemon=True
                         )
                         app_thread.start()
-                        active_apps[app_name] = {
+                        active_apps[app_id] = {
                             "thread": app_thread,
                             "container_id": app_container_id,
                             "stop_event": stop_event
                         }
                     else:
                         # App has no background thread, just track the container
-                        active_apps[app_name] = {
+                        active_apps[app_id] = {
                             "thread": None,
                             "container_id": app_container_id,
                             "stop_event": None
@@ -378,7 +418,7 @@ def launch_app(app_name):
                 print(f"LA: Error loading app module: {e}")
                 # Continue anyway, app might still work without backend
         
-        print(f"LA: Successfully launched app '{app_name}'")
+        print(f"LA: Successfully launched app '{app_display_name}' (id='{app_id}')")
         
         # Only return the injection script if direct injection failed
         if inject_via_return:

@@ -1,0 +1,20 @@
+{
+  "name": "Text Editor",
+  "extensions": [
+    ".txt",
+    ".md",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".ini",
+    ".log",
+    ".csv",
+    ".xml",
+    ".py",
+    ".js",
+    ".html",
+    ".css",
+    ".sh"
+  ]
+}

@@ -441,7 +441,7 @@ class DesktopInteractions {
                 console.log(`Launching app: ${app.name}`);
                 try {
                     if (window.pywebview && window.pywebview.api) {
-                        await window.pywebview.api.launch_app(app.name);
+                        await window.pywebview.api.launch_app(app.id || app.name);
                         this.closeAppLauncher();
                     }
                 } catch (error) {
