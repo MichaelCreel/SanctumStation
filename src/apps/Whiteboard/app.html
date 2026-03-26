@@ -600,6 +600,80 @@
                 }, duration);
             }
 
+            function getLaunchFilePath() {
+                const byApp = window.__SANCTUM_LAUNCH_CONTEXT_BY_APP || {};
+                const whiteboardContext = byApp['Whiteboard'];
+                if (whiteboardContext && typeof whiteboardContext.filePath === 'string' && whiteboardContext.filePath.trim()) {
+                    return whiteboardContext.filePath;
+                }
+
+                const fallbackContext = window.__SANCTUM_LAUNCH_CONTEXT || null;
+                if (fallbackContext && typeof fallbackContext.filePath === 'string' && fallbackContext.filePath.trim()) {
+                    return fallbackContext.filePath;
+                }
+
+                return null;
+            }
+
+            function getBoardNameFromPath(path) {
+                const normalized = String(path || '').replace(/\\/g, '/');
+                const fileName = normalized.split('/').pop() || 'untitled';
+                return fileName.endsWith('.json') ? fileName.slice(0, -5) : fileName;
+            }
+
+            function normalizeDrawingData(parsedData) {
+                if (Array.isArray(parsedData)) {
+                    return parsedData;
+                }
+                if (parsedData && Array.isArray(parsedData.data)) {
+                    return parsedData.data;
+                }
+                if (parsedData && Array.isArray(parsedData.drawingData)) {
+                    return parsedData.drawingData;
+                }
+                if (parsedData && Array.isArray(parsedData.strokes)) {
+                    return parsedData.strokes;
+                }
+                return null;
+            }
+
+            async function loadInjectedBoardFromLaunchContext() {
+                const injectedPath = getLaunchFilePath();
+                if (!injectedPath || !String(injectedPath).toLowerCase().endsWith('.json')) {
+                    return;
+                }
+
+                try {
+                    const content = await window.pywebview.api.read_file(injectedPath);
+                    if (!content || !String(content).trim()) {
+                        await showMessageModal('Open Failed', 'Injected board file is empty.');
+                        return;
+                    }
+
+                    const parsed = JSON.parse(content);
+                    const loadedData = normalizeDrawingData(parsed);
+
+                    if (!Array.isArray(loadedData)) {
+                        await showMessageModal('Open Failed', 'This JSON file is not a valid whiteboard format.');
+                        return;
+                    }
+
+                    drawingData = loadedData;
+                    boardNameInput.value = getBoardNameFromPath(injectedPath) || 'untitled';
+                    redrawCanvas();
+
+                    saveStatus.textContent = 'Injected board loaded ✓';
+                    saveStatus.className = 'save-status saved';
+                    setTimeout(() => {
+                        saveStatus.textContent = '';
+                        saveStatus.className = 'save-status';
+                    }, 2200);
+                } catch (error) {
+                    console.error('Error loading injected board:', error);
+                    await showMessageModal('Open Failed', 'Could not load injected board JSON: ' + (error.message || error));
+                }
+            }
+
 
             // Set up modal button handlers
             document.getElementById('confirmCancel').addEventListener('click', () => closeConfirmModal(false));
@@ -952,6 +1026,11 @@
                     window.saveBoard();
                 }
             }, 30000);
+
+            // If Whiteboard was launched with a .json path, load it immediately.
+            setTimeout(() => {
+                loadInjectedBoardFromLaunchContext();
+            }, 50);
         })();
     </script>
 </body>
