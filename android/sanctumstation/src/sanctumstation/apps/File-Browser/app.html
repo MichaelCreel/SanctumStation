@@ -450,8 +450,10 @@
     <div class="file-browser">
         <div class="toolbar">
             <button class="btn" onclick="navigateUp()" id="upBtn">↑ Up</button>
-            <button class="btn" onclick="createNewFolder()">+ Folder</button>
+            <button class="btn" onclick="createNewFolder()" id="createFolderBtn">+ Folder</button>
             <button class="btn" onclick="refreshDirectory()">↻ Refresh</button>
+            <span id="pickerModeLabel" style="display:none; font-size:0.8rem; opacity:0.8; margin-left:0.25rem;">Picker Mode</span>
+            <button class="btn" id="pickerCancelBtn" style="display:none;" onclick="cancelPickerSelection()">Cancel</button>
             <input type="text" class="path-bar" id="pathBar" value="/home/michael" readonly>
             <select class="sort-dropdown" id="sortSelect" onchange="changeSortOrder()">
                 <option value="name-asc">Name ↑</option>
@@ -470,6 +472,7 @@
         </div>
         
         <div class="context-menu" id="contextMenu">
+            <div class="context-menu-item" id="contextSelectAction" onclick="contextAction('select')" style="display:none;">Select</div>
             <div class="context-menu-item" onclick="contextAction('open')">Open</div>
             <div class="context-menu-item" onclick="contextAction('rename')">Rename</div>
             <div class="context-menu-item" onclick="contextAction('move')">Move</div>
@@ -542,6 +545,13 @@
             let sortOrder = 'name-asc'; // Default sort order
             let confirmCallback = null;
             let appPickerResolver = null;
+            let launchContext = null;
+            let pickerConfig = null;
+            let pickerRequestId = null;
+            let isPickerMode = false;
+            let pickerAllowFiles = true;
+            let pickerAllowFolders = false;
+            let pickerAllowedExtensions = [];
 
             // Custom confirm modal functions
             function showConfirmModal(title, message, confirmText = 'Confirm', cancelText = 'Cancel') {
@@ -664,6 +674,122 @@
                 }, duration);
             }
 
+            function getLaunchContext() {
+                return (window.getSanctumLaunchContext && window.getSanctumLaunchContext('File-Browser'))
+                    || window.__SANCTUM_LAUNCH_CONTEXT
+                    || null;
+            }
+
+            function normalizePickerExtension(ext) {
+                const normalized = String(ext || '').trim().toLowerCase();
+                if (!normalized) {
+                    return '';
+                }
+                return normalized.startsWith('.') ? normalized : `.${normalized}`;
+            }
+
+            function initializePickerModeFromContext() {
+                launchContext = getLaunchContext();
+                const launchPayload = launchContext && typeof launchContext.filePath === 'object'
+                    ? launchContext.filePath
+                    : null;
+
+                if (!launchPayload || launchPayload.mode !== 'picker') {
+                    isPickerMode = false;
+                    return;
+                }
+
+                isPickerMode = true;
+                pickerConfig = launchPayload;
+                pickerRequestId = launchPayload.requestId || null;
+                pickerAllowFiles = launchPayload.allowFiles !== false;
+                pickerAllowFolders = launchPayload.allowFolders === true;
+                pickerAllowedExtensions = Array.isArray(launchPayload.extensions)
+                    ? [...new Set(launchPayload.extensions.map(normalizePickerExtension).filter(Boolean))]
+                    : [];
+
+                const pickerModeLabel = document.getElementById('pickerModeLabel');
+                const pickerCancelButton = document.getElementById('pickerCancelBtn');
+                const createFolderButton = document.getElementById('createFolderBtn');
+
+                if (pickerModeLabel) {
+                    pickerModeLabel.style.display = 'inline-block';
+                    if (typeof launchPayload.title === 'string' && launchPayload.title.trim()) {
+                        pickerModeLabel.textContent = launchPayload.title.trim();
+                    }
+                }
+
+                if (pickerCancelButton) {
+                    pickerCancelButton.style.display = 'inline-flex';
+                }
+
+                // Picker mode should focus selection, not file operations.
+                if (createFolderButton) {
+                    createFolderButton.style.display = 'none';
+                }
+            }
+
+            function isItemAllowedForPicker(item) {
+                if (!isPickerMode || !item) {
+                    return true;
+                }
+
+                if (item.isDirectory) {
+                    return pickerAllowFolders;
+                }
+
+                if (!pickerAllowFiles) {
+                    return false;
+                }
+
+                if (!pickerAllowedExtensions.length) {
+                    return true;
+                }
+
+                const extension = getFileExtension(item.path);
+                return pickerAllowedExtensions.includes(extension);
+            }
+
+            function getPickerFilterMessage() {
+                if (!pickerAllowedExtensions.length) {
+                    return 'this picker filter';
+                }
+                return pickerAllowedExtensions.join(', ');
+            }
+
+            async function completePickerSelection(item) {
+                if (!isItemAllowedForPicker(item)) {
+                    await showMessageModal('Unsupported File', `This picker supports: ${getPickerFilterMessage()}`);
+                    return;
+                }
+
+                if (typeof window.__SANCTUM_FILE_PICKER_RESOLVE === 'function') {
+                    window.__SANCTUM_FILE_PICKER_RESOLVE({
+                        mode: 'picker',
+                        requestId: pickerRequestId,
+                        cancelled: false,
+                        selectedPath: item.path,
+                        selectedName: item.name,
+                        isDirectory: !!item.isDirectory
+                    });
+                }
+
+                await closeCurrentFileBrowserInstance();
+            }
+
+            async function cancelPickerSelection() {
+                if (typeof window.__SANCTUM_FILE_PICKER_RESOLVE === 'function') {
+                    window.__SANCTUM_FILE_PICKER_RESOLVE({
+                        mode: 'picker',
+                        requestId: pickerRequestId,
+                        cancelled: true
+                    });
+                }
+                await closeCurrentFileBrowserInstance();
+            }
+
+            window.cancelPickerSelection = cancelPickerSelection;
+
 
             // Set up modal button handlers
             document.getElementById('confirmCancel').addEventListener('click', () => closeConfirmModal(false));
@@ -684,6 +810,7 @@
             // Use setTimeout to ensure DOM is ready
             setTimeout(async () => {
                 console.log('File Browser initializing...');
+                initializePickerModeFromContext();
                 await initializePath();
                 setupEventListeners();
             }, 100);
@@ -709,7 +836,17 @@
             }
 
             if (item.isDirectory) {
+                if (isPickerMode && !pickerAllowFolders) {
+                    await loadDirectory(item.path);
+                    return;
+                }
+
                 await loadDirectory(item.path);
+                return;
+            }
+
+            if (isPickerMode) {
+                await completePickerSelection(item);
                 return;
             }
 
@@ -978,6 +1115,12 @@
                 selectItem(fileItem);
             }
 
+            const selectAction = document.getElementById('contextSelectAction');
+            if (selectAction) {
+                const canSelect = isPickerMode && selectedItem && isItemAllowedForPicker(selectedItem);
+                selectAction.style.display = canSelect ? 'block' : 'none';
+            }
+
             const contextMenu = document.getElementById('contextMenu');
             contextMenu.style.display = 'block';
 
@@ -1011,6 +1154,12 @@
 
             try {
                 switch (action) {
+                    case 'select':
+                        if (isPickerMode) {
+                            await completePickerSelection(selectedItem);
+                        }
+                        break;
+
                     case 'open':
                         await openItem(selectedItem);
                         break;
