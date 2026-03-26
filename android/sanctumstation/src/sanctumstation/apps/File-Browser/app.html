@@ -201,6 +201,249 @@
         .file-list::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.3);
         }
+
+        /* Confirmation Modal */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .confirm-modal.active {
+            display: flex;
+        }
+
+        .confirm-content {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .confirm-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .confirm-message {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .confirm-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .confirm-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .confirm-btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .confirm-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .confirm-btn-confirm {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        .confirm-btn-confirm:hover {
+            background: #dc2626;
+        }
+
+        /* Alert/Prompt Modal */
+        .message-modal,
+        .prompt-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .message-modal.active,
+        .prompt-modal.active {
+            display: flex;
+        }
+
+        .message-content,
+        .prompt-content {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .message-title,
+        .prompt-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .message-text,
+        .prompt-message {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .prompt-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            outline: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .app-picker-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .app-picker-modal.active {
+            display: flex;
+        }
+
+        .app-picker-content {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 460px;
+            width: 92%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .app-picker-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.6rem;
+        }
+
+        .app-picker-subtitle {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1rem;
+        }
+
+        .app-picker-list {
+            max-height: 280px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.02);
+            margin-bottom: 1rem;
+        }
+
+        .app-picker-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+            padding: 0.7rem 0.8rem;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: transparent;
+            color: #fff;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .app-picker-item:last-child {
+            border-bottom: none;
+        }
+
+        .app-picker-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .app-picker-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.08);
+            flex-shrink: 0;
+        }
+
+        .app-picker-icon-placeholder {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.12);
+            flex-shrink: 0;
+        }
+
+        .app-picker-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.85);
+            color: #ffffff;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 11000;
+        }
+
+        .toast.visible {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -227,12 +470,66 @@
         </div>
         
         <div class="context-menu" id="contextMenu">
+            <div class="context-menu-item" onclick="contextAction('open')">Open</div>
             <div class="context-menu-item" onclick="contextAction('rename')">Rename</div>
+            <div class="context-menu-item" onclick="contextAction('move')">Move</div>
             <div class="context-menu-item" onclick="contextAction('copy')">Copy</div>
             <div class="context-menu-item" onclick="contextAction('cut')">Cut</div>
+            <div class="context-menu-item" onclick="contextAction('paste')">Paste</div>
             <div class="context-menu-item" onclick="contextAction('delete')">Delete</div>
         </div>
     </div>
+
+    <!-- Confirmation Modal -->
+    <div class="confirm-modal" id="confirmModal">
+        <div class="confirm-content">
+            <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+            <div class="confirm-message" id="confirmMessage">Are you sure?</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-cancel" id="confirmCancel">Cancel</button>
+                <button class="confirm-btn confirm-btn-confirm" id="confirmOk">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div class="message-modal" id="messageModal">
+        <div class="message-content">
+            <div class="message-title" id="messageTitle">Message</div>
+            <div class="message-text" id="messageText">Something happened.</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-confirm" id="messageOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Modal -->
+    <div class="prompt-modal" id="promptModal">
+        <div class="prompt-content">
+            <div class="prompt-title" id="promptTitle">Enter value</div>
+            <div class="prompt-message" id="promptMessage">Please enter a value below.</div>
+            <input class="prompt-input" id="promptInput" type="text" />
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-cancel" id="promptCancel">Cancel</button>
+                <button class="confirm-btn confirm-btn-confirm" id="promptOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Picker Modal -->
+    <div class="app-picker-modal" id="appPickerModal">
+        <div class="app-picker-content">
+            <div class="app-picker-title">Open With</div>
+            <div class="app-picker-subtitle" id="appPickerSubtitle">Choose an app</div>
+            <div class="app-picker-list" id="appPickerList"></div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-cancel" id="appPickerCancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script>
         (function() {
@@ -243,6 +540,135 @@
             let clipboardAction = null;
             let currentItems = []; // Store current directory items
             let sortOrder = 'name-asc'; // Default sort order
+            let confirmCallback = null;
+            let appPickerResolver = null;
+
+            // Custom confirm modal functions
+            function showConfirmModal(title, message, confirmText = 'Confirm', cancelText = 'Cancel') {
+                return new Promise((resolve) => {
+                    document.getElementById('confirmTitle').textContent = title;
+                    document.getElementById('confirmMessage').textContent = message;
+                    document.getElementById('confirmOk').textContent = confirmText;
+                    document.getElementById('confirmCancel').textContent = cancelText;
+                    document.getElementById('confirmModal').classList.add('active');
+                    confirmCallback = resolve;
+                });
+            }
+
+            function closeConfirmModal(confirmed) {
+                document.getElementById('confirmModal').classList.remove('active');
+                document.getElementById('confirmOk').textContent = 'Confirm';
+                document.getElementById('confirmCancel').textContent = 'Cancel';
+                if (confirmCallback) {
+                    confirmCallback(confirmed);
+                    confirmCallback = null;
+                }
+            }
+
+            // Message / prompt modal helpers
+            function showMessageModal(title, message) {
+                return new Promise((resolve) => {
+                    document.getElementById('messageTitle').textContent = title;
+                    document.getElementById('messageText').textContent = message;
+                    const modal = document.getElementById('messageModal');
+                    modal.classList.add('active');
+
+                    const onOk = () => {
+                        modal.classList.remove('active');
+                        document.getElementById('messageOk').removeEventListener('click', onOk);
+                        resolve();
+                    };
+
+                    document.getElementById('messageOk').addEventListener('click', onOk);
+                });
+            }
+
+            function showPromptModal(title, message, defaultValue = '') {
+                return new Promise((resolve) => {
+                    document.getElementById('promptTitle').textContent = title;
+                    document.getElementById('promptMessage').textContent = message;
+                    const input = document.getElementById('promptInput');
+                    input.value = defaultValue;
+
+                    const modal = document.getElementById('promptModal');
+                    modal.classList.add('active');
+
+                    const cleanup = () => {
+                        modal.classList.remove('active');
+                        document.getElementById('promptOk').removeEventListener('click', onOk);
+                        document.getElementById('promptCancel').removeEventListener('click', onCancel);
+                    };
+
+                    const onOk = () => {
+                        cleanup();
+                        resolve(input.value);
+                    };
+
+                    const onCancel = () => {
+                        cleanup();
+                        resolve(null);
+                    };
+
+                    document.getElementById('promptOk').addEventListener('click', onOk);
+                    document.getElementById('promptCancel').addEventListener('click', onCancel);
+
+                    // Focus input for convenience
+                    setTimeout(() => input.focus(), 0);
+                });
+            }
+
+            function closeAppPickerModal(selectedApp) {
+                const modal = document.getElementById('appPickerModal');
+                modal.classList.remove('active');
+                if (appPickerResolver) {
+                    appPickerResolver(selectedApp || null);
+                    appPickerResolver = null;
+                }
+            }
+
+            function showAppPickerModal(fileName, options) {
+                return new Promise((resolve) => {
+                    const modal = document.getElementById('appPickerModal');
+                    const subtitle = document.getElementById('appPickerSubtitle');
+                    const list = document.getElementById('appPickerList');
+
+                    subtitle.textContent = `Choose an app to open ${fileName}`;
+                    list.innerHTML = '';
+
+                    options.forEach((app) => {
+                        const button = document.createElement('button');
+                        button.className = 'app-picker-item';
+                        button.type = 'button';
+
+                        const iconHtml = app.icon
+                            ? `<img class="app-picker-icon" src="${app.icon}" alt="${app.name}">`
+                            : '<div class="app-picker-icon-placeholder"></div>';
+
+                        button.innerHTML = `${iconHtml}<span class="app-picker-name">${app.name}</span>`;
+                        button.addEventListener('click', () => closeAppPickerModal(app));
+                        list.appendChild(button);
+                    });
+
+                    appPickerResolver = resolve;
+                    modal.classList.add('active');
+                });
+            }
+
+            function showToast(message, duration = 2000) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('visible');
+                clearTimeout(toast._timeout);
+                toast._timeout = setTimeout(() => {
+                    toast.classList.remove('visible');
+                }, duration);
+            }
+
+
+            // Set up modal button handlers
+            document.getElementById('confirmCancel').addEventListener('click', () => closeConfirmModal(false));
+            document.getElementById('confirmOk').addEventListener('click', () => closeConfirmModal(true));
+            document.getElementById('appPickerCancel').addEventListener('click', () => closeAppPickerModal(null));
 
             // Initialize immediately since DOMContentLoaded may have already fired
             console.log('File Browser script loaded');
@@ -275,6 +701,95 @@
             document.getElementById('contextMenu').addEventListener('click', (e) => {
                 e.stopPropagation();
             });
+        }
+
+        async function openItem(item) {
+            if (!item) {
+                return;
+            }
+
+            if (item.isDirectory) {
+                await loadDirectory(item.path);
+                return;
+            }
+
+            try {
+                const appList = await window.pywebview.api.get_apps();
+                const extension = getFileExtension(item.path);
+                const matchingApps = Array.isArray(appList)
+                    ? appList.filter((app) => {
+                        const supported = Array.isArray(app.extensions) ? app.extensions : [];
+                        return supported.map((ext) => String(ext).toLowerCase()).includes(extension);
+                    })
+                    : [];
+
+                if (!matchingApps.length) {
+                    const textEditorApp = Array.isArray(appList)
+                        ? appList.find((app) => app.id === 'Text-Editor' || String(app.name || '').toLowerCase() === 'text editor')
+                        : null;
+
+                    if (textEditorApp) {
+                        const shouldOpenInTextEditor = await showConfirmModal(
+                            'No App Found',
+                            `No app supports ${extension || 'this file type'} yet. Open in Text Editor instead?`,
+                            'Open in Text Editor',
+                            'Cancel'
+                        );
+                        if (shouldOpenInTextEditor) {
+                            await launchAppFromFileBrowser(textEditorApp, item.path);
+                        }
+                    } else {
+                        await showMessageModal('No App Found', `No app supports ${extension || 'this file type'} yet.`);
+                    }
+                    return;
+                }
+
+                if (matchingApps.length === 1) {
+                    await launchAppFromFileBrowser(matchingApps[0], item.path);
+                    return;
+                }
+
+                const selectedApp = await showAppPickerModal(item.name, matchingApps);
+                if (selectedApp) {
+                    await launchAppFromFileBrowser(selectedApp, item.path);
+                }
+            } catch (error) {
+                await showMessageModal('Open Failed', `Could not open ${item.name}: ${error}`);
+            }
+        }
+
+        function getFileExtension(path) {
+            const normalized = String(path || '').replace(/\\/g, '/');
+            const filename = normalized.split('/').pop() || '';
+            const dot = filename.lastIndexOf('.');
+            if (dot <= 0 || dot === filename.length - 1) {
+                return '';
+            }
+            return filename.slice(dot).toLowerCase();
+        }
+
+        async function closeCurrentFileBrowserInstance() {
+            const context = (window.getSanctumLaunchContext && window.getSanctumLaunchContext('File-Browser'))
+                || window.__SANCTUM_LAUNCH_CONTEXT
+                || null;
+            const appId = (context && context.appId) ? context.appId : 'File-Browser';
+
+            try {
+                const container = document.querySelector(`.app-container[data-app-id="${appId}"]`) || document.querySelector('#fileList')?.closest('.app-container');
+                if (container && container.parentElement) {
+                    container.parentElement.removeChild(container);
+                }
+                if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.stop_app === 'function') {
+                    await window.pywebview.api.stop_app(appId);
+                }
+            } catch (error) {
+                console.warn('Failed to close File Browser before launching target app:', error);
+            }
+        }
+
+        async function launchAppFromFileBrowser(app, filePath) {
+            await closeCurrentFileBrowserInstance();
+            await window.pywebview.api.launch_app(app.id || app.name, filePath);
         }
 
         function sortItems(items) {
@@ -394,15 +909,17 @@
                 `;
 
                 // Double click to open/navigate
-                fileItem.addEventListener('dblclick', () => {
-                    if (item.type === 'folder') {
-                        loadDirectory(item.path);
-                    }
+                fileItem.addEventListener('dblclick', async (e) => {
+                    e.stopPropagation();
+                    selectItem(fileItem);
+                    hideContextMenu();
+                    await openItem(selectedItem);
                 });
 
-                // Single click to select
+                // Single click to select and show quick action menu
                 fileItem.addEventListener('click', (e) => {
                     selectItem(fileItem);
+                    showContextMenu(e.clientX, e.clientY, fileItem);
                     e.stopPropagation();
                 });
 
@@ -410,7 +927,7 @@
                 fileItem.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     selectItem(fileItem);
-                    showContextMenu(e.clientX, e.clientY);
+                    showContextMenu(e.clientX, e.clientY, fileItem);
                 });
 
                 fileList.appendChild(fileItem);
@@ -440,7 +957,7 @@
         }
 
         window.createNewFolder = async function createNewFolder() {
-            const folderName = prompt('Enter folder name:');
+            const folderName = await showPromptModal('New Folder', 'Enter folder name:');
             if (!folderName) return;
 
             try {
@@ -448,7 +965,7 @@
                 await window.pywebview.api.create_folder(newPath);
                 refreshDirectory();
             } catch (error) {
-                alert(`Error creating folder: ${error}`);
+                await showMessageModal('Error', `Error creating folder: ${error}`);
             }
         }
 
@@ -456,11 +973,31 @@
             loadDirectory(currentPath);
         }
 
-        function showContextMenu(x, y) {
+        function showContextMenu(x, y, fileItem = null) {
+            if (fileItem) {
+                selectItem(fileItem);
+            }
+
             const contextMenu = document.getElementById('contextMenu');
             contextMenu.style.display = 'block';
-            contextMenu.style.left = x + 'px';
-            contextMenu.style.top = y + 'px';
+
+            const itemRect = fileItem ? fileItem.getBoundingClientRect() : null;
+            const safeX = (typeof x === 'number' && x > 0) ? x : (itemRect ? itemRect.left + 16 : 20);
+            const safeY = (typeof y === 'number' && y > 0) ? y : (itemRect ? itemRect.bottom + 6 : 20);
+
+            contextMenu.style.left = safeX + 'px';
+            contextMenu.style.top = safeY + 'px';
+
+            const menuRect = contextMenu.getBoundingClientRect();
+            const maxLeft = window.innerWidth - menuRect.width - 8;
+            const maxTop = window.innerHeight - menuRect.height - 8;
+
+            if (menuRect.left > maxLeft) {
+                contextMenu.style.left = Math.max(8, maxLeft) + 'px';
+            }
+            if (menuRect.top > maxTop) {
+                contextMenu.style.top = Math.max(8, maxTop) + 'px';
+            }
         }
 
         function hideContextMenu() {
@@ -474,11 +1011,26 @@
 
             try {
                 switch (action) {
+                    case 'open':
+                        await openItem(selectedItem);
+                        break;
+
                     case 'rename':
-                        const newName = prompt('Enter new name:', selectedItem.name);
+                        const newName = await showPromptModal('Rename', 'Enter new name:', selectedItem.name);
                         if (newName && newName !== selectedItem.name) {
-                            const newPath = selectedItem.path.replace(selectedItem.name, newName);
-                            await window.pywebview.api.rename_item(selectedItem.path, newPath);
+                            await window.pywebview.api.rename_item(selectedItem.path, newName);
+                            refreshDirectory();
+                        }
+                        break;
+
+                    case 'move':
+                        const destinationPath = await showPromptModal(
+                            'Move Item',
+                            'Enter destination directory path:',
+                            currentPath
+                        );
+                        if (destinationPath && destinationPath !== selectedItem.path) {
+                            await window.pywebview.api.move_item(selectedItem.path, destinationPath);
                             refreshDirectory();
                         }
                         break;
@@ -486,37 +1038,53 @@
                     case 'copy':
                         clipboardItem = selectedItem.path;
                         clipboardAction = 'copy';
+                        showToast(`Copied ${selectedItem.name}`);
                         break;
 
                     case 'cut':
                         clipboardItem = selectedItem.path;
                         clipboardAction = 'cut';
-                        break;
-
-                    case 'delete':
-                        if (confirm(`Delete ${selectedItem.name}?`)) {
-                            await window.pywebview.api.delete_item(selectedItem.path);
-                            refreshDirectory();
-                        }
+                        showToast(`Cut ${selectedItem.name}`);
                         break;
 
                     case 'paste':
-                        if (clipboardItem) {
-                            const destPath = `${currentPath}/${clipboardItem.split('/').pop()}`.replace('//', '/');
-                            
-                            if (clipboardAction === 'copy') {
-                                await window.pywebview.api.copy_item(clipboardItem, destPath);
-                            } else if (clipboardAction === 'cut') {
-                                await window.pywebview.api.move_item(clipboardItem, destPath);
-                                clipboardItem = null;
-                                clipboardAction = null;
+                        if (!clipboardItem || !clipboardAction) {
+                            showToast('Clipboard is empty');
+                            break;
+                        }
+
+                        const sourceName = clipboardItem.split('/').pop();
+                        const destinationBase = currentPath;
+                        const destinationPathForPaste = `${destinationBase}/${sourceName}`.replace('//', '/');
+
+                        if (clipboardAction === 'copy') {
+                            await window.pywebview.api.copy_item(clipboardItem, destinationPathForPaste);
+                        } else {
+                            await window.pywebview.api.move_item(clipboardItem, destinationPathForPaste);
+                            clipboardItem = null;
+                            clipboardAction = null;
+                        }
+
+                        refreshDirectory();
+                        break;
+
+                    case 'delete':
+                        const confirmed = await showConfirmModal(
+                            'Delete Item',
+                            `Delete ${selectedItem.name}?`
+                        );
+                        if (confirmed) {
+                            if (selectedItem.isDirectory) {
+                                await window.pywebview.api.delete_directory(selectedItem.path);
+                            } else {
+                                await window.pywebview.api.delete_file(selectedItem.path);
                             }
                             refreshDirectory();
                         }
                         break;
                 }
             } catch (error) {
-                alert(`Error: ${error}`);
+                await showMessageModal('Error', `Error: ${error}`);
             }
         }
 
@@ -539,11 +1107,13 @@
                 contextAction('delete');
             } else if (e.key === 'F2' && selectedItem) {
                 contextAction('rename');
+            } else if (e.key === 'Enter' && selectedItem) {
+                contextAction('open');
             } else if (e.ctrlKey && e.key === 'c' && selectedItem) {
                 contextAction('copy');
             } else if (e.ctrlKey && e.key === 'x' && selectedItem) {
                 contextAction('cut');
-            } else if (e.ctrlKey && e.key === 'v' && clipboardItem) {
+            } else if (e.ctrlKey && e.key === 'v') {
                 contextAction('paste');
             }
         });
