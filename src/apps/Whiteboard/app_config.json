@@ -1,4 +1,6 @@
 {
   "name": "Whiteboard",
-  "extensions": []
+  "extensions": [
+    ".json"
+  ]
 }
