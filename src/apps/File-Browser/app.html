@@ -53,6 +53,18 @@
             backdrop-filter: none;
         }
 
+        .file-browser.perf-mode .btn,
+        .file-browser.perf-mode .sort-dropdown,
+        .file-browser.perf-mode .context-menu {
+            backdrop-filter: none;
+            transition: none;
+        }
+
+        .file-browser.perf-mode .file-item,
+        .file-browser.perf-mode .context-menu-item {
+            transition: none;
+        }
+
         .btn:hover {
             background: rgba(255, 255, 255, 0.2);
             border-color: rgba(255, 255, 255, 0.4);
@@ -115,7 +127,7 @@
             padding: 0.75rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             cursor: pointer;
-            transition: background 0.2s ease;
+            transition: none;
         }
 
         .file-item:hover {
@@ -545,12 +557,14 @@
             // Get user home directory - will be set async from backend
             let currentPath = '';
             let selectedItem = null;
+            let selectedItemElement = null;
             let clipboardItem = null;
             let clipboardAction = null;
             let currentItems = []; // Store current directory items
             let sortOrder = 'name-asc'; // Default sort order
             let confirmCallback = null;
             let appPickerResolver = null;
+            const PERF_MODE_THRESHOLD = 250;
             let launchContext = null;
             let pickerConfig = null;
             let pickerRequestId = null;
@@ -826,6 +840,7 @@
         function setupEventListeners() {
             // Get the file browser root element
             const fileBrowser = document.querySelector('.file-browser');
+            const fileList = document.getElementById('fileList');
             
             // Hide context menu on click elsewhere - use capture phase to get all clicks
             fileBrowser.addEventListener('click', () => {
@@ -835,6 +850,51 @@
             // Prevent context menu from hiding when clicking on it
             document.getElementById('contextMenu').addEventListener('click', (e) => {
                 e.stopPropagation();
+            });
+
+            // Delegate file interactions to avoid attaching listeners to every row.
+            fileList.addEventListener('dblclick', async (e) => {
+                const fileItem = e.target.closest('.file-item');
+                if (!fileItem) {
+                    return;
+                }
+
+                e.stopPropagation();
+                selectItem(fileItem);
+                hideContextMenu();
+                await openItem(selectedItem);
+            });
+
+            fileList.addEventListener('click', (e) => {
+                const fileItem = e.target.closest('.file-item');
+                if (!fileItem) {
+                    return;
+                }
+
+                selectItem(fileItem);
+                if (isPickerMode) {
+                    hideContextMenu();
+                } else {
+                    showContextMenu(e.clientX, e.clientY, fileItem);
+                }
+                e.stopPropagation();
+            });
+
+            fileList.addEventListener('contextmenu', (e) => {
+                const fileItem = e.target.closest('.file-item');
+                if (!fileItem) {
+                    return;
+                }
+
+                e.preventDefault();
+                if (isPickerMode) {
+                    selectItem(fileItem);
+                    hideContextMenu();
+                    return;
+                }
+
+                selectItem(fileItem);
+                showContextMenu(e.clientX, e.clientY, fileItem);
             });
         }
 
@@ -1015,6 +1075,12 @@
 
         function displayFiles(items) {
             const fileList = document.getElementById('fileList');
+
+            const root = document.querySelector('.file-browser');
+            const shouldUsePerfMode = isPickerMode || (Array.isArray(items) && items.length >= PERF_MODE_THRESHOLD);
+            if (root) {
+                root.classList.toggle('perf-mode', shouldUsePerfMode);
+            }
             
             if (!items || items.length === 0) {
                 fileList.innerHTML = '<div class="loading">Empty directory</div>';
@@ -1022,11 +1088,16 @@
             }
 
             fileList.innerHTML = '';
+            selectedItem = null;
+            selectedItemElement = null;
+
+            const fragment = document.createDocumentFragment();
 
             items.forEach(item => {
                 const fileItem = document.createElement('div');
                 fileItem.className = 'file-item';
                 fileItem.dataset.path = item.path;
+                fileItem.dataset.name = item.name;
                 fileItem.dataset.isDirectory = (item.type === 'folder');
 
                 const icon = (item.type === 'folder') ? '📁' : '📄';
@@ -1040,47 +1111,27 @@
                     <span class="file-date">${date}</span>
                 `;
 
-                // Double click to open/navigate
-                fileItem.addEventListener('dblclick', async (e) => {
-                    e.stopPropagation();
-                    selectItem(fileItem);
-                    hideContextMenu();
-                    await openItem(selectedItem);
-                });
-
-                // Single click to select and show quick action menu
-                fileItem.addEventListener('click', (e) => {
-                    selectItem(fileItem);
-                    if (isPickerMode) {
-                        hideContextMenu();
-                    } else {
-                        showContextMenu(e.clientX, e.clientY, fileItem);
-                    }
-                    e.stopPropagation();
-                });
-
-                // Right click for context menu
-                fileItem.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    selectItem(fileItem);
-                    showContextMenu(e.clientX, e.clientY, fileItem);
-                });
-
-                fileList.appendChild(fileItem);
+                fragment.appendChild(fileItem);
             });
+
+            fileList.appendChild(fragment);
         }
 
         function selectItem(itemElement) {
-            // Remove previous selection
-            document.querySelectorAll('.file-item.selected').forEach(item => {
-                item.classList.remove('selected');
-            });
+            if (!itemElement) {
+                return;
+            }
+
+            if (selectedItemElement && selectedItemElement !== itemElement) {
+                selectedItemElement.classList.remove('selected');
+            }
 
             // Select new item
             itemElement.classList.add('selected');
+            selectedItemElement = itemElement;
             selectedItem = {
                 path: itemElement.dataset.path,
-                name: itemElement.querySelector('.file-name').textContent,
+                name: itemElement.dataset.name || itemElement.querySelector('.file-name').textContent,
                 isDirectory: itemElement.dataset.isDirectory === 'true'
             };
         }
