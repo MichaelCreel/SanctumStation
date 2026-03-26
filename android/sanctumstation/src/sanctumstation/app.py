@@ -170,6 +170,8 @@ class APIHandler(SimpleHTTPRequestHandler):
             return backend.fullscreen
         elif method == 'get_settings':
             return settings_manager.get_settings()
+        elif method == 'get_file_processor_support':
+            return settings_manager.get_file_processor_support()
         elif method == 'set_wallpaper':
             return settings_manager.set_wallpaper(*args)
         elif method == 'set_day_gradient':
@@ -537,7 +539,7 @@ class SanctumStation(toga.App):
                 'get_fonts', 'get_version', 'get_wallpaper', 'get_wallpaper_data',
                 'get_day_gradient', 'get_fullscreen',
                 'get_settings', 'set_wallpaper', 'set_day_gradient', 'set_fullscreen',
-                'set_font', 'set_updates', 'get_available_update',
+                'set_font', 'set_updates', 'get_available_update', 'get_file_processor_support',
                 'fuzzy_search_apps', 'call_app_function'
             ];
             
@@ -620,6 +622,8 @@ class SanctumStation(toga.App):
                 result = backend.fullscreen
             elif method == 'get_settings':
                 result = settings_manager.get_settings()
+            elif method == 'get_file_processor_support':
+                result = settings_manager.get_file_processor_support()
             elif method == 'set_wallpaper':
                 result = settings_manager.set_wallpaper(*args)
             elif method == 'set_day_gradient':

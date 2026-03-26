@@ -89,6 +89,7 @@
             'get_day_gradient', 'get_fullscreen',
             'get_settings', 'set_wallpaper', 'set_day_gradient', 'set_fullscreen',
             'set_font', 'set_updates', 'set_logo', 'set_ui_scale', 'get_available_update',
+            'get_file_processor_support',
             'fuzzy_search_apps', 'call_app_function'
         ];
         

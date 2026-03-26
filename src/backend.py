@@ -11,6 +11,7 @@ import sys
 import time
 import inspect
 import concurrent.futures
+import mimetypes
 from fuzzywuzzy import process as fuzzy_process
 
 # Determine platform early (before importing yaml)
@@ -74,6 +75,33 @@ main_event_loop = None # Reference to the main event loop (for mobile async call
 fullscreen = False # Whether the app is in fullscreen mode or not
 ui_scale = 1.0 # UI scale multiplier (1.0 = 16px base font, 100%)
 extensionSupport = {}; # Cache for which apps support which file extensions.
+
+SUPPORTED_WALLPAPER_EXTENSIONS = sorted([
+    ".avif", ".bmp", ".gif", ".ico", ".jpeg", ".jpg", ".png", ".svg", ".tif", ".tiff", ".webp"
+])
+SUPPORTED_FONT_EXTENSIONS = [".ttf"]
+SUPPORTED_FONT_KEYS = {
+    "black_font", "extra_bold_font", "bold_font", "semi_bold_font",
+    "medium_font", "regular_font", "light_font", "extra_light_font", "thin_font"
+}
+
+
+def _resolve_configured_path(path_value):
+    if path_value is None:
+        return None
+
+    raw_path = str(path_value).strip()
+    if not raw_path:
+        return None
+
+    if raw_path.startswith("src:"):
+        return os.path.normpath(os.path.join(BASE_DIR, raw_path[4:]))
+
+    expanded_path = os.path.expanduser(raw_path)
+    if os.path.isabs(expanded_path):
+        return os.path.normpath(expanded_path)
+
+    return os.path.normpath(os.path.join(BASE_DIR, expanded_path))
 
 if IS_MOBILE:
     import toga
@@ -315,7 +343,7 @@ def launch_app(app_name, file_path=None):
             width: 100%;
             height: 100%;
             background: #1e1e2e;
-            z-index: 1000;
+            z-index: 1150;
             overflow: auto;
         `;
 
@@ -337,7 +365,7 @@ def launch_app(app_name, file_path=None):
             color: white;
             font-size: 24px;
             cursor: pointer;
-            z-index: 1001;
+            z-index: 1151;
             width: 40px;
             height: 40px;
             display: flex;
@@ -665,6 +693,9 @@ def init_webview():
             def get_fullscreen(self):
                 global fullscreen
                 return fullscreen
+
+            def get_file_processor_support(self):
+                return settings_manager.get_file_processor_support()
             
             # Settings Management - Delegate to SettingsManagerAPI
             def get_settings(self):
@@ -1126,23 +1157,32 @@ class SettingsManagerAPI:
             "is_mobile": IS_MOBILE,
             "ui_scale": ui_scale
         }
+
+    # Returns extension support used by settings and file picker filters
+    def get_file_processor_support(self):
+        return {
+            "wallpaper": {
+                "extensions": SUPPORTED_WALLPAPER_EXTENSIONS,
+                "description": "Any file recognized as image/* by mime type detection"
+            },
+            "font": {
+                "extensions": SUPPORTED_FONT_EXTENSIONS,
+                "description": "TrueType font files"
+            }
+        }
     
     # Gets wallpaper as base64 data URL
     def get_wallpaper_data(self):
         global wallpaper
         import base64
-        import mimetypes
         
         if not wallpaper or wallpaper.lower() == 'none':
             return None
         
         try:
-            # Resolve path - handle src: prefix for files in src directory
-            wallpaper_path = wallpaper
-            if wallpaper_path.startswith('src:'):
-                # Replace src: with actual src directory path
-                src_dir = os.path.dirname(__file__)
-                wallpaper_path = os.path.join(src_dir, wallpaper_path[4:])
+            wallpaper_path = _resolve_configured_path(wallpaper)
+            if not wallpaper_path:
+                return None
             
             # Get the mime type
             mime_type, _ = mimetypes.guess_type(wallpaper_path)
@@ -1167,13 +1207,31 @@ class SettingsManagerAPI:
     # Sets wallpaper path
     def set_wallpaper(self, wallpaper_path):
         global wallpaper
-        wallpaper = wallpaper_path
+        normalized_value = str(wallpaper_path or "").strip()
+
+        if not normalized_value or normalized_value.lower() == 'none':
+            normalized_value = 'None'
+        else:
+            resolved_path = _resolve_configured_path(normalized_value)
+            if not resolved_path or not os.path.isfile(resolved_path):
+                print(f"SMA-E2: Wallpaper path does not exist: {normalized_value}")
+                return False
+
+            mime_type, _ = mimetypes.guess_type(resolved_path)
+            extension = os.path.splitext(resolved_path)[1].lower()
+            is_image_mime = bool(mime_type and mime_type.startswith('image/'))
+
+            if not is_image_mime and extension not in SUPPORTED_WALLPAPER_EXTENSIONS:
+                print(f"SMA-E2: Unsupported wallpaper format: {extension or 'unknown'}")
+                return False
+
+        wallpaper = normalized_value
         # Write to settings.yaml
         try:
             settings_path = os.path.join(DATA_DIR, "settings.yaml")
             with open(settings_path, "r") as file:
                 settings = yaml.load(file, Loader=yaml_loader) or {}
-            settings["wallpaper"] = wallpaper_path
+            settings["wallpaper"] = normalized_value
             with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
@@ -1229,13 +1287,40 @@ class SettingsManagerAPI:
     # Sets font path for a given weight
     def set_font(self, weight, font_path):
         global fonts
-        fonts[weight] = font_path
+
+        weight_key = str(weight or "").strip().lower()
+        if not weight_key:
+            print("SMA-E5: Missing font weight")
+            return False
+        if not weight_key.endswith("_font"):
+            weight_key = f"{weight_key}_font"
+
+        if weight_key not in SUPPORTED_FONT_KEYS:
+            print(f"SMA-E5: Unsupported font weight key: {weight_key}")
+            return False
+
+        normalized_path = str(font_path or "").strip()
+        if not normalized_path:
+            print("SMA-E5: Missing font path")
+            return False
+
+        resolved_path = _resolve_configured_path(normalized_path)
+        if not resolved_path or not os.path.isfile(resolved_path):
+            print(f"SMA-E5: Font path does not exist: {normalized_path}")
+            return False
+
+        extension = os.path.splitext(resolved_path)[1].lower()
+        if extension not in SUPPORTED_FONT_EXTENSIONS:
+            print(f"SMA-E5: Unsupported font extension: {extension or 'unknown'}")
+            return False
+
+        fonts[weight_key] = normalized_path
         # Write to settings.yaml
         try:
             settings_path = os.path.join(DATA_DIR, "settings.yaml")
             with open(settings_path, "r") as file:
                 settings = yaml.load(file, Loader=yaml_loader) or {}
-            settings[f"{weight}_font"] = font_path
+            settings[weight_key] = normalized_path
             with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:

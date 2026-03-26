@@ -74,12 +74,14 @@ This file contains the structure and layout for the psuedo-desktop environment t
                 </div>
                 <div class="settings-content">
                     <div class="setting-item">
-                        <label for="wallpaperInput">Wallpaper Path:</label>
+                        <label for="wallpaperInput">Wallpaper:</label>
                         <div class="setting-input-group">
-                            <input type="text" id="wallpaperInput" placeholder="wallpapers/default.jpg">
+                            <input type="text" id="wallpaperInput" placeholder="No wallpaper selected" readonly>
+                            <button onclick="chooseWallpaperFromPicker()">Choose...</button>
                             <button onclick="saveWallpaper()">Apply</button>
                             <button onclick="removeWallpaper()">Remove</button>
                         </div>
+                        <small id="wallpaperSupportInfo">Supported: image files</small>
                     </div>
                     <div class="setting-item">
                         <label>Default Wallpapers:</label>
@@ -100,6 +102,26 @@ This file contains the structure and layout for the psuedo-desktop environment t
                             <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Ocean.png')" style="background-image: url('default_wallpapers/Ocean.png')"></div>
                             <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Slash.png')" style="background-image: url('default_wallpapers/Slash.png')"></div>
                         </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="fontWeightSelect">Desktop Font:</label>
+                        <div class="setting-input-group">
+                            <select id="fontWeightSelect" onchange="updateFontPathPreview()">
+                                <option value="black">Black (900)</option>
+                                <option value="extra_bold">Extra Bold (800)</option>
+                                <option value="bold">Bold (700)</option>
+                                <option value="semi_bold">Semi Bold (600)</option>
+                                <option value="medium">Medium (500)</option>
+                                <option value="regular" selected>Regular (400)</option>
+                                <option value="light">Light (300)</option>
+                                <option value="extra_light">Extra Light (200)</option>
+                                <option value="thin">Thin (100)</option>
+                            </select>
+                            <input type="text" id="fontPathInput" placeholder="No font selected" readonly>
+                            <button onclick="chooseFontFromPicker()">Choose...</button>
+                            <button onclick="saveSelectedFont()">Apply</button>
+                        </div>
+                        <small id="fontSupportInfo">Supported: .ttf</small>
                     </div>
                     <div class="setting-item">
                         <label>Logo Style:</label>
