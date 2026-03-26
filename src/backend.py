@@ -258,7 +258,7 @@ def init_apps():
 # Returns True on success, False on failure
 # This injects the app into the webview and starts the backend thread
 # This includes the code for the close button and app container
-def launch_app(app_name):
+def launch_app(app_name, file_path=None):
     global active_apps, webview_window
 
     app_info = None
@@ -283,10 +283,26 @@ def launch_app(app_name):
         # Use JSON to safely pass the HTML content
         import json
         app_html_escaped = json.dumps(app_html)
+        launch_context_escaped = json.dumps({
+            "appId": app_id,
+            "appName": app_display_name,
+            "filePath": file_path
+        })
         
         inject_script = f"""
         (function() {{
             const appHtml = {app_html_escaped};
+            const launchContext = {launch_context_escaped};
+
+            window.__SANCTUM_LAUNCH_CONTEXT = launchContext;
+            window.__SANCTUM_LAUNCH_CONTEXT_BY_APP = window.__SANCTUM_LAUNCH_CONTEXT_BY_APP || {{}};
+            window.__SANCTUM_LAUNCH_CONTEXT_BY_APP[launchContext.appId] = launchContext;
+            window.getSanctumLaunchContext = function(appId) {{
+                if (!appId) {{
+                    return window.__SANCTUM_LAUNCH_CONTEXT || null;
+                }}
+                return (window.__SANCTUM_LAUNCH_CONTEXT_BY_APP || {{}})[appId] || null;
+            }};
             
             // Create app container
         const appContainer = document.createElement('div');
@@ -302,6 +318,11 @@ def launch_app(app_name):
             z-index: 1000;
             overflow: auto;
         `;
+
+        appContainer.dataset.appId = launchContext.appId;
+        if (launchContext.filePath) {{
+            appContainer.dataset.filePath = launchContext.filePath;
+        }}
         
         // Add close button
         const closeBtn = document.createElement('button');
@@ -407,7 +428,7 @@ def launch_app(app_name):
                         stop_event = threading.Event()
                         app_thread = threading.Thread(
                             target=run_app_backend_thread, 
-                            args=(app_id, app_module, stop_event),
+                            args=(app_id, app_module, stop_event, file_path),
                             daemon=True
                         )
                         app_thread.start()
@@ -450,7 +471,7 @@ def launch_app(app_name):
 
 # Runs the backend script of the app in its own thread
 # Passes a stop_event to signal when to stop
-def run_app_backend(app_name, py_path, app_dir, stop_event):
+def run_app_backend(app_name, py_path, app_dir, stop_event, file_path=None):
     try:
         original_cwd = os.getcwd()
         # app_dir is already absolute, so use it directly
@@ -462,21 +483,10 @@ def run_app_backend(app_name, py_path, app_dir, stop_event):
         sys.modules[f"app_{app_name}"] = app_module
         spec.loader.exec_module(app_module)
         
-        # Pass stop_event to app's main/run function if it accepts it
         if hasattr(app_module, 'main'):
-            import inspect
-            sig = inspect.signature(app_module.main)
-            if len(sig.parameters) > 0:
-                app_module.main(stop_event)
-            else:
-                app_module.main()
+            _invoke_app_entrypoint(app_module.main, stop_event=stop_event, file_path=file_path)
         elif hasattr(app_module, 'run'):
-            import inspect
-            sig = inspect.signature(app_module.run)
-            if len(sig.parameters) > 0:
-                app_module.run(stop_event)
-            else:
-                app_module.run()
+            _invoke_app_entrypoint(app_module.run, stop_event=stop_event, file_path=file_path)
         
         print(f"RAB: App '{app_name}' backend finished")
         
@@ -489,24 +499,40 @@ def run_app_backend(app_name, py_path, app_dir, stop_event):
         if app_name in active_apps:
             del active_apps[app_name]
 
+def _invoke_app_entrypoint(entrypoint, stop_event=None, file_path=None):
+    sig = inspect.signature(entrypoint)
+    kwargs = {}
+
+    if "stop_event" in sig.parameters:
+        kwargs["stop_event"] = stop_event
+    if file_path is not None and "file_path" in sig.parameters:
+        kwargs["file_path"] = file_path
+
+    if kwargs:
+        return entrypoint(**kwargs)
+
+    params = list(sig.parameters.values())
+    args = []
+
+    if params:
+        first_name = params[0].name.lower()
+        if file_path is not None and first_name in {"file_path", "filepath", "path", "file"}:
+            args.append(file_path)
+        elif stop_event is not None:
+            args.append(stop_event)
+
+    if len(params) > 1 and file_path is not None:
+        args.append(file_path)
+
+    return entrypoint(*args)
+
 # Runs the main/run function of an already-loaded app module in a thread
-def run_app_backend_thread(app_name, app_module, stop_event):
+def run_app_backend_thread(app_name, app_module, stop_event, file_path=None):
     try:
-        # Pass stop_event to app's main/run function if it accepts it
         if hasattr(app_module, 'main'):
-            import inspect
-            sig = inspect.signature(app_module.main)
-            if len(sig.parameters) > 0:
-                app_module.main(stop_event)
-            else:
-                app_module.main()
+            _invoke_app_entrypoint(app_module.main, stop_event=stop_event, file_path=file_path)
         elif hasattr(app_module, 'run'):
-            import inspect
-            sig = inspect.signature(app_module.run)
-            if len(sig.parameters) > 0:
-                app_module.run(stop_event)
-            else:
-                app_module.run()
+            _invoke_app_entrypoint(app_module.run, stop_event=stop_event, file_path=file_path)
         
         print(f"RAB: App '{app_name}' backend finished")
         
@@ -544,8 +570,8 @@ def init_webview():
         error_manager = ErrorManagerAPI()
         
         class API:
-            def launch_app(self, app_name):
-                return launch_app(app_name)
+            def launch_app(self, app_name, file_path=None):
+                return launch_app(app_name, file_path)
             
             def stop_app(self, app_name):
                 return stop_app(app_name)

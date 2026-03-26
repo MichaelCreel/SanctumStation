@@ -99,8 +99,8 @@
         });
         
         // Override launch_app to handle script injection on mobile
-        window.pywebview.api.launch_app = async function(appName) {
-            const result = await callAPI('launch_app', appName);
+        window.pywebview.api.launch_app = async function(...args) {
+            const result = await callAPI('launch_app', ...args);
             
             // If backend returns a script to inject, execute it
             if (result && result.inject_script) {
