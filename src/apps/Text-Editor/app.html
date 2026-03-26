@@ -556,10 +556,75 @@
                 await loadDirectory(currentPath);
             }
 
+            function getLaunchFilePath() {
+                const byApp = window.__SANCTUM_LAUNCH_CONTEXT_BY_APP || {};
+                const textEditorContext = byApp['Text-Editor'];
+                if (textEditorContext && typeof textEditorContext.filePath === 'string' && textEditorContext.filePath.trim()) {
+                    return textEditorContext.filePath;
+                }
+
+                const fallbackContext = window.__SANCTUM_LAUNCH_CONTEXT || null;
+                if (fallbackContext && typeof fallbackContext.filePath === 'string' && fallbackContext.filePath.trim()) {
+                    return fallbackContext.filePath;
+                }
+
+                return null;
+            }
+
+            function getFileNameFromPath(path) {
+                const normalized = String(path || '').replace(/\\/g, '/');
+                const parts = normalized.split('/');
+                return parts[parts.length - 1] || normalized;
+            }
+
+            async function openFileByPath(path) {
+                if (!path) {
+                    return false;
+                }
+
+                try {
+                    const normalizedPath = String(path);
+                    const parentPath = normalizedPath.includes('/')
+                        ? (normalizedPath.substring(0, normalizedPath.lastIndexOf('/')) || '/')
+                        : currentPath;
+
+                    if (parentPath && parentPath !== currentPath) {
+                        await loadDirectory(parentPath);
+                    }
+
+                    const content = await window.pywebview.api.read_file(normalizedPath);
+                    currentFile = normalizedPath;
+                    isModified = false;
+
+                    document.getElementById('emptyState').style.display = 'none';
+                    document.getElementById('textEditor').style.display = 'block';
+                    document.getElementById('textEditor').value = content;
+                    document.getElementById('fileInfo').textContent = getFileNameFromPath(normalizedPath);
+                    document.getElementById('saveBtn').disabled = false;
+
+                    const matchingItem = Array.from(document.querySelectorAll('.file-item')).find((item) => item.dataset.path === normalizedPath);
+                    if (matchingItem) {
+                        selectItem(matchingItem);
+                    }
+
+                    console.log('Opened file:', currentFile);
+                    return true;
+                } catch (error) {
+                    console.error('Error opening file:', error);
+                    await showMessageModal('Error', 'Failed to open file: ' + error);
+                    return false;
+                }
+            }
+
             // Initialize
             setTimeout(async () => {
                 console.log('Text Editor initializing...');
                 await initializePath();
+
+                const launchFilePath = getLaunchFilePath();
+                if (launchFilePath) {
+                    await openFileByPath(launchFilePath);
+                }
             }, 100);
 
         async function loadDirectory(path) {
@@ -674,24 +739,7 @@
                 }
             }
 
-            try {
-                const content = await window.pywebview.api.read_file(selectedItem.path);
-                
-                currentFile = selectedItem.path;
-                isModified = false;
-                
-                // Show editor, hide empty state
-                document.getElementById('emptyState').style.display = 'none';
-                document.getElementById('textEditor').style.display = 'block';
-                document.getElementById('textEditor').value = content;
-                document.getElementById('fileInfo').textContent = selectedItem.name;
-                document.getElementById('saveBtn').disabled = false;
-
-                console.log('Opened file:', currentFile);
-            } catch (error) {
-                console.error('Error opening file:', error);
-                await showMessageModal('Error', 'Failed to open file: ' + error);
-            }
+            await openFileByPath(selectedItem.path);
         }
 
         window.saveFile = async function saveFile() {
@@ -824,10 +872,6 @@
             }
         });
 
-        // Initial load
-        setTimeout(() => {
-            loadDirectory(currentPath);
-        }, 100);
     })(); // Close main IIFE
 
     // Load fonts from API

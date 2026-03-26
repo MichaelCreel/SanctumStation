@@ -229,6 +229,157 @@
         .file-list::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.3);
         }
+
+        /* Confirmation Modal */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .confirm-modal.active {
+            display: flex;
+        }
+
+        .confirm-content {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .confirm-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .confirm-message {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .confirm-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .confirm-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .confirm-btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .confirm-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .confirm-btn-confirm {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        .confirm-btn-confirm:hover {
+            background: #dc2626;
+        }
+
+        /* Alert/Prompt Modal */
+        .message-modal,
+        .prompt-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .message-modal.active,
+        .prompt-modal.active {
+            display: flex;
+        }
+
+        .message-content,
+        .prompt-content {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .message-title,
+        .prompt-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .message-text,
+        .prompt-message {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .prompt-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            outline: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.85);
+            color: #ffffff;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 11000;
+        }
+
+        .toast.visible {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -263,6 +414,45 @@
         </div>
     </div>
 
+    <!-- Confirmation Modal -->
+    <div class="confirm-modal" id="confirmModal">
+        <div class="confirm-content">
+            <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+            <div class="confirm-message" id="confirmMessage">Are you sure?</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-cancel" id="confirmCancel">Cancel</button>
+                <button class="confirm-btn confirm-btn-confirm" id="confirmOk">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div class="message-modal" id="messageModal">
+        <div class="message-content">
+            <div class="message-title" id="messageTitle">Message</div>
+            <div class="message-text" id="messageText">Something happened.</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-confirm" id="messageOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Modal -->
+    <div class="prompt-modal" id="promptModal">
+        <div class="prompt-content">
+            <div class="prompt-title" id="promptTitle">Enter value</div>
+            <div class="prompt-message" id="promptMessage">Please enter a value below.</div>
+            <input class="prompt-input" id="promptInput" type="text" />
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-cancel" id="promptCancel">Cancel</button>
+                <button class="confirm-btn confirm-btn-confirm" id="promptOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
     <script>
         (function() {
             console.log('Text Editor script loaded');
@@ -272,6 +462,91 @@
             let currentItems = [];
             let selectedItem = null;
             let isModified = false;
+            let confirmCallback = null;
+
+            // Custom confirm modal functions
+            function showConfirmModal(title, message) {
+                return new Promise((resolve) => {
+                    document.getElementById('confirmTitle').textContent = title;
+                    document.getElementById('confirmMessage').textContent = message;
+                    document.getElementById('confirmModal').classList.add('active');
+                    confirmCallback = resolve;
+                });
+            }
+
+            function closeConfirmModal(confirmed) {
+                document.getElementById('confirmModal').classList.remove('active');
+                if (confirmCallback) {
+                    confirmCallback(confirmed);
+                    confirmCallback = null;
+                }
+            }
+
+            // Set up modal button handlers
+            document.getElementById('confirmCancel').addEventListener('click', () => closeConfirmModal(false));
+            document.getElementById('confirmOk').addEventListener('click', () => closeConfirmModal(true));
+
+            // Message / prompt modal helpers
+            function showMessageModal(title, message) {
+                return new Promise((resolve) => {
+                    document.getElementById('messageTitle').textContent = title;
+                    document.getElementById('messageText').textContent = message;
+                    const modal = document.getElementById('messageModal');
+                    modal.classList.add('active');
+
+                    const onOk = () => {
+                        modal.classList.remove('active');
+                        document.getElementById('messageOk').removeEventListener('click', onOk);
+                        resolve();
+                    };
+
+                    document.getElementById('messageOk').addEventListener('click', onOk);
+                });
+            }
+
+            function showPromptModal(title, message, defaultValue = '') {
+                return new Promise((resolve) => {
+                    document.getElementById('promptTitle').textContent = title;
+                    document.getElementById('promptMessage').textContent = message;
+                    const input = document.getElementById('promptInput');
+                    input.value = defaultValue;
+
+                    const modal = document.getElementById('promptModal');
+                    modal.classList.add('active');
+
+                    const cleanup = () => {
+                        modal.classList.remove('active');
+                        document.getElementById('promptOk').removeEventListener('click', onOk);
+                        document.getElementById('promptCancel').removeEventListener('click', onCancel);
+                    };
+
+                    const onOk = () => {
+                        cleanup();
+                        resolve(input.value);
+                    };
+
+                    const onCancel = () => {
+                        cleanup();
+                        resolve(null);
+                    };
+
+                    document.getElementById('promptOk').addEventListener('click', onOk);
+                    document.getElementById('promptCancel').addEventListener('click', onCancel);
+
+                    // Focus input for convenience
+                    setTimeout(() => input.focus(), 0);
+                });
+            }
+
+            function showToast(message, duration = 2000) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('visible');
+                clearTimeout(toast._timeout);
+                toast._timeout = setTimeout(() => {
+                    toast.classList.remove('visible');
+                }, duration);
+            }
 
             // Initialize path and directory
             async function initializePath() {
@@ -281,10 +556,75 @@
                 await loadDirectory(currentPath);
             }
 
+            function getLaunchFilePath() {
+                const byApp = window.__SANCTUM_LAUNCH_CONTEXT_BY_APP || {};
+                const textEditorContext = byApp['Text-Editor'];
+                if (textEditorContext && typeof textEditorContext.filePath === 'string' && textEditorContext.filePath.trim()) {
+                    return textEditorContext.filePath;
+                }
+
+                const fallbackContext = window.__SANCTUM_LAUNCH_CONTEXT || null;
+                if (fallbackContext && typeof fallbackContext.filePath === 'string' && fallbackContext.filePath.trim()) {
+                    return fallbackContext.filePath;
+                }
+
+                return null;
+            }
+
+            function getFileNameFromPath(path) {
+                const normalized = String(path || '').replace(/\\/g, '/');
+                const parts = normalized.split('/');
+                return parts[parts.length - 1] || normalized;
+            }
+
+            async function openFileByPath(path) {
+                if (!path) {
+                    return false;
+                }
+
+                try {
+                    const normalizedPath = String(path);
+                    const parentPath = normalizedPath.includes('/')
+                        ? (normalizedPath.substring(0, normalizedPath.lastIndexOf('/')) || '/')
+                        : currentPath;
+
+                    if (parentPath && parentPath !== currentPath) {
+                        await loadDirectory(parentPath);
+                    }
+
+                    const content = await window.pywebview.api.read_file(normalizedPath);
+                    currentFile = normalizedPath;
+                    isModified = false;
+
+                    document.getElementById('emptyState').style.display = 'none';
+                    document.getElementById('textEditor').style.display = 'block';
+                    document.getElementById('textEditor').value = content;
+                    document.getElementById('fileInfo').textContent = getFileNameFromPath(normalizedPath);
+                    document.getElementById('saveBtn').disabled = false;
+
+                    const matchingItem = Array.from(document.querySelectorAll('.file-item')).find((item) => item.dataset.path === normalizedPath);
+                    if (matchingItem) {
+                        selectItem(matchingItem);
+                    }
+
+                    console.log('Opened file:', currentFile);
+                    return true;
+                } catch (error) {
+                    console.error('Error opening file:', error);
+                    await showMessageModal('Error', 'Failed to open file: ' + error);
+                    return false;
+                }
+            }
+
             // Initialize
             setTimeout(async () => {
                 console.log('Text Editor initializing...');
                 await initializePath();
+
+                const launchFilePath = getLaunchFilePath();
+                if (launchFilePath) {
+                    await openFileByPath(launchFilePath);
+                }
             }, 100);
 
         async function loadDirectory(path) {
@@ -390,29 +730,16 @@
 
             // Warn if current file is modified
             if (isModified && currentFile) {
-                if (!confirm('Current file has unsaved changes. Continue?')) {
+                const confirmed = await showConfirmModal(
+                    'Unsaved Changes',
+                    'Current file has unsaved changes. Continue?'
+                );
+                if (!confirmed) {
                     return;
                 }
             }
 
-            try {
-                const content = await window.pywebview.api.read_file(selectedItem.path);
-                
-                currentFile = selectedItem.path;
-                isModified = false;
-                
-                // Show editor, hide empty state
-                document.getElementById('emptyState').style.display = 'none';
-                document.getElementById('textEditor').style.display = 'block';
-                document.getElementById('textEditor').value = content;
-                document.getElementById('fileInfo').textContent = selectedItem.name;
-                document.getElementById('saveBtn').disabled = false;
-
-                console.log('Opened file:', currentFile);
-            } catch (error) {
-                console.error('Error opening file:', error);
-                alert('Failed to open file: ' + error);
-            }
+            await openFileByPath(selectedItem.path);
         }
 
         window.saveFile = async function saveFile() {
@@ -427,19 +754,23 @@
                 
                 if (success) {
                     isModified = false;
+                    // Remove the "*" marker from the file info when changes are saved
+                    const fileInfo = document.getElementById('fileInfo');
+                    fileInfo.textContent = fileInfo.textContent.replace(/\s*\*$/, '');
                     console.log('File saved:', currentFile);
-                    alert('File saved successfully!');
+                    showToast('File saved successfully!');
                 } else {
-                    alert('Failed to save file');
+                    await showMessageModal('Save Failed', 'Failed to save file.');
                 }
             } catch (error) {
                 console.error('Error saving file:', error);
-                alert('Failed to save file: ' + error);
+                await showMessageModal('Save Failed', 'Failed to save file: ' + error);
             }
         }
 
         window.saveAsFile = async function saveAsFile() {
-            const filename = prompt('Enter filename:', currentFile ? currentFile.split('/').pop() : 'untitled.txt');
+            const defaultFilename = currentFile ? currentFile.split('/').pop() : 'untitled.txt';
+            const filename = await showPromptModal('Save As', 'Enter filename:', defaultFilename);
             if (!filename) return;
 
             const savePath = currentPath + '/' + filename;
@@ -454,21 +785,25 @@
                     document.getElementById('fileInfo').textContent = filename;
                     document.getElementById('saveBtn').disabled = false;
                     console.log('File saved as:', currentFile);
-                    alert('File saved successfully!');
+                    showToast('File saved successfully!');
                     loadDirectory(currentPath); // Refresh file list
                 } else {
-                    alert('Failed to save file');
+                    await showMessageModal('Save Failed', 'Failed to save file.');
                 }
             } catch (error) {
                 console.error('Error saving file:', error);
-                alert('Failed to save file: ' + error);
+                await showMessageModal('Save Failed', 'Failed to save file: ' + error);
             }
         }
 
-        window.newFile = function newFile() {
+        window.newFile = async function newFile() {
             // Warn if current file is modified
             if (isModified && currentFile) {
-                if (!confirm('Current file has unsaved changes. Continue?')) {
+                const confirmed = await showConfirmModal(
+                    'Unsaved Changes',
+                    'Current file has unsaved changes. Continue?'
+                );
+                if (!confirmed) {
                     return;
                 }
             }
@@ -537,10 +872,6 @@
             }
         });
 
-        // Initial load
-        setTimeout(() => {
-            loadDirectory(currentPath);
-        }, 100);
     })(); // Close main IIFE
 
     // Load fonts from API
