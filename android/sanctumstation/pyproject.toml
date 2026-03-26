@@ -10,8 +10,8 @@ author_email = "michaelcreel815@gmail.com"
 
 [tool.briefcase.app.sanctumstation]
 formal_name = "Sanctum Station"
-description = "A productivity app designed to connect your computer and mobile workflows."
-long_description = """More details about the app should go here.
+description = "A productivity app designed to connect your desktop and mobile workflows."
+long_description = """Sanctum Station is a productivity app designed to seamlessly connect your desktop and mobile workflows. Seamless connection and file syncing keep your files up-to-date across device to make multi-device file editing simple.
 """
 sources = [
     "src/sanctumstation",
