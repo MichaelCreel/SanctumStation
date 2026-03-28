@@ -91,3 +91,24 @@ def list_boards():
     except Exception as e:
         print(f"Error listing boards: {e}")
         return {"success": False, "error": str(e)}
+
+def delete_board(name):
+    try:
+        file_api = get_file_api()
+        if not file_api:
+            return {"success": False, "error": "File API not available"}
+
+        file_path = f"whiteboard/{name}.json"
+
+        if not file_api.exists(file_path):
+            return {"success": False, "error": "Board not found"}
+
+        success = file_api.delete_file(file_path)
+        if success:
+            return {"success": True}
+
+        return {"success": False, "error": "Failed to delete board"}
+
+    except Exception as e:
+        print(f"Error deleting board: {e}")
+        return {"success": False, "error": str(e)}

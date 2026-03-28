@@ -5,6 +5,33 @@ This file handles interactive elements and transfer to the python backend for th
 
 console.log('[Main.js] Script loading...');
 
+function buildFontSource(fontPath) {
+    const rawPath = String(fontPath || '').trim();
+    if (!rawPath) {
+        return '';
+    }
+
+    let normalizedPath = rawPath;
+    if (normalizedPath.startsWith('src:')) {
+        normalizedPath = normalizedPath.slice(4);
+    }
+
+    if (/^(https?:|file:|data:)/i.test(normalizedPath)) {
+        return `url("${normalizedPath}")`;
+    }
+
+    if (/^[a-zA-Z]:[\\/]/.test(normalizedPath)) {
+        const windowsPath = normalizedPath.replace(/\\/g, '/');
+        return `url("file:///${encodeURI(windowsPath)}")`;
+    }
+
+    if (normalizedPath.startsWith('/')) {
+        return `url("file://${encodeURI(normalizedPath)}")`;
+    }
+
+    return `url("${normalizedPath}")`;
+}
+
 // Clock functionality
 class DesktopClock {
     constructor() {
@@ -222,7 +249,11 @@ class DesktopInteractions {
                 // Load all font weights
                 for (const [key, filename] of Object.entries(fonts)) {
                     const weight = weightMap[key];
-                    const fontFace = new FontFace(fontName, `url(${filename})`, {
+                    if (!weight) {
+                        continue;
+                    }
+
+                    const fontFace = new FontFace(fontName, buildFontSource(filename), {
                         weight: weight,
                         style: 'normal'
                     });
@@ -442,7 +473,7 @@ class DesktopInteractions {
                 console.log(`Launching app: ${app.name}`);
                 try {
                     if (window.pywebview && window.pywebview.api) {
-                        await window.pywebview.api.launch_app(app.name);
+                        await window.pywebview.api.launch_app(app.id || app.name);
                         this.closeAppLauncher();
                     }
                 } catch (error) {
@@ -738,15 +769,216 @@ setInterval(async () => {
     }
 }, 5000); // Check every 5 seconds (reduced from 2s)
 
+const FILE_PICKER_TIMEOUT_MS = 120000;
+const DEFAULT_FILE_PROCESSOR_SUPPORT = {
+    wallpaper: {
+        extensions: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico', '.tif', '.tiff', '.avif'],
+        description: 'Any image file detected as image/*'
+    },
+    font: {
+        extensions: ['.ttf'],
+        description: 'TrueType font files'
+    }
+};
+
+let cachedFileProcessorSupport = { ...DEFAULT_FILE_PROCESSOR_SUPPORT };
+let activePickerRequest = null;
+let cachedSettingsFonts = {};
+
+function formatSupportText(extensions) {
+    const extensionText = Array.isArray(extensions) && extensions.length
+        ? extensions.join(', ')
+        : 'any';
+    return `Supported: ${extensionText}`;
+}
+
+function normalizePickerExtension(ext) {
+    const normalized = String(ext || '').trim().toLowerCase();
+    if (!normalized) {
+        return '';
+    }
+    return normalized.startsWith('.') ? normalized : `.${normalized}`;
+}
+
+function getSupportExtensions(kind) {
+    const support = cachedFileProcessorSupport && cachedFileProcessorSupport[kind];
+    const extensions = Array.isArray(support?.extensions) ? support.extensions : [];
+    const normalized = extensions.map(normalizePickerExtension).filter(Boolean);
+    return [...new Set(normalized)];
+}
+
+function updateSupportLabels() {
+    const wallpaperInfo = document.getElementById('wallpaperSupportInfo');
+    const fontInfo = document.getElementById('fontSupportInfo');
+
+    if (wallpaperInfo) {
+        wallpaperInfo.textContent = formatSupportText(getSupportExtensions('wallpaper'));
+    }
+
+    if (fontInfo) {
+        fontInfo.textContent = formatSupportText(getSupportExtensions('font'));
+    }
+}
+
+function setSettingsOverlayPickerState(isPickerActive) {
+    const overlay = document.getElementById('settingsOverlay');
+    if (!overlay) {
+        return;
+    }
+
+    overlay.classList.toggle('picker-passive', !!isPickerActive);
+}
+
+function cleanupPickerRequest(request) {
+    if (!request || request.cleanedUp) {
+        return;
+    }
+
+    request.cleanedUp = true;
+    clearTimeout(request.timeoutHandle);
+    clearInterval(request.monitorHandle);
+    setSettingsOverlayPickerState(false);
+}
+
+async function loadFileProcessorSupport() {
+    try {
+        if (window.pywebview?.api && typeof window.pywebview.api.get_file_processor_support === 'function') {
+            const support = await window.pywebview.api.get_file_processor_support();
+            if (support && typeof support === 'object') {
+                cachedFileProcessorSupport = {
+                    ...DEFAULT_FILE_PROCESSOR_SUPPORT,
+                    ...support
+                };
+            }
+        }
+    } catch (error) {
+        console.warn('Falling back to default file processor support:', error);
+    }
+
+    updateSupportLabels();
+}
+
+async function openFileBrowserPicker(options = {}) {
+    const requestId = `picker-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const pickerPayload = {
+        mode: 'picker',
+        requestId,
+        title: options.title || 'Select a file',
+        allowFiles: options.allowFiles !== false,
+        allowFolders: options.allowFolders === true,
+        extensions: Array.isArray(options.extensions) ? options.extensions.map(normalizePickerExtension).filter(Boolean) : []
+    };
+
+    if (activePickerRequest) {
+        throw new Error('A file picker request is already active.');
+    }
+
+    setSettingsOverlayPickerState(true);
+
+    return new Promise(async (resolve, reject) => {
+        const timeoutHandle = setTimeout(() => {
+            if (activePickerRequest && activePickerRequest.requestId === requestId) {
+                const request = activePickerRequest;
+                activePickerRequest = null;
+                cleanupPickerRequest(request);
+            }
+            reject(new Error('File picker request timed out.'));
+        }, FILE_PICKER_TIMEOUT_MS);
+
+        const monitorHandle = setInterval(async () => {
+            if (!activePickerRequest || activePickerRequest.requestId !== requestId) {
+                clearInterval(monitorHandle);
+                return;
+            }
+
+            try {
+                if (typeof window.pywebview?.api?.get_running_apps !== 'function') {
+                    return;
+                }
+
+                const runningApps = await window.pywebview.api.get_running_apps();
+                if (Array.isArray(runningApps) && !runningApps.includes('File-Browser')) {
+                    const request = activePickerRequest;
+                    activePickerRequest = null;
+                    cleanupPickerRequest(request);
+                    resolve({
+                        mode: 'picker',
+                        requestId,
+                        cancelled: true
+                    });
+                }
+            } catch (error) {
+                // Ignore transient API errors while polling picker status.
+            }
+        }, 1000);
+
+        activePickerRequest = {
+            requestId,
+            resolve,
+            reject,
+            timeoutHandle,
+            monitorHandle,
+            cleanedUp: false
+        };
+
+        try {
+            await window.pywebview.api.launch_app('File-Browser', pickerPayload);
+        } catch (error) {
+            const request = activePickerRequest;
+            activePickerRequest = null;
+            cleanupPickerRequest(request);
+            reject(error);
+        }
+    });
+}
+
+window.__SANCTUM_FILE_PICKER_RESOLVE = function pickerResolve(payload) {
+    if (!activePickerRequest) {
+        return;
+    }
+
+    const request = activePickerRequest;
+    const payloadRequestId = payload && payload.requestId;
+    if (payloadRequestId && payloadRequestId !== request.requestId) {
+        return;
+    }
+
+    activePickerRequest = null;
+    cleanupPickerRequest(request);
+    request.resolve(payload || null);
+};
+
+function updateFontPathPreview() {
+    const weightSelect = document.getElementById('fontWeightSelect');
+    const fontPathInput = document.getElementById('fontPathInput');
+    if (!weightSelect || !fontPathInput) {
+        return;
+    }
+
+    const weightKey = `${weightSelect.value}_font`;
+    fontPathInput.value = cachedSettingsFonts[weightKey] || '';
+}
+
 async function toggleSettings() {
     const overlay = document.getElementById('settingsOverlay');
     if (overlay.style.display === 'none' || overlay.style.display === '') {
         // Load current settings
         const settings = await window.pywebview.api.get_settings();
+        await loadFileProcessorSupport();
+
         document.getElementById('wallpaperInput').value = settings.wallpaper || '';
         document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
         document.getElementById('fullscreenToggle').checked = settings.fullscreen === true;
         document.getElementById('updatesSelect').value = settings.updates || 'release';
+
+        cachedSettingsFonts = settings.fonts || {};
+        const fontWeightSelect = document.getElementById('fontWeightSelect');
+        if (fontWeightSelect) {
+            if (!fontWeightSelect.value) {
+                fontWeightSelect.value = 'regular';
+            }
+            updateFontPathPreview();
+        }
 
         // Load UI scale slider
         const scale = window._currentUiScale || settings.ui_scale || 1.0;
@@ -771,15 +1003,38 @@ async function toggleSettings() {
     }
 }
 
+async function chooseWallpaperFromPicker() {
+    try {
+        const result = await openFileBrowserPicker({
+            title: 'Select Wallpaper',
+            extensions: getSupportExtensions('wallpaper')
+        });
+
+        if (!result || result.cancelled || !result.selectedPath) {
+            return;
+        }
+
+        const wallpaperPathInput = document.getElementById('wallpaperInput');
+        if (wallpaperPathInput) {
+            wallpaperPathInput.value = result.selectedPath;
+        }
+
+        await saveWallpaper();
+    } catch (error) {
+        console.error('Error opening wallpaper picker:', error);
+        alert('Unable to open wallpaper picker right now.');
+    }
+}
+
 async function saveWallpaper() {
     const wallpaperPath = document.getElementById('wallpaperInput').value.trim();
     try {
         const result = await window.pywebview.api.set_wallpaper(wallpaperPath || 'None');
         if (result) {
             await loadWallpaper();
-            alert('Wallpaper updated!');
         } else {
-            alert('Failed to update wallpaper.');
+            const supported = getSupportExtensions('wallpaper').join(', ');
+            alert(`Failed to update wallpaper. Supported extensions: ${supported}`);
         }
     } catch (error) {
         console.error('Error setting wallpaper:', error);
@@ -814,6 +1069,67 @@ async function setDefaultWallpaper(path) {
     } catch (error) {
         console.error('Error setting wallpaper:', error);
         alert('Error setting wallpaper.');
+    }
+}
+
+async function chooseFontFromPicker() {
+    const weightSelect = document.getElementById('fontWeightSelect');
+    if (!weightSelect) {
+        return;
+    }
+
+    try {
+        const result = await openFileBrowserPicker({
+            title: 'Select Font File',
+            extensions: getSupportExtensions('font')
+        });
+
+        if (!result || result.cancelled || !result.selectedPath) {
+            return;
+        }
+
+        const fontPathInput = document.getElementById('fontPathInput');
+        if (fontPathInput) {
+            fontPathInput.value = result.selectedPath;
+        }
+
+        await saveSelectedFont();
+    } catch (error) {
+        console.error('Error opening font picker:', error);
+        alert('Unable to open font picker right now.');
+    }
+}
+
+async function saveSelectedFont() {
+    const weightSelect = document.getElementById('fontWeightSelect');
+    const fontPathInput = document.getElementById('fontPathInput');
+    if (!weightSelect || !fontPathInput) {
+        return;
+    }
+
+    const weight = weightSelect.value;
+    const fontPath = fontPathInput.value.trim();
+    if (!fontPath) {
+        alert('Choose a font file first.');
+        return;
+    }
+
+    try {
+        const result = await window.pywebview.api.set_font(weight, fontPath);
+        if (!result) {
+            const supported = getSupportExtensions('font').join(', ');
+            alert(`Failed to update font. Supported extensions: ${supported}`);
+            return;
+        }
+
+        cachedSettingsFonts[`${weight}_font`] = fontPath;
+
+        if (window.SanctumStation?.interactions?.loadFont) {
+            await window.SanctumStation.interactions.loadFont();
+        }
+    } catch (error) {
+        console.error('Error setting font:', error);
+        alert('Error setting font.');
     }
 }
 
@@ -1209,6 +1525,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Wait for pywebview API to be ready before loading wallpaper
     waitForPywebview(() => {
         console.log('waitForPywebview: callback fired, loading resources...');
+        loadFileProcessorSupport();
         loadWallpaper();
         loadDayGradient();
         loadLogo();

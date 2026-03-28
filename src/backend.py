@@ -11,6 +11,7 @@ import sys
 import time
 import inspect
 import concurrent.futures
+import mimetypes
 from fuzzywuzzy import process as fuzzy_process
 
 # Determine platform early (before importing yaml)
@@ -73,6 +74,34 @@ webview_window = None # Reference to the main webview window
 main_event_loop = None # Reference to the main event loop (for mobile async calls)
 fullscreen = False # Whether the app is in fullscreen mode or not
 ui_scale = 1.0 # UI scale multiplier (1.0 = 16px base font, 100%)
+extension_support = {} # Cache for which apps support which file extensions.
+
+SUPPORTED_WALLPAPER_EXTENSIONS = sorted([
+    ".avif", ".bmp", ".gif", ".ico", ".jpeg", ".jpg", ".png", ".svg", ".tif", ".tiff", ".webp"
+])
+SUPPORTED_FONT_EXTENSIONS = [".ttf"]
+SUPPORTED_FONT_KEYS = {
+    "black_font", "extra_bold_font", "bold_font", "semi_bold_font",
+    "medium_font", "regular_font", "light_font", "extra_light_font", "thin_font"
+}
+
+
+def _resolve_configured_path(path_value):
+    if path_value is None:
+        return None
+
+    raw_path = str(path_value).strip()
+    if not raw_path:
+        return None
+
+    if raw_path.startswith("src:"):
+        return os.path.normpath(os.path.join(BASE_DIR, raw_path[4:]))
+
+    expanded_path = os.path.expanduser(raw_path)
+    if os.path.isabs(expanded_path):
+        return os.path.normpath(expanded_path)
+
+    return os.path.normpath(os.path.join(BASE_DIR, expanded_path))
 
 if IS_MOBILE:
     import toga
@@ -157,14 +186,16 @@ def init_settings():
 # Initializes apps from apps/ directory
 # Returns True on success, False on failure
 def init_apps():
-    global apps
+    global apps, app_names, extension_support
     apps = []
+    app_names = []
+    extension_support = {}
     try:
         import os
         # Use APPS_DIR which points to writable location on mobile
         app_dir = APPS_DIR
         print(f"IA: Scanning apps directory: {app_dir}")
-        dir_contents = os.listdir(app_dir)
+        dir_contents = sorted(os.listdir(app_dir))
         print(f"IA: Found {len(dir_contents)} items: {dir_contents}")
         for app in dir_contents:
             if os.path.isdir(os.path.join(app_dir, app)):
@@ -172,8 +203,47 @@ def init_apps():
                 icon_path = os.path.join(app_path, "icon.png")
                 html_path = os.path.join(app_path, "app.html")
                 py_path = os.path.join(app_path, "app.py")
+                config_path = os.path.join(app_path, "app_config.json")
                 
                 if os.path.exists(html_path) and os.path.exists(py_path):
+                    app_name = app
+                    extensions = []
+                    mime_types = []
+
+                    if os.path.exists(config_path):
+                        try:
+                            with open(config_path, "r", encoding="utf-8") as config_file:
+                                app_config = json.load(config_file) or {}
+
+                            if isinstance(app_config, dict):
+                                config_name = app_config.get("name")
+                                if isinstance(config_name, str) and config_name.strip():
+                                    app_name = config_name.strip()
+
+                                config_extensions = app_config.get("extensions", [])
+                                if isinstance(config_extensions, list):
+                                    extensions = sorted({
+                                        ext.strip().lower()
+                                        for ext in config_extensions
+                                        if isinstance(ext, str) and ext.strip()
+                                    })
+
+                                    for ext in extensions:
+                                        if ext not in extension_support:
+                                            extension_support[ext] = []
+                                        if app not in extension_support[ext]:
+                                            extension_support[ext].append(app)
+
+                                config_mime_types = app_config.get("mime_types", [])
+                                if isinstance(config_mime_types, list):
+                                    mime_types = sorted({
+                                        mime.strip().lower()
+                                        for mime in config_mime_types
+                                        if isinstance(mime, str) and mime.strip()
+                                    })
+                        except Exception as config_error:
+                            print(f"IA: Warning - failed to parse app_config.json for '{app}': {config_error}")
+
                     # Use simple relative path from src/ directory
                     icon_url = None
                     if os.path.exists(icon_path):
@@ -181,14 +251,17 @@ def init_apps():
                         print(f"IA: Icon URL for {app}: {icon_url}")
                     
                     apps.append({
-                        "name": app,
+                        "id": app,
+                        "name": app_name,
                         "icon": icon_url,
+                        "extensions": extensions,
+                        "mime_types": mime_types,
                         "htmlpath": html_path,
                         "pypath": py_path,
                         "app_dir": os.path.abspath(app_path)  # Use absolute path for backend
                     })
-                    app_names.append(app)
-                    print(f"IA: Added app '{app}' with icon: {icon_url}")
+                    app_names.append(app_name)
+                    print(f"IA: Added app '{app_name}' (id='{app}') with icon: {icon_url}")
                 else:
                     print(f"IA: App '{app}' missing required files:")
                     print(f"  App path: {app_path}")
@@ -196,6 +269,7 @@ def init_apps():
                     print(f"  app.py exists: {os.path.exists(py_path)} - {py_path}")
         
         print(f"IA: Found {len(apps)} valid apps")
+        print(f"IA: Found {len(extension_support)} supported extensions: {list(extension_support.keys())}")
         return True
     except FileNotFoundError:
         print("IA-E1: Apps directory not found. No apps will be loaded.")
@@ -212,32 +286,51 @@ def init_apps():
 # Returns True on success, False on failure
 # This injects the app into the webview and starts the backend thread
 # This includes the code for the close button and app container
-def launch_app(app_name):
+def launch_app(app_name, file_path=None):
     global active_apps, webview_window
 
     app_info = None
     for app in apps:
-        if app["name"] == app_name:
+        if app.get("id") == app_name or app["name"] == app_name:
             app_info = app
             break
     
     if not app_info:
         print(f"LA: App '{app_name}' not found")
         return False
+
+    app_id = app_info.get("id", app_name)
+    app_display_name = app_info.get("name", app_id)
     
     try:
         with open(app_info["htmlpath"], "r", encoding="utf-8") as f:
             app_html = f.read()
         
-        app_container_id = f"app-{app_name}-{id(app_info)}"
+        app_container_id = f"app-{app_id}-{id(app_info)}"
         
         # Use JSON to safely pass the HTML content
         import json
         app_html_escaped = json.dumps(app_html)
+        launch_context_escaped = json.dumps({
+            "appId": app_id,
+            "appName": app_display_name,
+            "filePath": file_path
+        })
         
         inject_script = f"""
         (function() {{
             const appHtml = {app_html_escaped};
+            const launchContext = {launch_context_escaped};
+
+            window.__SANCTUM_LAUNCH_CONTEXT = launchContext;
+            window.__SANCTUM_LAUNCH_CONTEXT_BY_APP = window.__SANCTUM_LAUNCH_CONTEXT_BY_APP || {{}};
+            window.__SANCTUM_LAUNCH_CONTEXT_BY_APP[launchContext.appId] = launchContext;
+            window.getSanctumLaunchContext = function(appId) {{
+                if (!appId) {{
+                    return window.__SANCTUM_LAUNCH_CONTEXT || null;
+                }}
+                return (window.__SANCTUM_LAUNCH_CONTEXT_BY_APP || {{}})[appId] || null;
+            }};
             
             // Create app container
         const appContainer = document.createElement('div');
@@ -250,9 +343,14 @@ def launch_app(app_name):
             width: 100%;
             height: 100%;
             background: #1e1e2e;
-            z-index: 1000;
+            z-index: 1150;
             overflow: auto;
         `;
+
+        appContainer.dataset.appId = launchContext.appId;
+        if (launchContext.filePath) {{
+            appContainer.dataset.filePath = launchContext.filePath;
+        }}
         
         // Add close button
         const closeBtn = document.createElement('button');
@@ -267,7 +365,7 @@ def launch_app(app_name):
             color: white;
             font-size: 24px;
             cursor: pointer;
-            z-index: 1001;
+            z-index: 1151;
             width: 40px;
             height: 40px;
             display: flex;
@@ -284,7 +382,7 @@ def launch_app(app_name):
         closeBtn.onclick = function() {{
             document.body.removeChild(appContainer);
             // Signal Python backend to stop the app
-            window.pywebview.api.stop_app('{app_name}');
+            window.pywebview.api.stop_app('{app_id}');
         }};
         
         // Parse and inject app HTML content
@@ -316,7 +414,7 @@ def launch_app(app_name):
         }});
         
         // Signal that app UI is loaded
-        console.log('App {app_name} UI loaded');
+        console.log('App {app_display_name} UI loaded');
         }})();
         """
         
@@ -340,7 +438,7 @@ def launch_app(app_name):
         
         # Always load the app module (even if it doesn't have main/run)
         # This allows call_app_function to work for apps that only provide API functions
-        if app_name not in active_apps:
+        if app_id not in active_apps:
             # Load the app module first
             try:
                 app_dir = app_info["app_dir"]
@@ -348,9 +446,9 @@ def launch_app(app_name):
                 py_file = os.path.join(app_dir, "app.py") if not os.path.isabs(py_path) else py_path
                 
                 if os.path.exists(py_file):
-                    spec = importlib.util.spec_from_file_location(f"app_{app_name}", py_file)
+                    spec = importlib.util.spec_from_file_location(f"app_{app_id}", py_file)
                     app_module = importlib.util.module_from_spec(spec)
-                    sys.modules[f"app_{app_name}"] = app_module
+                    sys.modules[f"app_{app_id}"] = app_module
                     spec.loader.exec_module(app_module)
                     
                     # Only start a backend thread if the app has main() or run()
@@ -358,18 +456,18 @@ def launch_app(app_name):
                         stop_event = threading.Event()
                         app_thread = threading.Thread(
                             target=run_app_backend_thread, 
-                            args=(app_name, app_module, stop_event),
+                            args=(app_id, app_module, stop_event, file_path),
                             daemon=True
                         )
                         app_thread.start()
-                        active_apps[app_name] = {
+                        active_apps[app_id] = {
                             "thread": app_thread,
                             "container_id": app_container_id,
                             "stop_event": stop_event
                         }
                     else:
                         # App has no background thread, just track the container
-                        active_apps[app_name] = {
+                        active_apps[app_id] = {
                             "thread": None,
                             "container_id": app_container_id,
                             "stop_event": None
@@ -378,7 +476,7 @@ def launch_app(app_name):
                 print(f"LA: Error loading app module: {e}")
                 # Continue anyway, app might still work without backend
         
-        print(f"LA: Successfully launched app '{app_name}'")
+        print(f"LA: Successfully launched app '{app_display_name}' (id='{app_id}')")
         
         # Only return the injection script if direct injection failed
         if inject_via_return:
@@ -401,7 +499,7 @@ def launch_app(app_name):
 
 # Runs the backend script of the app in its own thread
 # Passes a stop_event to signal when to stop
-def run_app_backend(app_name, py_path, app_dir, stop_event):
+def run_app_backend(app_name, py_path, app_dir, stop_event, file_path=None):
     try:
         original_cwd = os.getcwd()
         # app_dir is already absolute, so use it directly
@@ -413,21 +511,10 @@ def run_app_backend(app_name, py_path, app_dir, stop_event):
         sys.modules[f"app_{app_name}"] = app_module
         spec.loader.exec_module(app_module)
         
-        # Pass stop_event to app's main/run function if it accepts it
         if hasattr(app_module, 'main'):
-            import inspect
-            sig = inspect.signature(app_module.main)
-            if len(sig.parameters) > 0:
-                app_module.main(stop_event)
-            else:
-                app_module.main()
+            _invoke_app_entrypoint(app_module.main, stop_event=stop_event, file_path=file_path)
         elif hasattr(app_module, 'run'):
-            import inspect
-            sig = inspect.signature(app_module.run)
-            if len(sig.parameters) > 0:
-                app_module.run(stop_event)
-            else:
-                app_module.run()
+            _invoke_app_entrypoint(app_module.run, stop_event=stop_event, file_path=file_path)
         
         print(f"RAB: App '{app_name}' backend finished")
         
@@ -440,24 +527,40 @@ def run_app_backend(app_name, py_path, app_dir, stop_event):
         if app_name in active_apps:
             del active_apps[app_name]
 
+def _invoke_app_entrypoint(entrypoint, stop_event=None, file_path=None):
+    sig = inspect.signature(entrypoint)
+    kwargs = {}
+
+    if "stop_event" in sig.parameters:
+        kwargs["stop_event"] = stop_event
+    if file_path is not None and "file_path" in sig.parameters:
+        kwargs["file_path"] = file_path
+
+    if kwargs:
+        return entrypoint(**kwargs)
+
+    params = list(sig.parameters.values())
+    args = []
+
+    if params:
+        first_name = params[0].name.lower()
+        if file_path is not None and first_name in {"file_path", "filepath", "path", "file"}:
+            args.append(file_path)
+        elif stop_event is not None:
+            args.append(stop_event)
+
+    if len(params) > 1 and file_path is not None:
+        args.append(file_path)
+
+    return entrypoint(*args)
+
 # Runs the main/run function of an already-loaded app module in a thread
-def run_app_backend_thread(app_name, app_module, stop_event):
+def run_app_backend_thread(app_name, app_module, stop_event, file_path=None):
     try:
-        # Pass stop_event to app's main/run function if it accepts it
         if hasattr(app_module, 'main'):
-            import inspect
-            sig = inspect.signature(app_module.main)
-            if len(sig.parameters) > 0:
-                app_module.main(stop_event)
-            else:
-                app_module.main()
+            _invoke_app_entrypoint(app_module.main, stop_event=stop_event, file_path=file_path)
         elif hasattr(app_module, 'run'):
-            import inspect
-            sig = inspect.signature(app_module.run)
-            if len(sig.parameters) > 0:
-                app_module.run(stop_event)
-            else:
-                app_module.run()
+            _invoke_app_entrypoint(app_module.run, stop_event=stop_event, file_path=file_path)
         
         print(f"RAB: App '{app_name}' backend finished")
         
@@ -495,8 +598,8 @@ def init_webview():
         error_manager = ErrorManagerAPI()
         
         class API:
-            def launch_app(self, app_name):
-                return launch_app(app_name)
+            def launch_app(self, app_name, file_path=None):
+                return launch_app(app_name, file_path)
             
             def stop_app(self, app_name):
                 return stop_app(app_name)
@@ -590,6 +693,9 @@ def init_webview():
             def get_fullscreen(self):
                 global fullscreen
                 return fullscreen
+
+            def get_file_processor_support(self):
+                return settings_manager.get_file_processor_support()
             
             # Settings Management - Delegate to SettingsManagerAPI
             def get_settings(self):
@@ -1051,23 +1157,32 @@ class SettingsManagerAPI:
             "is_mobile": IS_MOBILE,
             "ui_scale": ui_scale
         }
+
+    # Returns extension support used by settings and file picker filters
+    def get_file_processor_support(self):
+        return {
+            "wallpaper": {
+                "extensions": SUPPORTED_WALLPAPER_EXTENSIONS,
+                "description": "Any file recognized as image/* by mime type detection"
+            },
+            "font": {
+                "extensions": SUPPORTED_FONT_EXTENSIONS,
+                "description": "TrueType font files"
+            }
+        }
     
     # Gets wallpaper as base64 data URL
     def get_wallpaper_data(self):
         global wallpaper
         import base64
-        import mimetypes
         
         if not wallpaper or wallpaper.lower() == 'none':
             return None
         
         try:
-            # Resolve path - handle src: prefix for files in src directory
-            wallpaper_path = wallpaper
-            if wallpaper_path.startswith('src:'):
-                # Replace src: with actual src directory path
-                src_dir = os.path.dirname(__file__)
-                wallpaper_path = os.path.join(src_dir, wallpaper_path[4:])
+            wallpaper_path = _resolve_configured_path(wallpaper)
+            if not wallpaper_path:
+                return None
             
             # Get the mime type
             mime_type, _ = mimetypes.guess_type(wallpaper_path)
@@ -1092,13 +1207,31 @@ class SettingsManagerAPI:
     # Sets wallpaper path
     def set_wallpaper(self, wallpaper_path):
         global wallpaper
-        wallpaper = wallpaper_path
+        normalized_value = str(wallpaper_path or "").strip()
+
+        if not normalized_value or normalized_value.lower() == 'none':
+            normalized_value = 'None'
+        else:
+            resolved_path = _resolve_configured_path(normalized_value)
+            if not resolved_path or not os.path.isfile(resolved_path):
+                print(f"SMA-E2: Wallpaper path does not exist: {normalized_value}")
+                return False
+
+            mime_type, _ = mimetypes.guess_type(resolved_path)
+            extension = os.path.splitext(resolved_path)[1].lower()
+            is_image_mime = bool(mime_type and mime_type.startswith('image/'))
+
+            if not is_image_mime and extension not in SUPPORTED_WALLPAPER_EXTENSIONS:
+                print(f"SMA-E2: Unsupported wallpaper format: {extension or 'unknown'}")
+                return False
+
+        wallpaper = normalized_value
         # Write to settings.yaml
         try:
             settings_path = os.path.join(DATA_DIR, "settings.yaml")
             with open(settings_path, "r") as file:
                 settings = yaml.load(file, Loader=yaml_loader) or {}
-            settings["wallpaper"] = wallpaper_path
+            settings["wallpaper"] = normalized_value
             with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:
@@ -1154,13 +1287,40 @@ class SettingsManagerAPI:
     # Sets font path for a given weight
     def set_font(self, weight, font_path):
         global fonts
-        fonts[weight] = font_path
+
+        weight_key = str(weight or "").strip().lower()
+        if not weight_key:
+            print("SMA-E5: Missing font weight")
+            return False
+        if not weight_key.endswith("_font"):
+            weight_key = f"{weight_key}_font"
+
+        if weight_key not in SUPPORTED_FONT_KEYS:
+            print(f"SMA-E5: Unsupported font weight key: {weight_key}")
+            return False
+
+        normalized_path = str(font_path or "").strip()
+        if not normalized_path:
+            print("SMA-E5: Missing font path")
+            return False
+
+        resolved_path = _resolve_configured_path(normalized_path)
+        if not resolved_path or not os.path.isfile(resolved_path):
+            print(f"SMA-E5: Font path does not exist: {normalized_path}")
+            return False
+
+        extension = os.path.splitext(resolved_path)[1].lower()
+        if extension not in SUPPORTED_FONT_EXTENSIONS:
+            print(f"SMA-E5: Unsupported font extension: {extension or 'unknown'}")
+            return False
+
+        fonts[weight_key] = normalized_path
         # Write to settings.yaml
         try:
             settings_path = os.path.join(DATA_DIR, "settings.yaml")
             with open(settings_path, "r") as file:
                 settings = yaml.load(file, Loader=yaml_loader) or {}
-            settings[f"{weight}_font"] = font_path
+            settings[weight_key] = normalized_path
             with open(settings_path, "w") as file:
                 yaml.safe_dump(settings, file)
         except Exception as e:

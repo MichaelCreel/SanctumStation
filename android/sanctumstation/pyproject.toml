@@ -10,8 +10,8 @@ author_email = "michaelcreel815@gmail.com"
 
 [tool.briefcase.app.sanctumstation]
 formal_name = "Sanctum Station"
-description = "A productivity app designed to connect your computer and mobile workflows."
-long_description = """More details about the app should go here.
+description = "A productivity app designed to connect your desktop and mobile workflows."
+long_description = """Sanctum Station is a productivity app designed to seamlessly connect your desktop and mobile workflows. Seamless connection and file syncing keep your files up-to-date across device to make multi-device file editing simple.
 """
 sources = [
     "src/sanctumstation",
@@ -195,7 +195,7 @@ keystore_alias = "sanctumstation"
 keystore_password = "PLACEHOLDER_WILL_BE_REPLACED_BY_PACKAGE_SH"
 key_password = "PLACEHOLDER_WILL_BE_REPLACED_BY_PACKAGE_SH"
 
-base_theme = "Theme.MaterialComponents.Light.NoActionBar"
+base_theme = "Theme.MaterialComponents.NoActionBar"
 
 build_gradle_dependencies = [
     "com.google.android.material:material:1.13.0",

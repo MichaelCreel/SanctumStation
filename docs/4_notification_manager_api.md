@@ -1,38 +1,82 @@
 ## 4
 # Notification Manager API
 
-The Notification Manager API is the interface for accessing notification functions.
-This interface links to the notification menu on the homepage of the environment.
-The Notification Manager API is accessed through the public API.
+Notification API sends notifications from apps.
+It is exposed through `window.pywebview.api`.
 
-### Accessing the Notification Manager
-To access the notification manager and send notifications, only one method is necessary.
+## Frontend Usage
 
+```javascript
+await window.pywebview.api.send_notification('Hello from app');
+const result = await window.pywebview.api.get_notifications();
 ```
+
+## Backend Usage
+
+```python
+import backend
+
 def notify(message):
-    main_backend = sys.modules.get('__main__')
-    if main_backend and hasattr(main_backend, 'NotificationManagerAPI'):
-        notification_api = main_backend.NotificationManagerAPI()
-        return notification_api.send_notification(message)
-    return None
+    notification_api = backend.NotificationManagerAPI()
+    return notification_api.send_notification(message)
 ```
 
-### Exposed Functions
+## Methods and Return Contracts
 
-These are the functions that the Notification Mangager API exposes.
+### send_notification(message)
 
-**Send Notification**
+Creates a notification entry with:
 
-send_notification
+1. message
+2. timestamp
+3. source (inferred from calling module when possible)
 
-Sends a notification.
+Returns:
 
-*Input*
+```json
+{
+    "success": true,
+    "notification_id": "1730000000000",
+    "source": "AppIdOrUnknown"
+}
+```
 
-String
+### delete_notification(notification_id)
 
-*Output*
+Success:
 
-True Success
-Notification ID
-Source
+```json
+{"success": true}
+```
+
+Failure:
+
+```json
+{"success": false, "error": "Notification ID not found"}
+```
+
+### get_notifications()
+
+Returns:
+
+```json
+{
+    "success": true,
+    "notifications": [
+        {
+            "id": "1730000000000",
+            "message": "...",
+            "timestamp": 1730000000.0,
+            "source": "..."
+        }
+    ]
+}
+```
+
+### clear_all_notifications()
+
+Returns:
+
+```json
+{"success": true}
+```

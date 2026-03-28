@@ -1,215 +1,130 @@
 ## 3
 # File Manager API
 
-The File Manager API is the interface for accessing file functions.
-This interface makes file interactions simple for developers by dealing with directories, permissions, and devices.
-The File Manger API is accessed through the public API.
+The File Manager API handles file and directory operations for apps.
+It is exposed through `window.pywebview.api` and normalized for desktop/mobile path behavior.
 
-### Accessing the File Manager
-To access the file manager, I recommend that you create a method to use for all file functions.
+## Frontend Usage
 
+```javascript
+const items = await window.pywebview.api.list_directory(path);
+const content = await window.pywebview.api.read_file(path);
+const ok = await window.pywebview.api.write_file(path, content);
 ```
+
+## Backend Usage
+
+```python
+import backend
+
 def get_file_api():
-    main_backend = sys.modules.get('__main__')
-    if main_backend and hasattr(main_backend, 'FileManagerAPI')
-        return main_backend.FileManagerAPI()
-    return None
+    return backend.FileManagerAPI()
 ```
 
-Then the function can be accessed by using this method.
-Writing to a file is used as an example here.
+## Path Behavior
 
-```
-def write(text, path):
-    file_api = get_file_api()
-    if file_api():
-        file_api.write_file(file_path, text)
-```
+For most methods, non-absolute paths are resolved relative to `DATA_DIR`.
+Use `get_storage_path(sub_path="", is_data=True)` when you need the actual absolute root.
 
-### Exposed Functions
+## Methods and Return Contracts
 
-These are the functions that the File Manager API exposes.
+### list_directory(path)
 
-**List Directory**
+Returns an array of items:
 
-list_directory
-
-Lists the contents of a directory in an array.
-This array contains the name, full path, type (file or folder), size, and the last date of modification of every item accessible in the directory.
-
-*Input*
-
-Path
-
-*Output*
-
-Array of items
+```json
 [
-name:
-path:
-type:
-size:
-modified:
+    {
+        "name": "example.txt",
+        "path": "/absolute/path/example.txt",
+        "type": "file",
+        "size": 123,
+        "modified": 1730000000000
+    }
 ]
+```
 
-**Read File**
+On error: returns `[]`.
 
-read_file
+### read_file(path)
 
-Returns the contents of a file as a string.
+Returns file content as string.
+On error: returns empty string `""`.
 
-*Input*
+### write_file(path, content)
 
-Path
+Writes string content. Creates parent directories when needed.
+Returns `True` on success, `False` on failure.
 
-*Output*
+### delete_file(path)
 
-String
+Returns `True` on success, `False` on failure.
 
-**Write File**
+### delete_directory(path)
 
-write_file
+Uses recursive removal.
+Returns `True` on success, `False` on failure.
 
-Writes a string to a file.
+### create_directory(path)
 
-*Input*
+Creates directory recursively if needed.
+Returns `True` on success, `False` on failure.
 
-Path
-Content
-
-*Output*
-
-True/False Success
-
-**Delete File**
-
-delete_file
-
-Deletes a file.
-
-*Input*
-
-Path
-
-*Output*
-
-True/False Success
-
-**Delete Directory**
-
-delete_directory
-
-Deletes a directory/folder.
-
-*Input*
-
-Path
-
-*Output*
-
-True/False Success
-
-**Create Directory**
-
-create_directory
-
-Creates a directory/folder.
-
-*Input*
-
-Path
-
-*Output*
-
-True/False Success
-
-**Create File**
-
-create_file
+### create_file(path)
 
 Creates an empty file.
+Returns `True` on success, `False` on failure.
 
-*Input*
+### rename_item(old_path, new_name)
 
-Path
+Important: second parameter is `new_name`, not full new path.
 
-*Output*
+Returns:
 
-True/False Success
+```json
+{"success": true, "new_path": "/new/absolute/path"}
+```
 
-**Rename Item**
+On failure:
 
-rename_item
+```json
+{"success": false, "error": "..."}
+```
 
-Renames a file or directory/folder.
+### move_item(src, dest)
 
-*Input*
+Moves file/folder to destination.
+Returns `True` on success, `False` on failure.
 
-Old Path
-New Name
+### copy_item(src, dest)
 
-*Output*
+Copies file/folder to destination.
+Returns `True` on success, `False` on failure.
 
-True/False Success
-Error String
+### get_metadata(path)
 
-**Move Item**
+Returns:
 
-move_item
+```json
+{
+    "size": 123,
+    "modified": 1730000000.0,
+    "created": 1730000000.0,
+    "is_directory": false
+}
+```
 
-Moves a file or directory/folder to a new location
+On failure: returns `{}`.
 
-*Input*
+### exists(path)
 
-Source Path
-Destination Path
+Returns `True` / `False`.
 
-*Output*
+### get_storage_path(sub_path="", is_data=True)
 
-True/False Success
+Returns absolute base path:
 
-**Copy Item**
+1. `is_data=True`: data storage root
+2. `is_data=False`: apps storage root
 
-copy_item
-
-Duplicates a file or directory/folder in a new location.
-
-*Input*
-
-Source Path
-Duplicate Destination Path
-
-*Output*
-
-True/False Success
-
-**Get Metadata**
-
-get_metadata
-
-Returns the size, last modified date, creation date, and is directory boolean of a file or directory/folder.
-
-*Input*
-
-Path
-
-*Output*
-
-Size
-Last Modified
-Creation
-Is Directory
-
-**Exists**
-
-exists
-
-Checks if a file or directory/folder exists.
-
-*Input*
-
-Path
-
-*Output*
-
-True/False
+If `sub_path` is provided, it is appended to the selected root.
