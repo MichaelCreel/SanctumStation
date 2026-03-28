@@ -361,14 +361,92 @@
             border: none;
             color: #ef4444;
             cursor: pointer;
-            padding: 0.25rem 0.5rem;
+            padding: 0.5rem 1rem;
             border-radius: 4px;
             font-size: 0.9rem;
             transition: all 0.2s ease;
+            position: relative;
+            z-index: 10;
+            min-width: 60px;
         }
 
         .note-item-delete:hover {
             background: rgba(239, 68, 68, 0.2);
+        }
+
+        /* Confirmation Modal */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .confirm-modal.active {
+            display: flex;
+        }
+
+        .confirm-content {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .confirm-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .confirm-message {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .confirm-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .confirm-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .confirm-btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .confirm-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .confirm-btn-confirm {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        .confirm-btn-confirm:hover {
+            background: #dc2626;
         }
 
         .no-notes {
@@ -414,6 +492,82 @@
                 padding: 1.5rem;
             }
         }
+
+        /* Alert/Prompt Modal */
+        .message-modal,
+        .prompt-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .message-modal.active,
+        .prompt-modal.active {
+            display: flex;
+        }
+
+        .message-content,
+        .prompt-content {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .message-title,
+        .prompt-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .message-text,
+        .prompt-message {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .prompt-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            outline: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.85);
+            color: #ffffff;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 11000;
+        }
+
+        .toast.visible {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -447,13 +601,13 @@
             
             <div class="toolbar-group">
                 <button class="toolbar-btn" onclick="window.formatText('insertUnorderedList')" title="Bullet List">
-                    ☰
+                    • _
                 </button>
                 <button class="toolbar-btn" onclick="window.formatText('insertOrderedList')" title="Numbered List">
-                    ≡
+                    #.
                 </button>
                 <button class="toolbar-btn" onclick="window.insertLink()" title="Insert Link">
-                    🔗
+                    ->
                 </button>
                 <button class="toolbar-btn" onclick="window.insertCode()" title="Code Block">
                     &lt;/&gt;
@@ -496,7 +650,44 @@
             </div>
         </div>
     </div>
-    
+    <!-- Confirmation Modal -->
+    <div class="confirm-modal" id="confirmModal">
+        <div class="confirm-content">
+            <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+            <div class="confirm-message" id="confirmMessage">Are you sure?</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-cancel" id="confirmCancel">Cancel</button>
+                <button class="confirm-btn confirm-btn-confirm" id="confirmOk">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div class="message-modal" id="messageModal">
+        <div class="message-content">
+            <div class="message-title" id="messageTitle">Message</div>
+            <div class="message-text" id="messageText">Something happened.</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-confirm" id="messageOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Modal -->
+    <div class="prompt-modal" id="promptModal">
+        <div class="prompt-content">
+            <div class="prompt-title" id="promptTitle">Enter value</div>
+            <div class="prompt-message" id="promptMessage">Please enter a value below.</div>
+            <input class="prompt-input" id="promptInput" type="text" />
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-cancel" id="promptCancel">Cancel</button>
+                <button class="confirm-btn confirm-btn-confirm" id="promptOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>    
     <script>
         (function() {
             'use strict';
@@ -504,13 +695,98 @@
             let currentNote = 'Untitled Note';
             let autoSaveTimeout = null;
             let isSaving = false;
+            let confirmCallback = null;
             
             const editor = document.getElementById('editor');
             const titleInput = document.getElementById('noteTitle');
             const saveIndicator = document.getElementById('saveIndicator');
             
+            // Custom confirm modal functions
+            function showConfirmModal(title, message) {
+                return new Promise((resolve) => {
+                    document.getElementById('confirmTitle').textContent = title;
+                    document.getElementById('confirmMessage').textContent = message;
+                    document.getElementById('confirmModal').classList.add('active');
+                    confirmCallback = resolve;
+                });
+            }
+
+            function closeConfirmModal(confirmed) {
+                document.getElementById('confirmModal').classList.remove('active');
+                if (confirmCallback) {
+                    confirmCallback(confirmed);
+                    confirmCallback = null;
+                }
+            }
+
+            // Message / prompt modal helpers
+            function showMessageModal(title, message) {
+                return new Promise((resolve) => {
+                    document.getElementById('messageTitle').textContent = title;
+                    document.getElementById('messageText').textContent = message;
+                    const modal = document.getElementById('messageModal');
+                    modal.classList.add('active');
+
+                    const onOk = () => {
+                        modal.classList.remove('active');
+                        document.getElementById('messageOk').removeEventListener('click', onOk);
+                        resolve();
+                    };
+
+                    document.getElementById('messageOk').addEventListener('click', onOk);
+                });
+            }
+
+            function showPromptModal(title, message, defaultValue = '') {
+                return new Promise((resolve) => {
+                    document.getElementById('promptTitle').textContent = title;
+                    document.getElementById('promptMessage').textContent = message;
+                    const input = document.getElementById('promptInput');
+                    input.value = defaultValue;
+
+                    const modal = document.getElementById('promptModal');
+                    modal.classList.add('active');
+
+                    const cleanup = () => {
+                        modal.classList.remove('active');
+                        document.getElementById('promptOk').removeEventListener('click', onOk);
+                        document.getElementById('promptCancel').removeEventListener('click', onCancel);
+                    };
+
+                    const onOk = () => {
+                        cleanup();
+                        resolve(input.value);
+                    };
+
+                    const onCancel = () => {
+                        cleanup();
+                        resolve(null);
+                    };
+
+                    document.getElementById('promptOk').addEventListener('click', onOk);
+                    document.getElementById('promptCancel').addEventListener('click', onCancel);
+
+                    // Focus input for convenience
+                    setTimeout(() => input.focus(), 0);
+                });
+            }
+
+            function showToast(message, duration = 2000) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('visible');
+                clearTimeout(toast._timeout);
+                toast._timeout = setTimeout(() => {
+                    toast.classList.remove('visible');
+                }, duration);
+            }
+            
             // Initialize
             function init() {
+                // Set up modal button handlers
+                document.getElementById('confirmCancel').addEventListener('click', () => closeConfirmModal(false));
+                document.getElementById('confirmOk').addEventListener('click', () => closeConfirmModal(true));
+                
                 // Set up event listeners
                 editor.addEventListener('input', handleEditorInput);
                 titleInput.addEventListener('input', handleTitleInput);
@@ -576,18 +852,47 @@
             };
             
             // Insert link
-            window.insertLink = function() {
-                const url = prompt('Enter URL:');
+            window.insertLink = async function() {
+                // Save selection
+                const selection = window.getSelection();
+                let savedRange = null;
+                if (selection.rangeCount > 0) {
+                    savedRange = selection.getRangeAt(0).cloneRange();
+                }
+
+                const url = await showPromptModal('Insert Link', 'Enter URL:');
+                
                 if (url) {
+                    // Restore selection
+                    editor.focus();
+                    if (savedRange) {
+                        selection.removeAllRanges();
+                        selection.addRange(savedRange);
+                    }
                     document.execCommand('createLink', false, url);
                 }
                 editor.focus();
             };
             
             // Insert code block
-            window.insertCode = function() {
-                const code = prompt('Enter code:');
+            window.insertCode = async function() {
+                // Save selection
+                const selection = window.getSelection();
+                let savedRange = null;
+                if (selection.rangeCount > 0) {
+                    savedRange = selection.getRangeAt(0).cloneRange();
+                }
+
+                const code = await showPromptModal('Insert Code', 'Enter code:');
+                
                 if (code) {
+                    // Restore selection
+                    editor.focus();
+                    if (savedRange) {
+                        selection.removeAllRanges();
+                        selection.addRange(savedRange);
+                    }
+                    
                     const codeElement = document.createElement('code');
                     codeElement.textContent = code;
                     insertNodeAtCursor(codeElement);
@@ -817,10 +1122,19 @@
             
             // Delete note
             window.deleteNote = async function(title, event) {
-                event.stopPropagation();
+                // Prevent event from bubbling to parent note-item
+                if (event) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                }
                 
-                if (!confirm(`Delete note "${title}"?`)) {
-                    return;
+                const confirmed = await showConfirmModal(
+                    'Delete Note',
+                    `Are you sure you want to delete "${title}"?`
+                );
+                
+                if (!confirmed) {
+                    return false;
                 }
                 
                 try {
@@ -836,6 +1150,8 @@
                     console.error('Error deleting note:', error);
                     showSaveIndicator('Error deleting note', 'error');
                 }
+                
+                return false;
             };
             
             // New note
@@ -860,7 +1176,7 @@
                         notesList.innerHTML = result.notes.map(note => `
                             <div class="note-item" onclick="window.loadNote('${note}')">
                                 <span class="note-item-title">${note}</span>
-                                <button class="note-item-delete" onclick="window.deleteNote('${note}', event)">Delete</button>
+                                <button class="note-item-delete" onclick="window.deleteNote('${note}', event);">Delete</button>
                             </div>
                         `).join('');
                     } else {
