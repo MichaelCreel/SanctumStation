@@ -17,8 +17,8 @@ const result = await window.pywebview.api.get_notifications();
 import backend
 
 def notify(message):
-        notification_api = backend.NotificationManagerAPI()
-        return notification_api.send_notification(message)
+    notification_api = backend.NotificationManagerAPI()
+    return notification_api.send_notification(message)
 ```
 
 ## Methods and Return Contracts
