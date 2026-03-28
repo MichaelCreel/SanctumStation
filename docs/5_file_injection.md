@@ -2,7 +2,7 @@
 # File Injection
 
 File injection means launching an app with a file path passed into the app to launch with.
-This is useful for the File Browser because apps can be launched based on their file extension, but other usecases apply.
+This is useful for the File Browser because apps can be launched based on their file extension, but other use cases apply.
 There is no pattern that will fit all apps perfectly because of differences in app design, but some patterns can be used as a basis.
 
 ### Core Idea
