@@ -4,6 +4,7 @@ A productivity app designed to connect your computer and mobile workflows.
 
 import toga
 from toga.style.pack import COLUMN, Pack
+from toga.colors import rgb
 import sys
 import os
 import json
@@ -34,6 +35,54 @@ error_manager = backend.ErrorManagerAPI()
 
 # Global variable to hold writable apps directory path (set during setup)
 writable_apps_dir_global = None
+
+# Paste your startup ASCII art directly into this string.
+# If non-empty, it will be used for the splash screen before file/fallback lookup.
+INLINE_LOADING_ASCII_ART = r"""
+                                                                                                    
+                                                .*/,.                                               
+                                   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&                                  
+                             @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                            
+                         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                        
+                     @@@@@@@@@@@@@@@@%                         %@@@@@@@@@@@@@@@@                    
+                  @@@@@@@@@@@@@@              @@@@@@@@@              @@@@@@@@@@@@@&                 
+                @@@@@@@@@@@@         @@@@@@@@@&*     *&@@@@@@@@@         @@@@@@@@@@@@               
+              @@@@@@@@@@@       @@@@@%                         (@@@@@       @@@@@@@@@@@             
+            @@@@@@@@@@      @@@@@                                   @@@@&      @@@@@@@@@@           
+          @@@@@@@@@@      @@@                                          *@@@      @@@@@@@@@@         
+         @@@@@@@@@     @@@@                                               @@@@     @@@@@@@@@        
+       @@@@@@@@@     @@@@                                                   @@@@     @@@@@@@@&      
+      @@@@@@@@@     @@@                                                       @@@     @@@@@@@@@     
+     &@@@@@@@@     @@@                                                         /@@     @@@@@@@@%    
+     @@@@@@@@    \#@@           @@@@@@@@@@@@@@@@@@@@@@    @@@@@@@@@@@@@@@@@@@@@@  @@.    @@@@@@@@    
+    @@@@@@@@     @@           @@@@@@@@@@@@@@@@@@@@@@    @@@@@@@@@@@@@@@@@@@@@@.   @@     @@@@@@@@   
+    @@@@@@@@    @@@          @@@@@                     @@@@@                      @@@    @@@@@@@@   
+   @@@@@@@@     @@          @@@@@                     @@@@@                        @@     @@@@@@@@  
+   @@@@@@@@    @@@         @@@@@                     @@@@@                         @@@    @@@@@@@@  
+   @@@@@@@@    @@@        @@@@@@@@@@@@@@@@@@@@@@/   (@@@@@@@@@@@@@@@@@@@@@@        @@@    @@@@@@@@  
+   @@@@@@@@    @@@                         @@@@@                     @@@@@         @@@    @@@@@@@@  
+   @@@@@@@@     @@                        @@@@@                     @@@@@          @@     @@@@@@@@  
+    @@@@@@@@    @@@                      @@@@@                     @@@@@          @@@    @@@@@@@@   
+    @@@@@@@@     @@   /@@@@@@@@@@@@@@@@@@@@@@    @@@@@@@@@@@@@@@@@@@@@@           @@     @@@@@@@@   
+     @@@@@@@@    %@@  @@@@@@@@@@@@@@@@@@@@@@    @@@@@@@@@@@@@@@@@@@@@@           @@     @@@@@@@@    
+     &@@@@@@@@     @@                                                          /@@     @@@@@@@@&    
+      @@@@@@@@@     @@@                                                       @@@     @@@@@@@@@     
+       @@@@@@@@@     %@@@                                                   @@@\#     @@@@@@@@%      
+         @@@@@@@@@     @@@@                                               @@@@     @@@@@@@@@        
+          @@@@@@@@@@      @@@*                                         &@@@      @@@@@@@@@@         
+            @@@@@@@@@@      &@@@@                                   @@@@%         @@@@@@@           
+              @@@@@@@@@@@       @@@@@\#                         \#@@@@@     @@@@@@@@  @@@             
+                @@@@@@@@@@@@         @@@@@@@@@@*     /@@@@@@@@@@         @@@@@@@@@@                 
+                  &@@@@@@@@@@@@@              &@@@@@@@@              %   @@@@@@@@@@                 
+                     @@@@@@@@@@@@@@@@&                         @@@@@@@@@  @@@@@@@\#                  
+                         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                          
+                             @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&                            
+                                   %@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&                                  
+                                                 ,/,                                                                                   
+"""
+
+LOADING_ASCII_FONT_SIZE = 3.1
+LOADING_ASCII_FONT_FAMILY = "monospace"
 
 
 # Custom HTTP handler that serves files and handles API calls
@@ -192,58 +241,149 @@ class APIHandler(SimpleHTTPRequestHandler):
 
 class SanctumStation(toga.App):
     def startup(self):
-        """Initialize backend and display the app."""
-        
-        # Setup writable data directory (Android assets are read-only)
-        self.setup_writable_data()
-        
-        # Initialize the backend
-        backend.initialize()
-        
-        # Start a local HTTP server to serve the HTML/JS/CSS and handle API calls
-        # (Toga Android WebView requires http:// URLs, not file://)
-        self.start_http_server()
-        
+        """Show a splash screen immediately, then initialize app services in background."""
+        self._build_loading_screen()
+
+        self.main_window = toga.MainWindow(title=self.formal_name)
+        self.main_window.content = self.loading_box
+        self.main_window.show()
+
+        self.add_background_task(self.initialize_runtime)
+
+    def _get_loading_ascii_art(self):
+        """Load ASCII art from inline constant, file, or fallback."""
+        inline_art = INLINE_LOADING_ASCII_ART.strip('\n').replace('\\#', '#')
+        if inline_art.strip():
+            return inline_art
+
+        candidates = [
+            os.path.join(app_dir, 'logo_ascii.txt'),
+            os.path.join(app_dir, 'src', 'logo_ascii.txt'),
+        ]
+
+        for path in candidates:
+            if os.path.isfile(path):
+                try: 
+                    with open(path, 'r', encoding='utf-8') as f:
+                        content = f.read().rstrip('\n').replace('\\#', '#')
+                    if content.strip():
+                        return content
+                except Exception as e:
+                    print(f"Failed to read ASCII logo at {path}: {e}")
+
+        return (
+            "  _____                 _                    _____ _        _   _             \n"
+            " / ____|               | |                  / ____| |      | | (_)            \n"
+            "| (___   __ _ _ __   __| |_   _ _ __ ___   | (___ | |_ __ _| |_ _  ___  _ __  \n"
+            " \\___ \\ / _` | '_ \\ / _` | | | | '_ ` _ \\   \\___ \\| __/ _` | __| |/ _ \\| '_ \\ \n"
+            " ____) | (_| | | | | (_| | |_| | | | | | |  ____) | || (_| | |_| | (_) | | | |\n"
+            "|_____/ \\__,_|_| |_|\\__,_|\\__,_|_| |_| |_| |_____/ \\__\\__,_|\\__|_|\\___/|_| |_|\n"
+        )
+
+    def _build_loading_screen(self):
+        ascii_art = self._get_loading_ascii_art()
+        background = rgb(15, 18, 26)
+        primary_text = rgb(232, 238, 255)
+        accent_text = rgb(152, 176, 255)
+
+        self.loading_ascii = toga.MultilineTextInput(
+            value=ascii_art,
+            readonly=True,
+            style=Pack(
+                flex=1,
+                padding=(16, 16, 8, 16),
+                font_size=LOADING_ASCII_FONT_SIZE,
+                font_family=LOADING_ASCII_FONT_FAMILY,
+                background_color=background,
+                color=primary_text
+            )
+        )
+        self.loading_status = toga.Label(
+            'Loading...',
+            style=Pack(
+                padding=(0, 16, 16, 16),
+                font_size=12,
+                background_color=background,
+                color=accent_text
+            )
+        )
+
+        self.loading_box = toga.Box(
+            children=[self.loading_ascii, self.loading_status],
+            style=Pack(direction=COLUMN, flex=1, background_color=background)
+        )
+
+    async def _set_loading_status(self, message):
+        print(f"[startup] {message}")
+        if hasattr(self, 'loading_status') and self.loading_status is not None:
+            self.loading_status.text = message
+        await asyncio.sleep(0)
+
+    async def initialize_runtime(self, widget):
+        """Run startup steps without showing a blank app window."""
+        try:
+            await self._set_loading_status('Preparing writable storage...')
+            await asyncio.to_thread(self.setup_writable_data)
+
+            await self._set_loading_status('Initializing backend services...')
+            await asyncio.to_thread(backend.initialize)
+
+            await self._set_loading_status('Starting local web server...')
+            await asyncio.to_thread(self.start_http_server)
+
+            await self._set_loading_status('Launching interface...')
+            self._create_main_interface()
+
+            await self._set_loading_status('Applying Android display settings...')
+            self._enable_android_immersive_mode()
+
+            await self._set_loading_status('Ready')
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            await self._set_loading_status(f"Startup failed: {e}")
+
+    def _create_main_interface(self):
         # Create a WebView to display the app from localhost
         self.webview = toga.WebView(
             url='http://127.0.0.1:5000/index.html',
             style=Pack(flex=1)
         )
-        
+
         # Store webview globally so backend can inject scripts directly
         backend.webview_window = self.webview
         print("WebView stored in backend.webview_window")
-        
+
         # Store the main event loop for cross-thread async calls
         backend.main_event_loop = asyncio.get_event_loop()
         print("Event loop stored in backend.main_event_loop")
-        
+
         # Enable WebView debugging and console forwarding on Android
         # Check if we have Android native webview access
         if hasattr(self.webview, '_impl') and hasattr(self.webview._impl, 'native'):
             try:
                 from java import jclass, dynamic_proxy
                 print("Android detected (Chaquopy), attempting to configure WebView...")
-                
+
                 print("  Getting native webview...")
                 native_webview = self.webview._impl.native
                 print(f"  Native webview type: {type(native_webview)}")
-                
+
                 print("  Enabling JavaScript...")
                 settings = native_webview.getSettings()
                 settings.setJavaScriptEnabled(True)
                 print("  JavaScript enabled")
-                
+
                 # Clear WebView cache on startup to load fresh content after updates
                 print("  Clearing WebView cache on startup...")
                 native_webview.clearCache(True)
                 print("  WebView cache cleared")
-                
+
                 # Disable WebContents debugging for production (removes green debug bar)
                 print("  Disabling WebContents debugging...")
                 native_webview.setWebContentsDebuggingEnabled(False)
                 print("  WebContents debugging disabled")
-                
+
             except ImportError as e:
                 print(f"Chaquopy java module import failed: {e}")
                 import traceback
@@ -254,41 +394,38 @@ class SanctumStation(toga.App):
                 traceback.print_exc()
         else:
             print("WebView does not have native Android implementation")
-        
-        # Create main box with the webview
+
+        # Replace splash content with the main webview
         main_box = toga.Box(
             children=[self.webview],
             style=Pack(direction=COLUMN, flex=1)
         )
-        
-        # Create and show the main window
-        self.main_window = toga.MainWindow(title=self.formal_name)
         self.main_window.content = main_box
-        self.main_window.show()
-        
+
+    def _enable_android_immersive_mode(self):
         # Enable immersive fullscreen mode on Android (hides status bar and nav bar)
         # Check platform to determine if we're on Android
         if sys.platform == 'linux' and hasattr(self.webview, '_impl'):
             try:
                 from java import jclass, dynamic_proxy
                 print("Enabling immersive fullscreen mode (Chaquopy)...")
-                
+
                 # Get Android classes using Chaquopy's jclass
                 PythonActivity = jclass('org.beeware.android.MainActivity')
                 View = jclass('android.view.View')
                 WindowManager = jclass('android.view.WindowManager')
-                
+
                 # Get the native Android activity
                 activity = PythonActivity.singletonThis
-                
+
                 # Get the window and decor view
                 window = activity.getWindow()
                 decorView = window.getDecorView()
-                
+
                 # Set window flags for fullscreen
                 window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
                 window.clearFlags(WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN)
-                
+
                 # Function to apply immersive mode
                 def applyImmersiveMode():
                     # Immersive sticky mode - hides status bar and nav bar, re-hides after swipe
@@ -301,20 +438,20 @@ class SanctumStation(toga.App):
                         View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     )
                     decorView.setSystemUiVisibility(uiOptions)
-                
+
                 # Apply immersive mode initially
                 applyImmersiveMode()
-                
+
                 # Create listener to re-apply when window regains focus
                 @dynamic_proxy(jclass('android.view.View$OnWindowFocusChangeListener'))
                 def focusListener(hasFocus):
                     if hasFocus:
                         applyImmersiveMode()
-                
+
                 # Set the listener
                 decorView.setOnWindowFocusChangeListener(focusListener)
                 print("Immersive fullscreen mode enabled with focus listener")
-                
+
             except ImportError as e:
                 print(f"Chaquopy java module import failed: {e}")
                 import traceback

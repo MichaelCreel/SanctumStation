@@ -195,7 +195,7 @@ keystore_alias = "sanctumstation"
 keystore_password = "PLACEHOLDER_WILL_BE_REPLACED_BY_PACKAGE_SH"
 key_password = "PLACEHOLDER_WILL_BE_REPLACED_BY_PACKAGE_SH"
 
-base_theme = "Theme.MaterialComponents.Light.NoActionBar"
+base_theme = "Theme.MaterialComponents.NoActionBar"
 
 build_gradle_dependencies = [
     "com.google.android.material:material:1.13.0",
