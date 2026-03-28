@@ -16,7 +16,7 @@ Sanctum Station has two basic platform targets:
     - Uses PyWebView to locally host the frontend
 2. Mobile
     - Supports Android
-    - Uses Toga to run the app (downgraded to Python 3.11 for 32-bit device compatability)
+    - Uses Toga to run the app (downgraded to Python 3.11 for 32-bit device compatibility)
     - Uses a mobile bridge to communicate with backend and work around permission restrictions
 
 Frontend app code should call `window.pywebview.api.*` in both cases.
