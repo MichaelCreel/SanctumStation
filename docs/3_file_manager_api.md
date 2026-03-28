@@ -18,7 +18,7 @@ const ok = await window.pywebview.api.write_file(path, content);
 import backend
 
 def get_file_api():
-        return backend.FileManagerAPI()
+    return backend.FileManagerAPI()
 ```
 
 ## Path Behavior
