@@ -74,7 +74,7 @@ webview_window = None # Reference to the main webview window
 main_event_loop = None # Reference to the main event loop (for mobile async calls)
 fullscreen = False # Whether the app is in fullscreen mode or not
 ui_scale = 1.0 # UI scale multiplier (1.0 = 16px base font, 100%)
-extensionSupport = {}; # Cache for which apps support which file extensions.
+extension_support = {} # Cache for which apps support which file extensions.
 
 SUPPORTED_WALLPAPER_EXTENSIONS = sorted([
     ".avif", ".bmp", ".gif", ".ico", ".jpeg", ".jpg", ".png", ".svg", ".tif", ".tiff", ".webp"
@@ -186,10 +186,10 @@ def init_settings():
 # Initializes apps from apps/ directory
 # Returns True on success, False on failure
 def init_apps():
-    global apps, app_names, extensionSupport
+    global apps, app_names, extension_support
     apps = []
     app_names = []
-    extensionSupport = {}
+    extension_support = {}
     try:
         import os
         # Use APPS_DIR which points to writable location on mobile
@@ -229,10 +229,10 @@ def init_apps():
                                     })
 
                                     for ext in extensions:
-                                        if ext not in extensionSupport:
-                                            extensionSupport[ext] = []
-                                        if app not in extensionSupport[ext]:
-                                            extensionSupport[ext].append(app)
+                                        if ext not in extension_support:
+                                            extension_support[ext] = []
+                                        if app not in extension_support[ext]:
+                                            extension_support[ext].append(app)
 
                                 config_mime_types = app_config.get("mime_types", [])
                                 if isinstance(config_mime_types, list):
@@ -269,7 +269,7 @@ def init_apps():
                     print(f"  app.py exists: {os.path.exists(py_path)} - {py_path}")
         
         print(f"IA: Found {len(apps)} valid apps")
-        print(f"IA: Found {len(extensionSupport)} supported extensions: {list(extensionSupport.keys())}")
+        print(f"IA: Found {len(extension_support)} supported extensions: {list(extension_support.keys())}")
         return True
     except FileNotFoundError:
         print("IA-E1: Apps directory not found. No apps will be loaded.")
