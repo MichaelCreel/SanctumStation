@@ -623,6 +623,119 @@ function waitForPywebview(callback, maxAttempts = 50) {
 }
 
 // Notification panel functions
+const NOTIFICATION_FALLBACK_POLL_MS = 60000;
+let notificationFallbackPollHandle = null;
+let notificationSyncInFlight = false;
+
+function isNotificationPanelOpen() {
+    const notificationPanel = document.getElementById('notificationPanel');
+    return !!(notificationPanel && notificationPanel.classList.contains('open'));
+}
+
+function updateNotificationBadge(count) {
+    const badge = document.getElementById('notificationBadge');
+    if (!badge) {
+        return;
+    }
+
+    const normalizedCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+
+    requestAnimationFrame(() => {
+        if (normalizedCount === 0) {
+            badge.style.display = 'none';
+        } else {
+            badge.textContent = String(normalizedCount);
+            badge.style.display = 'flex';
+        }
+    });
+}
+
+function renderNotifications(notifications) {
+    const content = document.getElementById('notificationPanelContent');
+    if (!content) {
+        return;
+    }
+
+    const normalizedNotifications = Array.isArray(notifications) ? [...notifications] : [];
+
+    if (normalizedNotifications.length === 0) {
+        content.innerHTML = '<p class="no-notifications">No notifications</p>';
+        updateNotificationBadge(0);
+        return;
+    }
+
+    // Sort by timestamp, newest first
+    normalizedNotifications.sort((a, b) => b.timestamp - a.timestamp);
+
+    content.innerHTML = normalizedNotifications.map(notif => {
+        const time = new Date(notif.timestamp * 1000);
+        const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+        return `
+            <div class="notification-item">
+                <div class="notification-item-header">
+                    <span class="notification-source">${notif.source || 'System'}</span>
+                    <span class="notification-time">${timeStr}</span>
+                </div>
+                <div class="notification-message">${notif.message}</div>
+                <button class="notification-delete" onclick="deleteNotification('${notif.id}')">Delete</button>
+            </div>
+        `;
+    }).join('');
+
+    updateNotificationBadge(normalizedNotifications.length);
+}
+
+async function syncNotificationsFromBackend({ refreshPanelIfOpen = true, reason = 'sync' } = {}) {
+    if (notificationSyncInFlight) {
+        return;
+    }
+
+    notificationSyncInFlight = true;
+    try {
+        const result = await window.pywebview.api.get_notifications();
+        if (!result.success) {
+            return;
+        }
+
+        const notifications = Array.isArray(result.notifications) ? result.notifications : [];
+        updateNotificationBadge(notifications.length);
+
+        if (refreshPanelIfOpen && isNotificationPanelOpen()) {
+            renderNotifications(notifications);
+        }
+    } catch (error) {
+        console.error(`Failed to sync notifications (${reason}):`, error);
+    } finally {
+        notificationSyncInFlight = false;
+    }
+}
+
+function initializeNotificationSync() {
+    if (window.__SANCTUM_NOTIFICATION_SYNC_INITIALIZED__) {
+        return;
+    }
+
+    window.__SANCTUM_NOTIFICATION_SYNC_INITIALIZED__ = true;
+
+    window.addEventListener('sanctum-notification-event', (event) => {
+        const payload = event && event.detail ? event.detail : null;
+        if (payload && Number.isFinite(Number(payload.count))) {
+            updateNotificationBadge(Number(payload.count));
+        }
+
+        if (isNotificationPanelOpen()) {
+            syncNotificationsFromBackend({ refreshPanelIfOpen: true, reason: 'event-panel-open' });
+        }
+    });
+
+    notificationFallbackPollHandle = setInterval(() => {
+        syncNotificationsFromBackend({ refreshPanelIfOpen: true, reason: 'fallback-poll' });
+    }, NOTIFICATION_FALLBACK_POLL_MS);
+
+    syncNotificationsFromBackend({ refreshPanelIfOpen: false, reason: 'initial-sync' });
+}
+
 async function toggleNotifications() {
     const notificationPanel = document.getElementById('notificationPanel');
     const isOpen = notificationPanel.classList.contains('open');
@@ -639,36 +752,8 @@ async function loadNotifications() {
     try {
         const result = await window.pywebview.api.get_notifications();
         if (result.success) {
-            const notifications = result.notifications;
-            const content = document.getElementById('notificationPanelContent');
-            const badge = document.getElementById('notificationBadge');
-            
-            if (notifications.length === 0) {
-                content.innerHTML = '<p class="no-notifications">No notifications</p>';
-                badge.style.display = 'none';
-            } else {
-                // Sort by timestamp, newest first
-                notifications.sort((a, b) => b.timestamp - a.timestamp);
-                
-                content.innerHTML = notifications.map(notif => {
-                    const time = new Date(notif.timestamp * 1000);
-                    const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                    
-                    return `
-                        <div class="notification-item">
-                            <div class="notification-item-header">
-                                <span class="notification-source">${notif.source || 'System'}</span>
-                                <span class="notification-time">${timeStr}</span>
-                            </div>
-                            <div class="notification-message">${notif.message}</div>
-                            <button class="notification-delete" onclick="deleteNotification('${notif.id}')">Delete</button>
-                        </div>
-                    `;
-                }).join('');
-                
-                badge.textContent = notifications.length;
-                badge.style.display = 'flex';
-            }
+            const notifications = Array.isArray(result.notifications) ? result.notifications : [];
+            renderNotifications(notifications);
         }
     } catch (error) {
         console.error('Failed to load notifications:', error);
@@ -696,35 +781,6 @@ async function clearAllNotifications() {
         console.error('Failed to clear notifications:', error);
     }
 }
-
-// Update notification badge periodically and refresh panel if open
-setInterval(async () => {
-    try {
-        const result = await window.pywebview.api.get_notifications();
-        if (result.success) {
-            const badge = document.getElementById('notificationBadge');
-            const count = result.notifications.length;
-            
-            // Use requestAnimationFrame for DOM updates
-            requestAnimationFrame(() => {
-                if (count === 0) {
-                    badge.style.display = 'none';
-                } else {
-                    badge.textContent = count;
-                    badge.style.display = 'flex';
-                }
-            });
-            
-            // If notification panel is open, reload it
-            const notificationPanel = document.getElementById('notificationPanel');
-            if (notificationPanel && notificationPanel.classList.contains('open')) {
-                await loadNotifications();
-            }
-        }
-    } catch (error) {
-        console.error('Failed to update notification badge:', error);
-    }
-}, 5000); // Check every 5 seconds (reduced from 2s)
 
 async function toggleSettings() {
     const overlay = document.getElementById('settingsOverlay');
@@ -1159,6 +1215,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Wait for pywebview API to be ready before loading wallpaper
     waitForPywebview(() => {
+        initializeNotificationSync();
         loadWallpaper();
         loadDayGradient();
         loadLogo();
