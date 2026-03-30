@@ -12,7 +12,10 @@ import time
 import inspect
 import concurrent.futures
 import mimetypes
+import uuid
 from fuzzywuzzy import process as fuzzy_process
+
+sys.modules.setdefault("backend", sys.modules[__name__])
 
 # Determine platform early (before importing yaml)
 IS_MOBILE = (
@@ -611,8 +614,8 @@ def init_webview():
                 return get_running_apps()
             
             # Notification Management - Delegate to NotificationManagerAPI
-            def send_notification(self, message):
-                return notification_manager.send_notification(message)
+            def send_notification(self, message, source=None):
+                return notification_manager.send_notification(message, source)
             
             def delete_notification(self, notification_id):
                 return notification_manager.delete_notification(notification_id)
@@ -622,6 +625,12 @@ def init_webview():
             
             def clear_all_notifications(self):
                 return notification_manager.clear_all_notifications()
+
+            def send_test_notification(self, message='Test notification', source='Test-App'):
+                return notification_manager.send_test_notification(message, source)
+
+            def send_test_notifications(self, count=3, source='Test-App'):
+                return notification_manager.send_test_notifications(count, source)
 
             # Error Management - Delegate to ErrorManagerAPI
             def display_error(self, code):
@@ -796,6 +805,60 @@ def on_webview_ready():
 # Shared notifications storage at module level
 _notifications = {}
 
+
+def _dispatch_notification_event(payload):
+    global webview_window
+    if not webview_window:
+        return False
+
+    try:
+        payload_json = json.dumps(payload, separators=(",", ":"))
+    except Exception as encode_error:
+        print(f"NMA: Failed to encode notification event payload: {encode_error}")
+        return False
+
+    script = f"""
+    (function() {{
+        const payload = {payload_json};
+        window.__SANCTUM_LAST_NOTIFICATION_EVENT = payload;
+
+        if (typeof window.handleSanctumNotificationEvent === 'function') {{
+            try {{
+                window.handleSanctumNotificationEvent(payload);
+            }} catch (handlerError) {{
+                console.error('Notification event handler failed:', handlerError);
+            }}
+        }}
+
+        window.dispatchEvent(new CustomEvent('sanctum-notification-event', {{ detail: payload }}));
+    }})();
+    """
+
+    try:
+        if hasattr(webview_window, 'evaluate_javascript'):
+            webview_window.evaluate_javascript(script)
+            return True
+        if hasattr(webview_window, 'evaluate_js'):
+            webview_window.evaluate_js(script)
+            return True
+    except Exception as emit_error:
+        print(f"NMA: Failed to dispatch notification event: {emit_error}")
+
+    return False
+
+
+def _emit_notification_event(event_name, notification=None, notification_id=None, timestamp=None):
+    payload = {
+        "event": event_name,
+        "count": len(_notifications),
+        "timestamp": timestamp if timestamp is not None else time.time(),
+    }
+    if notification is not None:
+        payload["notification"] = notification
+    if notification_id is not None:
+        payload["notification_id"] = notification_id
+    _dispatch_notification_event(payload)
+
 def fuzzy_search_apps(query):
     global app_names
 
@@ -805,39 +868,68 @@ def fuzzy_search_apps(query):
 
 # API for managing the app notifications within the environment
 class NotificationManagerAPI:
-    # Sends a notification with a message
-    # Finds the calling app by inspecting the call stack
-    def send_notification(self, message):
-        global _notifications
-        # Trace back through the call stack to find which app module called this
-        calling_app = "Unknown"  # Default if we can't identify the app
-        
+    def _resolve_source(self, source=None):
+        if isinstance(source, str) and source.strip():
+            return source.strip()
+
         for frame_info in inspect.stack():
             frame_module = inspect.getmodule(frame_info.frame)
             if frame_module and hasattr(frame_module, '__name__'):
                 module_name = frame_module.__name__
-                # Check if this is an app module (starts with "app_")
                 if module_name.startswith("app_"):
-                    calling_app = module_name[4:]  # Remove "app_" prefix
-                    break
-        
-        notification_id = str(int(time.time() * 1000))
+                    return module_name[4:]
+
+        return "Unknown"
+
+    # Sends a notification with a message
+    # Finds the calling app by inspecting the call stack
+    def send_notification(self, message, source=None):
+        global _notifications
+
+        calling_app = self._resolve_source(source)
+        notification_id = uuid.uuid4().hex
+        notification_timestamp = time.time()
         _notifications[notification_id] = {
             "message": message,
-            "timestamp": time.time(),
+            "timestamp": notification_timestamp,
             "source": calling_app
         }
+
+        notification = {
+            "id": notification_id,
+            "message": message,
+            "timestamp": notification_timestamp,
+            "source": calling_app,
+        }
+
+        _emit_notification_event(
+            "notification-added",
+            notification=notification,
+            notification_id=notification_id,
+            timestamp=notification_timestamp,
+        )
+
         print(f"NMA: Notification sent: {calling_app} - {message} (ID: {notification_id})")
         print(f"NMA: Total notifications: {len(_notifications)}")
         print(f"NMA: Notifications dict id: {id(_notifications)}")
-        return {"success": True, "notification_id": notification_id, "source": calling_app}
+        return {
+            "success": True,
+            "notification_id": notification_id,
+            "source": calling_app,
+            "timestamp": notification_timestamp,
+        }
     
     # Deletes a notification by finding it by its ID
     # Returns success status
     def delete_notification(self, notification_id):
         global _notifications
-        if notification_id in _notifications:
-            del _notifications[notification_id]
+        normalized_id = str(notification_id)
+        if normalized_id in _notifications:
+            del _notifications[normalized_id]
+            _emit_notification_event(
+                "notification-deleted",
+                notification_id=normalized_id,
+            )
             return {"success": True}
         else:
             return {"success": False, "error": "Notification ID not found"}
@@ -849,19 +941,46 @@ class NotificationManagerAPI:
         # Return all notifications with their IDs
         print(f"Getting notifications: {len(_notifications)} total")
         print(f"Notifications dict id: {id(_notifications)}")
+        notifications = [
+            {"id": nid, **ndata}
+            for nid, ndata in _notifications.items()
+        ]
+        notifications.sort(key=lambda notif: notif.get("timestamp", 0), reverse=True)
         return {
             "success": True,
-            "notifications": [
-                {"id": nid, **ndata}
-                for nid, ndata in _notifications.items()
-            ]
+            "notifications": notifications
         }
     
     # Clears all notifications in the dictionary
     def clear_all_notifications(self):
         global _notifications
         _notifications.clear()
+        _emit_notification_event("notifications-cleared", timestamp=time.time())
         return {"success": True}
+
+    def send_test_notification(self, message='Test notification', source='Test-App'):
+        return self.send_notification(message, source=source)
+
+    def send_test_notifications(self, count=3, source='Test-App'):
+        try:
+            normalized_count = int(count)
+        except (TypeError, ValueError):
+            normalized_count = 3
+
+        normalized_count = max(1, min(normalized_count, 50))
+        notification_ids = []
+
+        for index in range(normalized_count):
+            result = self.send_notification(f"Test notification {index + 1}", source=source)
+            if result.get("success"):
+                notification_ids.append(result.get("notification_id"))
+
+        return {
+            "success": True,
+            "count": len(notification_ids),
+            "notification_ids": notification_ids,
+            "source": source,
+        }
 
 #API for managing errors within the environment
 class ErrorManagerAPI:

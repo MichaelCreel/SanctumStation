@@ -283,7 +283,7 @@ class DesktopInteractions {
 
         document.addEventListener('keydown', (event) => {
             this.handleKeyboardShortcuts(event);
-        });
+        }, true);
 
         // Close app launcher when clicking outside (but not on center button)
         document.addEventListener('click', (event) => {
@@ -496,8 +496,9 @@ class DesktopInteractions {
                          event.target.isContentEditable;
         const isAppOpen = document.querySelector('.app-container') !== null;
         
-        // Ctrl+N to toggle notification panel (works anywhere)
-        if (event.ctrlKey && event.key === 'n') {
+        // Ctrl+N / Cmd+N toggles notification panel (works anywhere)
+        const key = String(event.key || '').toLowerCase();
+        if ((event.ctrlKey || event.metaKey) && key === 'n') {
             event.preventDefault();
             toggleNotifications();
             return;
