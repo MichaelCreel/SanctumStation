@@ -627,12 +627,6 @@ def init_webview():
             def clear_all_notifications(self):
                 return notification_manager.clear_all_notifications()
 
-            def send_test_notification(self, message='Test notification', source='Test-App'):
-                return notification_manager.send_test_notification(message, source)
-
-            def send_test_notifications(self, count=3, source='Test-App'):
-                return notification_manager.send_test_notifications(count, source)
-
             # Error Management - Delegate to ErrorManagerAPI
             def display_error(self, code):
                 return error_manager.display_error(code)
@@ -1037,57 +1031,6 @@ class NotificationManagerAPI:
         _notifications.clear()
         _emit_notification_event("notifications-cleared", timestamp=time.time())
         return {"success": True}
-
-    def send_test_notification(self, message='Test notification', source='Test-App'):
-        return self.send_notification(message, source=source)
-
-    def send_test_notifications(self, count=3, source='Test-App'):
-        global _notifications
-
-        try:
-            normalized_count = int(count)
-        except (TypeError, ValueError):
-            normalized_count = 3
-
-        normalized_count = max(1, min(normalized_count, 50))
-        calling_app = self._resolve_source(source)
-        notification_ids = []
-        last_notification = None
-
-        for index in range(normalized_count):
-            notification_id = uuid.uuid4().hex
-            notification_timestamp = time.time()
-            notification_message = f"Test notification {index + 1}"
-
-            _notifications[notification_id] = {
-                "message": notification_message,
-                "timestamp": notification_timestamp,
-                "source": calling_app,
-            }
-            notification_ids.append(notification_id)
-            last_notification = {
-                "id": notification_id,
-                "message": notification_message,
-                "timestamp": notification_timestamp,
-                "source": calling_app,
-            }
-
-        if last_notification is not None:
-            _emit_notification_event(
-                "notification-added",
-                notification=last_notification,
-                notification_id=last_notification["id"],
-                timestamp=last_notification["timestamp"],
-            )
-
-        print(f"NMA: Batch test notifications sent: {len(notification_ids)} from {calling_app}")
-
-        return {
-            "success": True,
-            "count": len(notification_ids),
-            "notification_ids": notification_ids,
-            "source": calling_app,
-        }
 
 #API for managing errors within the environment
 class ErrorManagerAPI:

@@ -81,7 +81,6 @@
             'js_log',
             'launch_app', 'stop_app', 'get_apps', 'get_running_apps',
             'send_notification', 'delete_notification', 'get_notifications', 'clear_all_notifications',
-            'send_test_notification', 'send_test_notifications',
             'display_error', 'get_error',
             'list_directory', 'read_file', 'write_file', 'delete_file', 'delete_directory',
             'create_directory', 'create_file', 'rename_item', 'move_item', 'copy_item',
