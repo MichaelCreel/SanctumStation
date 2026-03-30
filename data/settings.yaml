@@ -12,5 +12,5 @@ semi_bold_font: fonts/Inter-SemiBold.ttf
 thin_font: fonts/Inter-Thin.ttf
 ui_scale: 1.0
 updates: release
-version: v0.7.1
+version: v0.8.0
 wallpaper: None
