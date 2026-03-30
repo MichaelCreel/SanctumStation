@@ -35,6 +35,7 @@ error_manager = backend.ErrorManagerAPI()
 
 # Global variable to hold writable apps directory path (set during setup)
 writable_apps_dir_global = None
+writable_web_dir_global = None
 
 # Paste your startup ASCII art directly into this string.
 # If non-empty, it will be used for the splash screen before file/fallback lookup.
@@ -580,6 +581,61 @@ class SanctumStation(toga.App):
         else:
             print(f"  Warning: Bundled apps directory not found at {bundled_apps_dir}")
             print(f"  Apps will need to be manually installed")
+
+        # Sync core web assets to writable storage so update installs can refresh
+        # frontend files without requiring uninstall/reinstall.
+        bundled_web_dir = src_dir
+        writable_web_dir = os.path.join(writable_data_dir, 'web')
+        os.makedirs(writable_web_dir, exist_ok=True)
+        print(f"Syncing web assets from {bundled_web_dir} to {writable_web_dir}...")
+
+        for root, dirs, files in os.walk(bundled_web_dir):
+            rel_root = os.path.relpath(root, bundled_web_dir)
+            rel_root = '' if rel_root == '.' else rel_root
+
+            # App files are served from writable_apps_dir_global via APIHandler.
+            dirs[:] = [d for d in dirs if d not in {'__pycache__', 'apps'}]
+            if rel_root.startswith('apps'):
+                continue
+
+            for filename in files:
+                if filename.endswith(('.py', '.pyc', '.pyo')):
+                    continue
+
+                src_file = os.path.join(root, filename)
+                relative_path = os.path.normpath(os.path.join(rel_root, filename))
+                dest_file = os.path.join(writable_web_dir, relative_path)
+                os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+
+                should_copy = False
+                if not os.path.exists(dest_file):
+                    should_copy = True
+                else:
+                    try:
+                        with open(src_file, 'rb') as src_fp:
+                            src_content = src_fp.read()
+                        with open(dest_file, 'rb') as dest_fp:
+                            dest_content = dest_fp.read()
+                        if src_content != dest_content:
+                            should_copy = True
+                    except Exception:
+                        should_copy = True
+
+                if should_copy:
+                    try:
+                        if os.path.exists(dest_file):
+                            try:
+                                os.chmod(dest_file, 0o666)
+                            except Exception:
+                                pass
+                            os.remove(dest_file)
+                        shutil.copy2(src_file, dest_file)
+                        os.chmod(dest_file, 0o666)
+                        print(f"  Updated web asset: {relative_path}")
+                    except Exception as e:
+                        print(f"  Error syncing web asset {relative_path}: {e}")
+
+        print("Web asset sync complete")
         
         # Override backend's DATA_DIR and APPS_DIR with writable locations
         backend.DATA_DIR = writable_data_dir
@@ -597,18 +653,21 @@ class SanctumStation(toga.App):
         # Set global variable for HTTP server
         global writable_apps_dir_global
         writable_apps_dir_global = writable_apps_dir
+
+        global writable_web_dir_global
+        writable_web_dir_global = writable_web_dir
     
     def start_http_server(self):
         """Start a local HTTP server to serve app files and handle API calls."""
-        # Change to the src directory to serve files
-        os.chdir(src_dir)
+        web_root_dir = writable_web_dir_global if writable_web_dir_global and os.path.isdir(writable_web_dir_global) else src_dir
+        os.chdir(web_root_dir)
         
         # Create and start server with custom APIHandler in a background thread
         self.httpd = HTTPServer(('127.0.0.1', 5000), APIHandler)
         
         server_thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
         server_thread.start()
-        print(f"HTTP server started at http://127.0.0.1:5000")    
+        print(f"HTTP server started at http://127.0.0.1:5000 (root={web_root_dir})")    
     def on_webview_load(self, widget):
         """Called when the webview finishes loading - inject API bridge."""
         print("WebView loaded, setting up API bridge...")
