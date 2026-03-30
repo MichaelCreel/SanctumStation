@@ -13,6 +13,7 @@ import inspect
 import concurrent.futures
 import mimetypes
 import uuid
+import queue
 from fuzzywuzzy import process as fuzzy_process
 
 sys.modules.setdefault("backend", sys.modules[__name__])
@@ -804,10 +805,78 @@ def on_webview_ready():
 
 # Shared notifications storage at module level
 _notifications = {}
+_NOTIFICATION_EVENT_QUEUE_MAX = 512
+_notification_event_queue = queue.Queue(maxsize=_NOTIFICATION_EVENT_QUEUE_MAX)
+_notification_event_worker_started = False
+_notification_event_worker_lock = threading.Lock()
+
+
+def _evaluate_notification_event_script(script):
+    global webview_window
+    if not webview_window:
+        return False
+
+    if hasattr(webview_window, 'evaluate_javascript'):
+        webview_window.evaluate_javascript(script)
+        return True
+    if hasattr(webview_window, 'evaluate_js'):
+        webview_window.evaluate_js(script)
+        return True
+    return False
+
+
+def _notification_event_dispatch_worker():
+    while True:
+        script = _notification_event_queue.get()
+        if script is None:
+            return
+
+        try:
+            _evaluate_notification_event_script(script)
+        except Exception as emit_error:
+            print(f"NMA: Failed to dispatch notification event: {emit_error}")
+
+
+def _dispatch_notification_event_on_main_loop(script):
+    global main_event_loop
+
+    if not main_event_loop or not hasattr(main_event_loop, 'call_soon_threadsafe'):
+        return False
+
+    def _emit_script():
+        try:
+            _evaluate_notification_event_script(script)
+        except Exception as emit_error:
+            print(f"NMA: Failed to dispatch notification event on main loop: {emit_error}")
+
+    try:
+        main_event_loop.call_soon_threadsafe(_emit_script)
+        return True
+    except Exception as schedule_error:
+        print(f"NMA: Failed to schedule notification event on main loop: {schedule_error}")
+        return False
+
+
+def _ensure_notification_event_worker():
+    global _notification_event_worker_started
+
+    if _notification_event_worker_started:
+        return
+
+    with _notification_event_worker_lock:
+        if _notification_event_worker_started:
+            return
+
+        worker = threading.Thread(
+            target=_notification_event_dispatch_worker,
+            name="notification-event-dispatch",
+            daemon=True,
+        )
+        worker.start()
+        _notification_event_worker_started = True
 
 
 def _dispatch_notification_event(payload):
-    global webview_window
     if not webview_window:
         return False
 
@@ -834,17 +903,28 @@ def _dispatch_notification_event(payload):
     }})();
     """
 
-    try:
-        if hasattr(webview_window, 'evaluate_javascript'):
-            webview_window.evaluate_javascript(script)
-            return True
-        if hasattr(webview_window, 'evaluate_js'):
-            webview_window.evaluate_js(script)
-            return True
-    except Exception as emit_error:
-        print(f"NMA: Failed to dispatch notification event: {emit_error}")
+    # On mobile, evaluating JavaScript from the UI/event loop thread is more reliable.
+    if IS_MOBILE and _dispatch_notification_event_on_main_loop(script):
+        return True
 
-    return False
+    _ensure_notification_event_worker()
+
+    try:
+        _notification_event_queue.put_nowait(script)
+        return True
+    except queue.Full:
+        try:
+            _notification_event_queue.get_nowait()
+        except queue.Empty:
+            pass
+
+        try:
+            _notification_event_queue.put_nowait(script)
+            print("NMA: Notification event queue was full, dropped oldest event")
+            return True
+        except queue.Full:
+            print("NMA: Notification event queue full, dropping event")
+            return False
 
 
 def _emit_notification_event(event_name, notification=None, notification_id=None, timestamp=None):
@@ -962,24 +1042,51 @@ class NotificationManagerAPI:
         return self.send_notification(message, source=source)
 
     def send_test_notifications(self, count=3, source='Test-App'):
+        global _notifications
+
         try:
             normalized_count = int(count)
         except (TypeError, ValueError):
             normalized_count = 3
 
         normalized_count = max(1, min(normalized_count, 50))
+        calling_app = self._resolve_source(source)
         notification_ids = []
+        last_notification = None
 
         for index in range(normalized_count):
-            result = self.send_notification(f"Test notification {index + 1}", source=source)
-            if result.get("success"):
-                notification_ids.append(result.get("notification_id"))
+            notification_id = uuid.uuid4().hex
+            notification_timestamp = time.time()
+            notification_message = f"Test notification {index + 1}"
+
+            _notifications[notification_id] = {
+                "message": notification_message,
+                "timestamp": notification_timestamp,
+                "source": calling_app,
+            }
+            notification_ids.append(notification_id)
+            last_notification = {
+                "id": notification_id,
+                "message": notification_message,
+                "timestamp": notification_timestamp,
+                "source": calling_app,
+            }
+
+        if last_notification is not None:
+            _emit_notification_event(
+                "notification-added",
+                notification=last_notification,
+                notification_id=last_notification["id"],
+                timestamp=last_notification["timestamp"],
+            )
+
+        print(f"NMA: Batch test notifications sent: {len(notification_ids)} from {calling_app}")
 
         return {
             "success": True,
             "count": len(notification_ids),
             "notification_ids": notification_ids,
-            "source": source,
+            "source": calling_app,
         }
 
 #API for managing errors within the environment

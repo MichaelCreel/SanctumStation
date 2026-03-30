@@ -668,6 +668,8 @@ function waitForPywebview(callback, maxAttempts = 200) {
 
 // Notification panel functions
 const NOTIFICATION_FALLBACK_POLL_MS = 60000;
+const NOTIFICATION_POPUP_DURATION_MS = 5000;
+const NOTIFICATION_POPUP_LIMIT = 4;
 let notificationFallbackPollHandle = null;
 let notificationSyncInFlight = false;
 
@@ -692,6 +694,80 @@ function updateNotificationBadge(count) {
             badge.style.display = 'flex';
         }
     });
+}
+
+function removeNotificationToast(toastElement) {
+    if (!toastElement || !toastElement.parentElement) {
+        return;
+    }
+
+    if (toastElement.dataset.timeoutId) {
+        clearTimeout(Number(toastElement.dataset.timeoutId));
+    }
+
+    toastElement.classList.remove('show');
+    toastElement.classList.add('hide');
+    setTimeout(() => {
+        if (toastElement.parentElement) {
+            toastElement.remove();
+        }
+    }, 220);
+}
+
+function showNotificationPopup(notification) {
+    const toastContainer = document.getElementById('notificationToastContainer');
+    if (!toastContainer || !notification || !notification.message) {
+        return;
+    }
+
+    while (toastContainer.children.length >= NOTIFICATION_POPUP_LIMIT) {
+        removeNotificationToast(toastContainer.lastElementChild);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'notification-toast';
+
+    const header = document.createElement('div');
+    header.className = 'notification-toast-header';
+
+    const source = document.createElement('span');
+    source.className = 'notification-toast-source';
+    source.textContent = notification.source || 'System';
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'notification-toast-time';
+    const timestamp = Number(notification.timestamp);
+    const time = Number.isFinite(timestamp)
+        ? new Date(timestamp * 1000)
+        : new Date();
+    timeEl.textContent = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const closeButton = document.createElement('button');
+    closeButton.className = 'notification-toast-close';
+    closeButton.type = 'button';
+    closeButton.textContent = '×';
+    closeButton.addEventListener('click', () => removeNotificationToast(toast));
+
+    header.appendChild(source);
+    header.appendChild(timeEl);
+    header.appendChild(closeButton);
+
+    const message = document.createElement('div');
+    message.className = 'notification-toast-message';
+    message.textContent = String(notification.message);
+
+    toast.appendChild(header);
+    toast.appendChild(message);
+    toastContainer.prepend(toast);
+
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    const timeoutId = setTimeout(() => {
+        removeNotificationToast(toast);
+    }, NOTIFICATION_POPUP_DURATION_MS);
+    toast.dataset.timeoutId = String(timeoutId);
 }
 
 function renderNotifications(notifications) {
@@ -766,6 +842,10 @@ function initializeNotificationSync() {
         const payload = event && event.detail ? event.detail : null;
         if (payload && Number.isFinite(Number(payload.count))) {
             updateNotificationBadge(Number(payload.count));
+        }
+
+        if (payload && payload.event === 'notification-added' && payload.notification) {
+            showNotificationPopup(payload.notification);
         }
 
         if (isNotificationPanelOpen()) {
