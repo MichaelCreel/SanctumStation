@@ -37,6 +37,12 @@ const DEFAULT_COMMAND_PALETTE_BIND = 'Ctrl+Space';
 const DEFAULT_APPS_PER_RING = 8;
 const MIN_APPS_PER_RING = 1;
 const MAX_APPS_PER_RING = 30;
+const LOGO_VARIANTS = {
+    default: { id: 'logoDefault', src: 'logo.png' },
+    solid: { id: 'logoSolid', src: 'logo_solid.png' },
+    light: { id: 'logoLight', src: 'logo_light.png' },
+    solid_light: { id: 'logoSolidLight', src: 'logo_solid_light.png' }
+};
 const DEFAULT_COLOR_THEME = 'dark';
 const DEFAULT_REDUCE_GRAPHICS = 'level_0';
 const REDUCE_GRAPHICS_LABELS = {
@@ -158,6 +164,32 @@ function normalizeAppsPerRing(value, fallback = DEFAULT_APPS_PER_RING) {
     }
 
     return Math.min(MAX_APPS_PER_RING, Math.max(MIN_APPS_PER_RING, parsed));
+}
+
+function normalizeLogoType(value) {
+    const candidate = String(value || '').trim().toLowerCase();
+    return LOGO_VARIANTS[candidate] ? candidate : 'default';
+}
+
+function getLogoVariant(value) {
+    return LOGO_VARIANTS[normalizeLogoType(value)] || LOGO_VARIANTS.default;
+}
+
+function updateLogoSelectionUI(value) {
+    const variant = getLogoVariant(value);
+    document.querySelectorAll('.logo-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+
+    const selected = document.getElementById(variant.id);
+    if (selected) {
+        selected.classList.add('selected');
+    }
+
+    const logoImg = document.querySelector('.center-button-icon img');
+    if (logoImg) {
+        logoImg.src = variant.src;
+    }
 }
 
 function previewAppsPerRing(value) {
@@ -818,11 +850,7 @@ async function loadScale() {
 async function loadLogo() {
     try {
         const settings = await window.pywebview.api.get_settings();
-        const logoType = settings.logo || 'default';
-        const logoImg = document.querySelector('.center-button-icon img');
-        if (logoImg) {
-            logoImg.src = logoType === 'solid' ? 'logo_solid.png' : 'logo.png';
-        }
+        updateLogoSelectionUI(settings.logo || 'default');
     } catch (error) {
         console.error('Error loading logo:', error);
     }
@@ -1346,11 +1374,7 @@ async function toggleSettings() {
         if (fullscreenRow) fullscreenRow.style.display = settings.is_mobile ? 'none' : '';
         
         // Update logo selection
-        const selectedLogo = settings.logo || 'default';
-        document.querySelectorAll('.logo-option').forEach(option => {
-            option.classList.remove('selected');
-        });
-        document.getElementById(`logo${selectedLogo.charAt(0).toUpperCase() + selectedLogo.slice(1)}`).classList.add('selected');
+        updateLogoSelectionUI(settings.logo || 'default');
         
         overlay.style.display = 'flex';
     } else {
@@ -1726,23 +1750,14 @@ async function saveReduceGraphics(value) {
 }
 
 async function selectLogo(logoType) {
-    console.log('selectLogo called with:', logoType);
+    const normalizedLogoType = normalizeLogoType(logoType);
+    console.log('selectLogo called with:', normalizedLogoType);
     try {
         console.log('Calling set_logo API...');
-        const result = await window.pywebview.api.set_logo(logoType);
+        const result = await window.pywebview.api.set_logo(normalizedLogoType);
         console.log('set_logo result:', result);
         if (result) {
-            // Update visual selection
-            document.querySelectorAll('.logo-option').forEach(option => {
-                option.classList.remove('selected');
-            });
-            document.getElementById(`logo${logoType.charAt(0).toUpperCase() + logoType.slice(1)}`).classList.add('selected');
-            
-            // Update the center button logo
-            const logoImg = document.querySelector('.center-button-icon img');
-            if (logoImg) {
-                logoImg.src = logoType === 'solid' ? 'logo_solid.png' : 'logo.png';
-            }
+            updateLogoSelectionUI(normalizedLogoType);
             console.log('Logo updated successfully in UI');
         } else {
             console.error('set_logo returned false');
