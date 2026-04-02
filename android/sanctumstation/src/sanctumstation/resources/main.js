@@ -34,8 +34,12 @@ function buildFontSource(fontPath) {
 
 const DEFAULT_NOTIFICATION_BIND = 'Ctrl+N';
 const DEFAULT_COMMAND_PALETTE_BIND = 'Ctrl+Space';
+const DEFAULT_APPS_PER_RING = 8;
+const MIN_APPS_PER_RING = 1;
+const MAX_APPS_PER_RING = 64;
 let configuredNotificationBind = DEFAULT_NOTIFICATION_BIND;
 let configuredCommandPaletteBind = DEFAULT_COMMAND_PALETTE_BIND;
+let configuredAppsPerRing = DEFAULT_APPS_PER_RING;
 
 function normalizeShortcutText(value, fallback) {
     const text = String(value || '').trim();
@@ -78,8 +82,21 @@ function applyShortcutSettings(settings = {}) {
         settings.command_palette_bind,
         DEFAULT_COMMAND_PALETTE_BIND
     );
+    configuredAppsPerRing = normalizeAppsPerRing(
+        settings.apps_per_ring,
+        DEFAULT_APPS_PER_RING
+    );
 
     updateCommandPaletteHint();
+}
+
+function normalizeAppsPerRing(value, fallback = DEFAULT_APPS_PER_RING) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) {
+        return fallback;
+    }
+
+    return Math.min(MAX_APPS_PER_RING, Math.max(MIN_APPS_PER_RING, parsed));
 }
 
 function parseShortcutBinding(shortcutText) {
@@ -511,19 +528,12 @@ class DesktopInteractions {
         }
 
         const numApps = this.apps.length;
-        const baseAppsPerRing = 8; // Apps in the first (innermost) ring
+        const appsPerRing = configuredAppsPerRing;
         const baseRadius = Math.min(window.innerWidth, window.innerHeight) * 0.25;
         const ringSpacing = Math.min(window.innerWidth, window.innerHeight) * 0.12; // Space between rings
         
-        console.log(`Displaying ${numApps} apps with base radius ${baseRadius}px`);
+        console.log(`Displaying ${numApps} apps with ${appsPerRing} apps per ring and base radius ${baseRadius}px`);
         console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
-        
-        // Calculate how many apps fit in each ring to maintain spacing
-        const getAppsPerRing = (ringIndex) => {
-            const radius = baseRadius + (ringIndex * ringSpacing);
-            // Scale apps by radius to maintain arc length between apps
-            return Math.round(baseAppsPerRing * (radius / baseRadius));
-        };
         
         // Distribute apps across rings
         let appsPlaced = 0;
@@ -531,8 +541,7 @@ class DesktopInteractions {
         const ringAssignments = []; // [{ ringIndex, startIndex, count }]
         
         while (appsPlaced < numApps) {
-            const appsInThisRing = getAppsPerRing(currentRing);
-            const appsToPlace = Math.min(appsInThisRing, numApps - appsPlaced);
+            const appsToPlace = Math.min(appsPerRing, numApps - appsPlaced);
             ringAssignments.push({
                 ringIndex: currentRing,
                 startIndex: appsPlaced,
@@ -1240,6 +1249,10 @@ async function toggleSettings() {
         document.getElementById('updatesSelect').value = settings.updates || 'release';
         document.getElementById('notificationBindInput').value = configuredNotificationBind;
         document.getElementById('commandPaletteBindInput').value = configuredCommandPaletteBind;
+        const appsPerRingInput = document.getElementById('appsPerRingInput');
+        if (appsPerRingInput) {
+            appsPerRingInput.value = configuredAppsPerRing;
+        }
 
         cachedSettingsFonts = settings.fonts || {};
         const fontWeightSelect = document.getElementById('fontWeightSelect');
@@ -1536,6 +1549,39 @@ async function saveCommandPaletteBind() {
     } catch (error) {
         console.error('Error setting command palette shortcut:', error);
         alert('Error setting command palette shortcut.');
+    }
+}
+
+async function saveAppsPerRing() {
+    const input = document.getElementById('appsPerRingInput');
+    if (!input) {
+        return;
+    }
+
+    const value = normalizeAppsPerRing(input.value, configuredAppsPerRing);
+    input.value = value;
+
+    try {
+        if (typeof window.pywebview?.api?.set_apps_per_ring !== 'function') {
+            alert('Apps per ring is not supported by this build.');
+            return;
+        }
+
+        const result = await window.pywebview.api.set_apps_per_ring(value);
+        if (!result) {
+            alert('Failed to update apps per ring setting.');
+            return;
+        }
+
+        configuredAppsPerRing = value;
+
+        const interactions = window.SanctumStation?.interactions;
+        if (interactions?.isAppLauncherOpen) {
+            interactions.displayAppsInCircle();
+        }
+    } catch (error) {
+        console.error('Error setting apps per ring:', error);
+        alert('Error setting apps per ring.');
     }
 }
 

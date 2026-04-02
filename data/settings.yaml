@@ -1,3 +1,4 @@
+apps_per_ring: 8
 black_font: fonts/Inter-Black.ttf
 bold_font: fonts/Inter-Bold.ttf
 command_palette_bind: Ctrl+Space

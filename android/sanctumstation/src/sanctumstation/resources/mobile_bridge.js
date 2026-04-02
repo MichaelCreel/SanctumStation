@@ -88,7 +88,7 @@
             'get_fonts', 'get_version', 'get_wallpaper', 'get_wallpaper_data',
             'get_day_gradient', 'get_fullscreen',
             'get_settings', 'set_wallpaper', 'set_day_gradient', 'set_fullscreen',
-            'set_font', 'set_updates', 'set_logo', 'set_ui_scale', 'set_notification_bind', 'set_command_palette_bind', 'get_available_update',
+            'set_font', 'set_updates', 'set_logo', 'set_ui_scale', 'set_notification_bind', 'set_command_palette_bind', 'set_apps_per_ring', 'get_available_update',
             'get_file_processor_support',
             'fuzzy_search_apps', 'call_app_function'
         ];

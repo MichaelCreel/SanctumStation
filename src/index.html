@@ -198,6 +198,13 @@ This file contains the structure and layout for the psuedo-desktop environment t
                             <button onclick="saveCommandPaletteBind()">Apply</button>
                         </div>
                     </div>
+                    <div class="setting-item">
+                        <label for="appsPerRingInput">Apps Per Ring:</label>
+                        <div class="setting-input-group">
+                            <input type="number" id="appsPerRingInput" min="1" max="64" step="1" placeholder="8">
+                            <button onclick="saveAppsPerRing()">Apply</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
