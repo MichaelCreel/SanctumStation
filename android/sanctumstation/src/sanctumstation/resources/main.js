@@ -5,6 +5,165 @@ This file handles interactive elements and transfer to the python backend for th
 
 console.log('[Main.js] Script loading...');
 
+function buildFontSource(fontPath) {
+    const rawPath = String(fontPath || '').trim();
+    if (!rawPath) {
+        return '';
+    }
+
+    let normalizedPath = rawPath;
+    if (normalizedPath.startsWith('src:')) {
+        normalizedPath = normalizedPath.slice(4);
+    }
+
+    if (/^(https?:|file:|data:)/i.test(normalizedPath)) {
+        return `url("${normalizedPath}")`;
+    }
+
+    if (/^[a-zA-Z]:[\\/]/.test(normalizedPath)) {
+        const windowsPath = normalizedPath.replace(/\\/g, '/');
+        return `url("file:///${encodeURI(windowsPath)}")`;
+    }
+
+    if (normalizedPath.startsWith('/')) {
+        return `url("file://${encodeURI(normalizedPath)}")`;
+    }
+
+    return `url("${normalizedPath}")`;
+}
+
+const DEFAULT_NOTIFICATION_BIND = 'Ctrl+N';
+const DEFAULT_COMMAND_PALETTE_BIND = 'Ctrl+Space';
+let configuredNotificationBind = DEFAULT_NOTIFICATION_BIND;
+let configuredCommandPaletteBind = DEFAULT_COMMAND_PALETTE_BIND;
+
+function normalizeShortcutText(value, fallback) {
+    const text = String(value || '').trim();
+    if (!text) {
+        return fallback;
+    }
+
+    return text
+        .split('+')
+        .map(part => part.trim())
+        .filter(Boolean)
+        .join('+');
+}
+
+function getCommandPaletteHintText() {
+    return `Press ${configuredCommandPaletteBind} to search apps`;
+}
+
+function updateCommandPaletteHint() {
+    const hint = getCommandPaletteHintText();
+    const resultsContainer = document.getElementById('commandPaletteResults');
+    if (!resultsContainer) {
+        return;
+    }
+
+    if (!resultsContainer.querySelector('.command-result-item')) {
+        const emptyMessage = resultsContainer.querySelector('.command-palette-empty');
+        if (emptyMessage && /press .* to search apps/i.test(emptyMessage.textContent || '')) {
+            emptyMessage.textContent = hint;
+        }
+    }
+}
+
+function applyShortcutSettings(settings = {}) {
+    configuredNotificationBind = normalizeShortcutText(
+        settings.notification_bind,
+        DEFAULT_NOTIFICATION_BIND
+    );
+    configuredCommandPaletteBind = normalizeShortcutText(
+        settings.command_palette_bind,
+        DEFAULT_COMMAND_PALETTE_BIND
+    );
+
+    updateCommandPaletteHint();
+}
+
+function parseShortcutBinding(shortcutText) {
+    const normalized = normalizeShortcutText(shortcutText, '');
+    if (!normalized) {
+        return null;
+    }
+
+    const parsed = {
+        ctrl: false,
+        meta: false,
+        alt: false,
+        shift: false,
+        key: null,
+        code: null
+    };
+
+    const parts = normalized.split('+').map(part => part.trim().toLowerCase()).filter(Boolean);
+    for (const part of parts) {
+        if (part === 'ctrl' || part === 'control') {
+            parsed.ctrl = true;
+            continue;
+        }
+        if (part === 'cmd' || part === 'command' || part === 'meta') {
+            parsed.meta = true;
+            continue;
+        }
+        if (part === 'alt' || part === 'option') {
+            parsed.alt = true;
+            continue;
+        }
+        if (part === 'shift') {
+            parsed.shift = true;
+            continue;
+        }
+        if (part === 'space' || part === 'spacebar') {
+            parsed.code = 'Space';
+            parsed.key = ' ';
+            continue;
+        }
+
+        parsed.key = part;
+    }
+
+    if (!parsed.key && !parsed.code) {
+        return null;
+    }
+
+    return parsed;
+}
+
+function eventMatchesShortcut(event, shortcutText) {
+    const parsed = parseShortcutBinding(shortcutText);
+    if (!parsed) {
+        return false;
+    }
+
+    if (parsed.ctrl && !parsed.meta) {
+        if (!(event.ctrlKey || event.metaKey)) {
+            return false;
+        }
+    } else {
+        if (Boolean(event.ctrlKey) !== parsed.ctrl) {
+            return false;
+        }
+        if (Boolean(event.metaKey) !== parsed.meta) {
+            return false;
+        }
+    }
+    if (Boolean(event.altKey) !== parsed.alt) {
+        return false;
+    }
+    if (Boolean(event.shiftKey) !== parsed.shift) {
+        return false;
+    }
+
+    if (parsed.code) {
+        return event.code === parsed.code;
+    }
+
+    const eventKey = String(event.key || '').toLowerCase();
+    return eventKey === parsed.key;
+}
+
 // Clock functionality
 class DesktopClock {
     constructor() {
@@ -222,7 +381,11 @@ class DesktopInteractions {
                 // Load all font weights
                 for (const [key, filename] of Object.entries(fonts)) {
                     const weight = weightMap[key];
-                    const fontFace = new FontFace(fontName, `url(${filename})`, {
+                    if (!weight) {
+                        continue;
+                    }
+
+                    const fontFace = new FontFace(fontName, buildFontSource(filename), {
                         weight: weight,
                         style: 'normal'
                     });
@@ -271,6 +434,7 @@ class DesktopInteractions {
             // Load apps from Python backend
             if (window.pywebview && window.pywebview.api) {
                 this.apps = await window.pywebview.api.get_apps();
+                this.apps.sort((a, b) => a.name.localeCompare(b.name));
                 console.log('=== LOADED APPS ===');
                 console.log('Number of apps:', this.apps.length);
                 console.log('Apps data:', JSON.stringify(this.apps, null, 2));
@@ -464,9 +628,7 @@ class DesktopInteractions {
                          event.target.isContentEditable;
         const isAppOpen = document.querySelector('.app-container') !== null;
         
-        // Ctrl+N / Cmd+N toggles notification panel (works anywhere)
-        const key = String(event.key || '').toLowerCase();
-        if ((event.ctrlKey || event.metaKey) && key === 'n') {
+        if (eventMatchesShortcut(event, configuredNotificationBind)) {
             event.preventDefault();
             toggleNotifications();
             return;
@@ -508,13 +670,9 @@ class ResponsiveHandler {
 
     handleResize() {
         const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-        const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-        
-        if (vw < 320) {
-            document.documentElement.style.fontSize = '14px';
-        } else {
-            document.documentElement.style.fontSize = '16px';
-        }
+        const scale = window._currentUiScale || 1.0;
+        const basePx = vw < 320 ? 14 : 16;
+        document.documentElement.style.fontSize = (basePx * scale) + 'px';
     }
 }
 
@@ -562,6 +720,22 @@ async function loadWallpaper() {
     }
 }
 
+async function loadScale() {
+    try {
+        console.log('loadScale: calling get_settings...');
+        const settings = await window.pywebview.api.get_settings();
+        console.log('loadScale: ui_scale =', settings.ui_scale);
+        applyScale(settings.ui_scale || 1.0);
+        console.log('loadScale: applied font-size =', document.documentElement.style.fontSize);
+        if (settings.is_mobile) {
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            if (fullscreenBtn) fullscreenBtn.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading UI scale:', error);
+    }
+}
+
 async function loadLogo() {
     try {
         const settings = await window.pywebview.api.get_settings();
@@ -576,7 +750,7 @@ async function loadLogo() {
 }
 
 // Wait for pywebview API to be ready
-function waitForPywebview(callback, maxAttempts = 50) {
+function waitForPywebview(callback, maxAttempts = 200) {
     let attempts = 0;
     const checkAPI = setInterval(() => {
         attempts++;
@@ -862,15 +1036,229 @@ async function clearAllNotifications() {
     }
 }
 
+const FILE_PICKER_TIMEOUT_MS = 120000;
+const DEFAULT_FILE_PROCESSOR_SUPPORT = {
+    wallpaper: {
+        extensions: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico', '.tif', '.tiff', '.avif'],
+        description: 'Any image file detected as image/*'
+    },
+    font: {
+        extensions: ['.ttf'],
+        description: 'TrueType font files'
+    }
+};
+
+let cachedFileProcessorSupport = { ...DEFAULT_FILE_PROCESSOR_SUPPORT };
+let activePickerRequest = null;
+let cachedSettingsFonts = {};
+
+function formatSupportText(extensions) {
+    const extensionText = Array.isArray(extensions) && extensions.length
+        ? extensions.join(', ')
+        : 'any';
+    return `Supported: ${extensionText}`;
+}
+
+function normalizePickerExtension(ext) {
+    const normalized = String(ext || '').trim().toLowerCase();
+    if (!normalized) {
+        return '';
+    }
+    return normalized.startsWith('.') ? normalized : `.${normalized}`;
+}
+
+function getSupportExtensions(kind) {
+    const support = cachedFileProcessorSupport && cachedFileProcessorSupport[kind];
+    const extensions = Array.isArray(support?.extensions) ? support.extensions : [];
+    const normalized = extensions.map(normalizePickerExtension).filter(Boolean);
+    return [...new Set(normalized)];
+}
+
+function updateSupportLabels() {
+    const wallpaperInfo = document.getElementById('wallpaperSupportInfo');
+    const fontInfo = document.getElementById('fontSupportInfo');
+
+    if (wallpaperInfo) {
+        wallpaperInfo.textContent = formatSupportText(getSupportExtensions('wallpaper'));
+    }
+
+    if (fontInfo) {
+        fontInfo.textContent = formatSupportText(getSupportExtensions('font'));
+    }
+}
+
+function setSettingsOverlayPickerState(isPickerActive) {
+    const overlay = document.getElementById('settingsOverlay');
+    if (!overlay) {
+        return;
+    }
+
+    overlay.classList.toggle('picker-passive', !!isPickerActive);
+}
+
+function cleanupPickerRequest(request) {
+    if (!request || request.cleanedUp) {
+        return;
+    }
+
+    request.cleanedUp = true;
+    clearTimeout(request.timeoutHandle);
+    clearInterval(request.monitorHandle);
+    setSettingsOverlayPickerState(false);
+}
+
+async function loadFileProcessorSupport() {
+    try {
+        if (window.pywebview?.api && typeof window.pywebview.api.get_file_processor_support === 'function') {
+            const support = await window.pywebview.api.get_file_processor_support();
+            if (support && typeof support === 'object') {
+                cachedFileProcessorSupport = {
+                    ...DEFAULT_FILE_PROCESSOR_SUPPORT,
+                    ...support
+                };
+            }
+        }
+    } catch (error) {
+        console.warn('Falling back to default file processor support:', error);
+    }
+
+    updateSupportLabels();
+}
+
+async function openFileBrowserPicker(options = {}) {
+    const requestId = `picker-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const pickerPayload = {
+        mode: 'picker',
+        requestId,
+        title: options.title || 'Select a file',
+        allowFiles: options.allowFiles !== false,
+        allowFolders: options.allowFolders === true,
+        extensions: Array.isArray(options.extensions) ? options.extensions.map(normalizePickerExtension).filter(Boolean) : []
+    };
+
+    if (activePickerRequest) {
+        throw new Error('A file picker request is already active.');
+    }
+
+    setSettingsOverlayPickerState(true);
+
+    return new Promise(async (resolve, reject) => {
+        const timeoutHandle = setTimeout(() => {
+            if (activePickerRequest && activePickerRequest.requestId === requestId) {
+                const request = activePickerRequest;
+                activePickerRequest = null;
+                cleanupPickerRequest(request);
+            }
+            reject(new Error('File picker request timed out.'));
+        }, FILE_PICKER_TIMEOUT_MS);
+
+        const monitorHandle = setInterval(async () => {
+            if (!activePickerRequest || activePickerRequest.requestId !== requestId) {
+                clearInterval(monitorHandle);
+                return;
+            }
+
+            try {
+                if (typeof window.pywebview?.api?.get_running_apps !== 'function') {
+                    return;
+                }
+
+                const runningApps = await window.pywebview.api.get_running_apps();
+                if (Array.isArray(runningApps) && !runningApps.includes('File-Browser')) {
+                    const request = activePickerRequest;
+                    activePickerRequest = null;
+                    cleanupPickerRequest(request);
+                    resolve({
+                        mode: 'picker',
+                        requestId,
+                        cancelled: true
+                    });
+                }
+            } catch (error) {
+                // Ignore transient API errors while polling picker status.
+            }
+        }, 1000);
+
+        activePickerRequest = {
+            requestId,
+            resolve,
+            reject,
+            timeoutHandle,
+            monitorHandle,
+            cleanedUp: false
+        };
+
+        try {
+            await window.pywebview.api.launch_app('File-Browser', pickerPayload);
+        } catch (error) {
+            const request = activePickerRequest;
+            activePickerRequest = null;
+            cleanupPickerRequest(request);
+            reject(error);
+        }
+    });
+}
+
+window.__SANCTUM_FILE_PICKER_RESOLVE = function pickerResolve(payload) {
+    if (!activePickerRequest) {
+        return;
+    }
+
+    const request = activePickerRequest;
+    const payloadRequestId = payload && payload.requestId;
+    if (payloadRequestId && payloadRequestId !== request.requestId) {
+        return;
+    }
+
+    activePickerRequest = null;
+    cleanupPickerRequest(request);
+    request.resolve(payload || null);
+};
+
+function updateFontPathPreview() {
+    const weightSelect = document.getElementById('fontWeightSelect');
+    const fontPathInput = document.getElementById('fontPathInput');
+    if (!weightSelect || !fontPathInput) {
+        return;
+    }
+
+    const weightKey = `${weightSelect.value}_font`;
+    fontPathInput.value = cachedSettingsFonts[weightKey] || '';
+}
+
 async function toggleSettings() {
     const overlay = document.getElementById('settingsOverlay');
     if (overlay.style.display === 'none' || overlay.style.display === '') {
         // Load current settings
         const settings = await window.pywebview.api.get_settings();
+        applyShortcutSettings(settings);
+        await loadFileProcessorSupport();
+
         document.getElementById('wallpaperInput').value = settings.wallpaper || '';
         document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
         document.getElementById('fullscreenToggle').checked = settings.fullscreen === true;
         document.getElementById('updatesSelect').value = settings.updates || 'release';
+        document.getElementById('notificationBindInput').value = configuredNotificationBind;
+        document.getElementById('commandPaletteBindInput').value = configuredCommandPaletteBind;
+
+        cachedSettingsFonts = settings.fonts || {};
+        const fontWeightSelect = document.getElementById('fontWeightSelect');
+        if (fontWeightSelect) {
+            if (!fontWeightSelect.value) {
+                fontWeightSelect.value = 'regular';
+            }
+            updateFontPathPreview();
+        }
+
+        // Load UI scale slider
+        const scale = window._currentUiScale || settings.ui_scale || 1.0;
+        const scalePct = Math.round(scale * 100);
+        document.getElementById('uiScaleSlider').value = scalePct;
+        document.getElementById('uiScaleLabel').textContent = scalePct + '%';
+
+        // Hide fullscreen setting row on mobile
+        const fullscreenRow = document.getElementById('fullscreenToggle').closest('.setting-item');
+        if (fullscreenRow) fullscreenRow.style.display = settings.is_mobile ? 'none' : '';
         
         // Update logo selection
         const selectedLogo = settings.logo || 'default';
@@ -885,15 +1273,38 @@ async function toggleSettings() {
     }
 }
 
+async function chooseWallpaperFromPicker() {
+    try {
+        const result = await openFileBrowserPicker({
+            title: 'Select Wallpaper',
+            extensions: getSupportExtensions('wallpaper')
+        });
+
+        if (!result || result.cancelled || !result.selectedPath) {
+            return;
+        }
+
+        const wallpaperPathInput = document.getElementById('wallpaperInput');
+        if (wallpaperPathInput) {
+            wallpaperPathInput.value = result.selectedPath;
+        }
+
+        await saveWallpaper();
+    } catch (error) {
+        console.error('Error opening wallpaper picker:', error);
+        alert('Unable to open wallpaper picker right now.');
+    }
+}
+
 async function saveWallpaper() {
     const wallpaperPath = document.getElementById('wallpaperInput').value.trim();
     try {
         const result = await window.pywebview.api.set_wallpaper(wallpaperPath || 'None');
         if (result) {
             await loadWallpaper();
-            alert('Wallpaper updated!');
         } else {
-            alert('Failed to update wallpaper.');
+            const supported = getSupportExtensions('wallpaper').join(', ');
+            alert(`Failed to update wallpaper. Supported extensions: ${supported}`);
         }
     } catch (error) {
         console.error('Error setting wallpaper:', error);
@@ -928,6 +1339,67 @@ async function setDefaultWallpaper(path) {
     } catch (error) {
         console.error('Error setting wallpaper:', error);
         alert('Error setting wallpaper.');
+    }
+}
+
+async function chooseFontFromPicker() {
+    const weightSelect = document.getElementById('fontWeightSelect');
+    if (!weightSelect) {
+        return;
+    }
+
+    try {
+        const result = await openFileBrowserPicker({
+            title: 'Select Font File',
+            extensions: getSupportExtensions('font')
+        });
+
+        if (!result || result.cancelled || !result.selectedPath) {
+            return;
+        }
+
+        const fontPathInput = document.getElementById('fontPathInput');
+        if (fontPathInput) {
+            fontPathInput.value = result.selectedPath;
+        }
+
+        await saveSelectedFont();
+    } catch (error) {
+        console.error('Error opening font picker:', error);
+        alert('Unable to open font picker right now.');
+    }
+}
+
+async function saveSelectedFont() {
+    const weightSelect = document.getElementById('fontWeightSelect');
+    const fontPathInput = document.getElementById('fontPathInput');
+    if (!weightSelect || !fontPathInput) {
+        return;
+    }
+
+    const weight = weightSelect.value;
+    const fontPath = fontPathInput.value.trim();
+    if (!fontPath) {
+        alert('Choose a font file first.');
+        return;
+    }
+
+    try {
+        const result = await window.pywebview.api.set_font(weight, fontPath);
+        if (!result) {
+            const supported = getSupportExtensions('font').join(', ');
+            alert(`Failed to update font. Supported extensions: ${supported}`);
+            return;
+        }
+
+        cachedSettingsFonts[`${weight}_font`] = fontPath;
+
+        if (window.SanctumStation?.interactions?.loadFont) {
+            await window.SanctumStation.interactions.loadFont();
+        }
+    } catch (error) {
+        console.error('Error setting font:', error);
+        alert('Error setting font.');
     }
 }
 
@@ -983,6 +1455,28 @@ async function toggleFullscreen() {
     }
 }
 
+function applyScale(scale) {
+    // scale is a float: 1.0 = 100% = 16px root font size
+    window._currentUiScale = scale;
+    document.documentElement.style.fontSize = (16 * scale) + 'px';
+    try { localStorage.setItem('ui_scale', scale); } catch (e) {}
+}
+
+function previewScale(pct) {
+    document.getElementById('uiScaleLabel').textContent = pct + '%';
+    applyScale(pct / 100);
+}
+
+async function saveScale(pct) {
+    const scale = pct / 100;
+    applyScale(scale);
+    try {
+        await window.pywebview.api.set_ui_scale(scale);
+    } catch (error) {
+        console.error('Error saving UI scale:', error);
+    }
+}
+
 async function saveUpdates() {
     const channel = document.getElementById('updatesSelect').value;
     try {
@@ -995,6 +1489,53 @@ async function saveUpdates() {
     } catch (error) {
         console.error('Error setting updates channel:', error);
         alert('Error setting updates channel.');
+    }
+}
+
+async function saveNotificationBind() {
+    const input = document.getElementById('notificationBindInput');
+    if (!input) {
+        return;
+    }
+
+    const value = normalizeShortcutText(input.value, DEFAULT_NOTIFICATION_BIND);
+
+    try {
+        const result = await window.pywebview.api.set_notification_bind(value);
+        if (!result) {
+            alert('Failed to update notification shortcut.');
+            return;
+        }
+
+        configuredNotificationBind = value;
+        input.value = value;
+    } catch (error) {
+        console.error('Error setting notification shortcut:', error);
+        alert('Error setting notification shortcut.');
+    }
+}
+
+async function saveCommandPaletteBind() {
+    const input = document.getElementById('commandPaletteBindInput');
+    if (!input) {
+        return;
+    }
+
+    const value = normalizeShortcutText(input.value, DEFAULT_COMMAND_PALETTE_BIND);
+
+    try {
+        const result = await window.pywebview.api.set_command_palette_bind(value);
+        if (!result) {
+            alert('Failed to update command palette shortcut.');
+            return;
+        }
+
+        configuredCommandPaletteBind = value;
+        input.value = value;
+        updateCommandPaletteHint();
+    } catch (error) {
+        console.error('Error setting command palette shortcut:', error);
+        alert('Error setting command palette shortcut.');
     }
 }
 
@@ -1211,9 +1752,9 @@ async function launchAppFromPalette(appName) {
 
 // Setup command palette event listeners
 function setupCommandPalette() {
-    // Ctrl+Space to open
+    // Configurable shortcut to open command palette
     document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.code === 'Space') {
+        if (eventMatchesShortcut(e, configuredCommandPaletteBind)) {
             e.preventDefault();
             const overlay = document.getElementById('commandPaletteOverlay');
             if (overlay.style.display === 'none') {
@@ -1283,6 +1824,11 @@ document.addEventListener('fullscreenchange', async () => {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Sanctum Station Desktop Environment initialized');
 
+    // Apply cached scale immediately to avoid layout flash before pywebview responds
+    let cachedScale = 1.0;
+    try { cachedScale = parseFloat(localStorage.getItem('ui_scale') || '1.0'); } catch (e) {}
+    if (cachedScale !== 1.0) applyScale(cachedScale);
+
     const clock = new DesktopClock();
     const interactions = new DesktopInteractions();
     const responsive = new ResponsiveHandler();
@@ -1292,16 +1838,23 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Setup command palette after DOM is ready
     setupCommandPalette();
+    updateCommandPaletteHint();
     
     // Wait for pywebview API to be ready before loading wallpaper
     waitForPywebview(() => {
+        console.log('waitForPywebview: callback fired, loading resources...');
         initializeNotificationSync();
+        loadFileProcessorSupport();
         loadWallpaper();
         loadDayGradient();
         loadLogo();
+        loadScale();
+        window.pywebview.api.get_settings()
+            .then(settings => applyShortcutSettings(settings || {}))
+            .catch(error => console.error('Error loading shortcut settings:', error));
         checkForUpdateNotification();
     });
-    
+
     window.SanctumStation = {
         clock,
         interactions,

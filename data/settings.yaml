@@ -1,5 +1,6 @@
 black_font: fonts/Inter-Black.ttf
 bold_font: fonts/Inter-Bold.ttf
+command_palette_bind: Ctrl+Space
 day_gradient: true
 extra_bold_font: fonts/Inter-ExtraBold.ttf
 extra_light_font: fonts/Inter-ExtraLight.ttf
@@ -7,6 +8,7 @@ fullscreen: false
 light_font: fonts/Inter-Light.ttf
 logo: default
 medium_font: fonts/Inter-Medium.ttf
+notification_bind: Ctrl+N
 regular_font: fonts/Inter-Regular.ttf
 semi_bold_font: fonts/Inter-SemiBold.ttf
 thin_font: fonts/Inter-Thin.ttf

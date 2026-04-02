@@ -32,6 +32,138 @@ function buildFontSource(fontPath) {
     return `url("${normalizedPath}")`;
 }
 
+const DEFAULT_NOTIFICATION_BIND = 'Ctrl+N';
+const DEFAULT_COMMAND_PALETTE_BIND = 'Ctrl+Space';
+let configuredNotificationBind = DEFAULT_NOTIFICATION_BIND;
+let configuredCommandPaletteBind = DEFAULT_COMMAND_PALETTE_BIND;
+
+function normalizeShortcutText(value, fallback) {
+    const text = String(value || '').trim();
+    if (!text) {
+        return fallback;
+    }
+
+    return text
+        .split('+')
+        .map(part => part.trim())
+        .filter(Boolean)
+        .join('+');
+}
+
+function getCommandPaletteHintText() {
+    return `Press ${configuredCommandPaletteBind} to search apps`;
+}
+
+function updateCommandPaletteHint() {
+    const hint = getCommandPaletteHintText();
+    const resultsContainer = document.getElementById('commandPaletteResults');
+    if (!resultsContainer) {
+        return;
+    }
+
+    if (!resultsContainer.querySelector('.command-result-item')) {
+        const emptyMessage = resultsContainer.querySelector('.command-palette-empty');
+        if (emptyMessage && /press .* to search apps/i.test(emptyMessage.textContent || '')) {
+            emptyMessage.textContent = hint;
+        }
+    }
+}
+
+function applyShortcutSettings(settings = {}) {
+    configuredNotificationBind = normalizeShortcutText(
+        settings.notification_bind,
+        DEFAULT_NOTIFICATION_BIND
+    );
+    configuredCommandPaletteBind = normalizeShortcutText(
+        settings.command_palette_bind,
+        DEFAULT_COMMAND_PALETTE_BIND
+    );
+
+    updateCommandPaletteHint();
+}
+
+function parseShortcutBinding(shortcutText) {
+    const normalized = normalizeShortcutText(shortcutText, '');
+    if (!normalized) {
+        return null;
+    }
+
+    const parsed = {
+        ctrl: false,
+        meta: false,
+        alt: false,
+        shift: false,
+        key: null,
+        code: null
+    };
+
+    const parts = normalized.split('+').map(part => part.trim().toLowerCase()).filter(Boolean);
+    for (const part of parts) {
+        if (part === 'ctrl' || part === 'control') {
+            parsed.ctrl = true;
+            continue;
+        }
+        if (part === 'cmd' || part === 'command' || part === 'meta') {
+            parsed.meta = true;
+            continue;
+        }
+        if (part === 'alt' || part === 'option') {
+            parsed.alt = true;
+            continue;
+        }
+        if (part === 'shift') {
+            parsed.shift = true;
+            continue;
+        }
+        if (part === 'space' || part === 'spacebar') {
+            parsed.code = 'Space';
+            parsed.key = ' ';
+            continue;
+        }
+
+        parsed.key = part;
+    }
+
+    if (!parsed.key && !parsed.code) {
+        return null;
+    }
+
+    return parsed;
+}
+
+function eventMatchesShortcut(event, shortcutText) {
+    const parsed = parseShortcutBinding(shortcutText);
+    if (!parsed) {
+        return false;
+    }
+
+    if (parsed.ctrl && !parsed.meta) {
+        if (!(event.ctrlKey || event.metaKey)) {
+            return false;
+        }
+    } else {
+        if (Boolean(event.ctrlKey) !== parsed.ctrl) {
+            return false;
+        }
+        if (Boolean(event.metaKey) !== parsed.meta) {
+            return false;
+        }
+    }
+    if (Boolean(event.altKey) !== parsed.alt) {
+        return false;
+    }
+    if (Boolean(event.shiftKey) !== parsed.shift) {
+        return false;
+    }
+
+    if (parsed.code) {
+        return event.code === parsed.code;
+    }
+
+    const eventKey = String(event.key || '').toLowerCase();
+    return eventKey === parsed.key;
+}
+
 // Clock functionality
 class DesktopClock {
     constructor() {
@@ -496,9 +628,7 @@ class DesktopInteractions {
                          event.target.isContentEditable;
         const isAppOpen = document.querySelector('.app-container') !== null;
         
-        // Ctrl+N / Cmd+N toggles notification panel (works anywhere)
-        const key = String(event.key || '').toLowerCase();
-        if ((event.ctrlKey || event.metaKey) && key === 'n') {
+        if (eventMatchesShortcut(event, configuredNotificationBind)) {
             event.preventDefault();
             toggleNotifications();
             return;
@@ -1101,12 +1231,15 @@ async function toggleSettings() {
     if (overlay.style.display === 'none' || overlay.style.display === '') {
         // Load current settings
         const settings = await window.pywebview.api.get_settings();
+        applyShortcutSettings(settings);
         await loadFileProcessorSupport();
 
         document.getElementById('wallpaperInput').value = settings.wallpaper || '';
         document.getElementById('dayGradientToggle').checked = settings.day_gradient !== false;
         document.getElementById('fullscreenToggle').checked = settings.fullscreen === true;
         document.getElementById('updatesSelect').value = settings.updates || 'release';
+        document.getElementById('notificationBindInput').value = configuredNotificationBind;
+        document.getElementById('commandPaletteBindInput').value = configuredCommandPaletteBind;
 
         cachedSettingsFonts = settings.fonts || {};
         const fontWeightSelect = document.getElementById('fontWeightSelect');
@@ -1359,6 +1492,53 @@ async function saveUpdates() {
     }
 }
 
+async function saveNotificationBind() {
+    const input = document.getElementById('notificationBindInput');
+    if (!input) {
+        return;
+    }
+
+    const value = normalizeShortcutText(input.value, DEFAULT_NOTIFICATION_BIND);
+
+    try {
+        const result = await window.pywebview.api.set_notification_bind(value);
+        if (!result) {
+            alert('Failed to update notification shortcut.');
+            return;
+        }
+
+        configuredNotificationBind = value;
+        input.value = value;
+    } catch (error) {
+        console.error('Error setting notification shortcut:', error);
+        alert('Error setting notification shortcut.');
+    }
+}
+
+async function saveCommandPaletteBind() {
+    const input = document.getElementById('commandPaletteBindInput');
+    if (!input) {
+        return;
+    }
+
+    const value = normalizeShortcutText(input.value, DEFAULT_COMMAND_PALETTE_BIND);
+
+    try {
+        const result = await window.pywebview.api.set_command_palette_bind(value);
+        if (!result) {
+            alert('Failed to update command palette shortcut.');
+            return;
+        }
+
+        configuredCommandPaletteBind = value;
+        input.value = value;
+        updateCommandPaletteHint();
+    } catch (error) {
+        console.error('Error setting command palette shortcut:', error);
+        alert('Error setting command palette shortcut.');
+    }
+}
+
 async function selectLogo(logoType) {
     console.log('selectLogo called with:', logoType);
     try {
@@ -1572,9 +1752,9 @@ async function launchAppFromPalette(appName) {
 
 // Setup command palette event listeners
 function setupCommandPalette() {
-    // Ctrl+Space to open
+    // Configurable shortcut to open command palette
     document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.code === 'Space') {
+        if (eventMatchesShortcut(e, configuredCommandPaletteBind)) {
             e.preventDefault();
             const overlay = document.getElementById('commandPaletteOverlay');
             if (overlay.style.display === 'none') {
@@ -1658,6 +1838,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Setup command palette after DOM is ready
     setupCommandPalette();
+    updateCommandPaletteHint();
     
     // Wait for pywebview API to be ready before loading wallpaper
     waitForPywebview(() => {
@@ -1668,6 +1849,9 @@ document.addEventListener('DOMContentLoaded', () => {
         loadDayGradient();
         loadLogo();
         loadScale();
+        window.pywebview.api.get_settings()
+            .then(settings => applyShortcutSettings(settings || {}))
+            .catch(error => console.error('Error loading shortcut settings:', error));
         checkForUpdateNotification();
     });
 

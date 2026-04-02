@@ -9,7 +9,13 @@ This file contains the structure and layout for the psuedo-desktop environment t
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sanctum Station</title>
     <link rel="stylesheet" href="style.css">
-    <script src="debug_console.js"></script>
+    <script>
+        // Apply cached UI scale before first paint to prevent flash at 100%
+        try {
+            var s = localStorage.getItem('ui_scale');
+            if (s) document.documentElement.style.fontSize = (16 * parseFloat(s)) + 'px';
+        } catch (e) {}
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="mobile_bridge.js"></script>
 </head>
@@ -71,12 +77,14 @@ This file contains the structure and layout for the psuedo-desktop environment t
                 </div>
                 <div class="settings-content">
                     <div class="setting-item">
-                        <label for="wallpaperInput">Wallpaper Path:</label>
+                        <label for="wallpaperInput">Wallpaper:</label>
                         <div class="setting-input-group">
-                            <input type="text" id="wallpaperInput" placeholder="wallpapers/default.jpg">
+                            <input type="text" id="wallpaperInput" placeholder="No wallpaper selected" readonly>
+                            <button onclick="chooseWallpaperFromPicker()">Choose...</button>
                             <button onclick="saveWallpaper()">Apply</button>
                             <button onclick="removeWallpaper()">Remove</button>
                         </div>
+                        <small id="wallpaperSupportInfo">Supported: image files</small>
                     </div>
                     <div class="setting-item">
                         <label>Default Wallpapers:</label>
@@ -91,6 +99,48 @@ This file contains the structure and layout for the psuedo-desktop environment t
                             <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Mountains.png')" style="background-image: url('default_wallpapers/Mountains.png')"></div>
                             <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Spotlights.png')" style="background-image: url('default_wallpapers/Spotlights.png')"></div>
                             <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Triangles.png')" style="background-image: url('default_wallpapers/Triangles.png')"></div>
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Fire_Tower.png')" style="background-image: url('default_wallpapers/Fire_Tower.png')"></div>
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Lines.png')" style="background-image: url('default_wallpapers/Lines.png')"></div>
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Lone_Planet.png')" style="background-image: url('default_wallpapers/Lone_Planet.png')"></div>
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Ocean.png')" style="background-image: url('default_wallpapers/Ocean.png')"></div>
+                            <div class="wallpaper-thumb" onclick="setDefaultWallpaper('src:default_wallpapers/Slash.png')" style="background-image: url('default_wallpapers/Slash.png')"></div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="fontWeightSelect">Desktop Font:</label>
+                        <div class="setting-input-group">
+                            <select id="fontWeightSelect" onchange="updateFontPathPreview()">
+                                <option value="black">Black (900)</option>
+                                <option value="extra_bold">Extra Bold (800)</option>
+                                <option value="bold">Bold (700)</option>
+                                <option value="semi_bold">Semi Bold (600)</option>
+                                <option value="medium">Medium (500)</option>
+                                <option value="regular" selected>Regular (400)</option>
+                                <option value="light">Light (300)</option>
+                                <option value="extra_light">Extra Light (200)</option>
+                                <option value="thin">Thin (100)</option>
+                            </select>
+                            <input type="text" id="fontPathInput" placeholder="No font selected" readonly>
+                            <button onclick="chooseFontFromPicker()">Choose...</button>
+                            <button onclick="saveSelectedFont()">Apply</button>
+                        </div>
+                        <small id="fontSupportInfo">Supported: .ttf</small>
+                    </div>
+                    <div class="setting-item">
+                        <label>Logo Style:</label>
+                        <div class="logo-selection-grid">
+                            <div class="logo-option" onclick="selectLogo('default')" id="logoDefault">
+                                <div class="logo-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                    <img src="logo.png" alt="Default Logo">
+                                </div>
+                                <div class="logo-label">Default</div>
+                            </div>
+                            <div class="logo-option" onclick="selectLogo('solid')" id="logoSolid">
+                                <div class="logo-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                    <img src="logo_solid.png" alt="Solid Logo">
+                                </div>
+                                <div class="logo-label">Solid</div>
+                            </div>
                         </div>
                     </div>
                     <div class="setting-item">
@@ -112,6 +162,12 @@ This file contains the structure and layout for the psuedo-desktop environment t
                         </div>
                     </div>
                     <div class="setting-item">
+                        <label for="uiScaleSlider">UI Scale: <span id="uiScaleLabel">100%</span></label>
+                        <div class="setting-input-group">
+                            <input type="range" id="uiScaleSlider" min="25" max="200" step="25" value="100" oninput="previewScale(this.value)" onchange="saveScale(this.value)">
+                        </div>
+                    </div>
+                    <div class="setting-item">
                         <label for="updatesSelect">Updates Channel:</label>
                         <div class="setting-input-group">
                             <select id="updatesSelect" onchange="saveUpdates()">
@@ -119,6 +175,20 @@ This file contains the structure and layout for the psuedo-desktop environment t
                                 <option value="release">Release</option>
                                 <option value="all">All</option>
                             </select>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="notificationBindInput">Notification Panel Shortcut:</label>
+                        <div class="setting-input-group">
+                            <input type="text" id="notificationBindInput" placeholder="Ctrl+N">
+                            <button onclick="saveNotificationBind()">Apply</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="commandPaletteBindInput">Command Palette Shortcut:</label>
+                        <div class="setting-input-group">
+                            <input type="text" id="commandPaletteBindInput" placeholder="Ctrl+Space">
+                            <button onclick="saveCommandPaletteBind()">Apply</button>
                         </div>
                     </div>
                 </div>
@@ -210,7 +280,7 @@ This file contains the structure and layout for the psuedo-desktop environment t
         <div class="command-palette-overlay" id="commandPaletteOverlay" style="display: none;">
             <div class="command-palette">
                 <div class="command-palette-search">
-                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg class="search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
                         <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>

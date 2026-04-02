@@ -177,6 +177,20 @@ This file contains the structure and layout for the psuedo-desktop environment t
                             </select>
                         </div>
                     </div>
+                    <div class="setting-item">
+                        <label for="notificationBindInput">Notification Panel Shortcut:</label>
+                        <div class="setting-input-group">
+                            <input type="text" id="notificationBindInput" placeholder="Ctrl+N">
+                            <button onclick="saveNotificationBind()">Apply</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="commandPaletteBindInput">Command Palette Shortcut:</label>
+                        <div class="setting-input-group">
+                            <input type="text" id="commandPaletteBindInput" placeholder="Ctrl+Space">
+                            <button onclick="saveCommandPaletteBind()">Apply</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

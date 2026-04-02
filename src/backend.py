@@ -78,6 +78,8 @@ webview_window = None # Reference to the main webview window
 main_event_loop = None # Reference to the main event loop (for mobile async calls)
 fullscreen = False # Whether the app is in fullscreen mode or not
 ui_scale = 1.0 # UI scale multiplier (1.0 = 16px base font, 100%)
+notification_bind = "Ctrl+N" # Keyboard shortcut for opening the notification panel
+command_palette_bind = "Ctrl+Space" # Keyboard shortcut for opening the command palette
 extension_support = {} # Cache for which apps support which file extensions.
 
 SUPPORTED_WALLPAPER_EXTENSIONS = sorted([
@@ -141,7 +143,7 @@ def initialize():
 # Initializes the environment settings from data/settings.yaml
 # Returns True on success, False on failure
 def init_settings():
-    global version, wallpaper, fonts, updates, day_gradient, fullscreen, logo, ui_scale
+    global version, wallpaper, fonts, updates, day_gradient, fullscreen, logo, ui_scale, notification_bind, command_palette_bind
     try:
         settings_path = os.path.join(DATA_DIR, "settings.yaml")
         print(f"Loading settings from: {settings_path}")
@@ -162,6 +164,10 @@ def init_settings():
             logo = settings["logo"]
         if "ui_scale" in settings:
             ui_scale = float(settings["ui_scale"])
+        if "notification_bind" in settings:
+            notification_bind = settings["notification_bind"]
+        if "command_palette_bind" in settings:
+            command_palette_bind = settings["command_palette_bind"]
         
         # Load all font weights
         font_keys = ['black_font', 'extra_bold_font', 'bold_font', 'semi_bold_font', 
@@ -725,6 +731,12 @@ def init_webview():
 
             def set_ui_scale(self, scale):
                 return settings_manager.set_ui_scale(scale)
+            
+            def set_notification_bind(self, key_combination):
+                return settings_manager.set_notification_bind(key_combination)
+            
+            def set_command_palette_bind(self, key_combination):
+                return settings_manager.set_command_palette_bind(key_combination)
             
             def get_available_update(self):
                 global available_update
@@ -1315,7 +1327,7 @@ class AppManagerAPI:
 class SettingsManagerAPI:
     # Gets current settings
     def get_settings(self):
-        global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo, ui_scale
+        global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo, ui_scale, notification_bind, command_palette_bind
         return {
             "wallpaper": wallpaper,
             "fonts": fonts,
@@ -1324,7 +1336,9 @@ class SettingsManagerAPI:
             "fullscreen": fullscreen,
             "logo": logo,
             "is_mobile": IS_MOBILE,
-            "ui_scale": ui_scale
+            "ui_scale": ui_scale,
+            "notification_bind": notification_bind,
+            "command_palette_bind": command_palette_bind,
         }
 
     # Returns extension support used by settings and file picker filters
@@ -1556,6 +1570,48 @@ class SettingsManagerAPI:
                 webview_window.evaluate_js('displayError("SMA-E7")')
             return False
         return True
+    
+    def set_notification_bind(self, keybind):
+        global notification_bind
+        notification_bind = keybind
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["notification_bind"] = keybind
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E9: Error setting notification_bind: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E9")')
+            return False
+        return True
+    
+    def set_command_palette_bind(self, keybind):
+        global command_palette_bind
+        command_palette_bind = keybind
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["command_palette_bind"] = keybind
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E10: Error setting command_palette_bind: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E10")')
+            return False
+        return True
+    
+    def get_notification_bind(self):
+        global notification_bind
+        return notification_bind
+    
+    def get_command_palette_bind(self):
+        global command_palette_bind
+        return command_palette_bind
 
 # Checks if the installed version is older than the latest version
 def is_newer_version(installed, latest):
