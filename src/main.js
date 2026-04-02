@@ -37,9 +37,18 @@ const DEFAULT_COMMAND_PALETTE_BIND = 'Ctrl+Space';
 const DEFAULT_APPS_PER_RING = 8;
 const MIN_APPS_PER_RING = 1;
 const MAX_APPS_PER_RING = 30;
+const DEFAULT_COLOR_THEME = 'dark';
+const DEFAULT_REDUCE_GRAPHICS = 'level_0';
+const REDUCE_GRAPHICS_LABELS = {
+    level_0: 'Level 0 (Default)',
+    level_1: 'Level 1 (No Gradients)',
+    level_2: 'Level 2 (No Gradients + No Transparency)'
+};
 let configuredNotificationBind = DEFAULT_NOTIFICATION_BIND;
 let configuredCommandPaletteBind = DEFAULT_COMMAND_PALETTE_BIND;
 let configuredAppsPerRing = DEFAULT_APPS_PER_RING;
+let configuredColorTheme = DEFAULT_COLOR_THEME;
+let configuredReduceGraphics = DEFAULT_REDUCE_GRAPHICS;
 const APP_LAUNCH_INDICATOR_MIN_VISIBLE_MS = 260;
 let appLaunchIndicatorElement = null;
 let activeAppLaunchIndicatorToken = 0;
@@ -165,6 +174,58 @@ function applyAppLauncherSettings(settings = {}) {
         settings.apps_per_ring,
         DEFAULT_APPS_PER_RING
     );
+}
+
+function normalizeColorTheme(value) {
+    return String(value || '').trim().toLowerCase() === 'light' ? 'light' : 'dark';
+}
+
+function normalizeReduceGraphics(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (raw === 'level_0' || raw === '0') {
+        return 'level_0';
+    }
+    if (raw === 'level_1' || raw === '1') {
+        return 'level_1';
+    }
+    if (raw === 'level_2' || raw === '2') {
+        return 'level_2';
+    }
+
+    return DEFAULT_REDUCE_GRAPHICS;
+}
+
+function graphicsLevelNumber(level) {
+    return Number.parseInt(String(level || '').replace('level_', ''), 10) || 0;
+}
+
+function updateReduceGraphicsLabel(level) {
+    const label = document.getElementById('reduceGraphicsLabel');
+    if (!label) {
+        return;
+    }
+
+    label.textContent = REDUCE_GRAPHICS_LABELS[level] || REDUCE_GRAPHICS_LABELS[DEFAULT_REDUCE_GRAPHICS];
+}
+
+function applySystemVisualSettings(settings = {}) {
+    configuredColorTheme = normalizeColorTheme(settings.color_theme || configuredColorTheme);
+    configuredReduceGraphics = normalizeReduceGraphics(settings.reduce_graphics || configuredReduceGraphics);
+
+    document.body.setAttribute('data-theme', configuredColorTheme);
+    document.body.setAttribute('data-graphics-level', configuredReduceGraphics);
+
+    const themeSelect = document.getElementById('colorThemeSelect');
+    if (themeSelect) {
+        themeSelect.value = configuredColorTheme;
+    }
+
+    const reduceGraphicsSlider = document.getElementById('reduceGraphicsSlider');
+    if (reduceGraphicsSlider) {
+        reduceGraphicsSlider.value = graphicsLevelNumber(configuredReduceGraphics);
+    }
+
+    updateReduceGraphicsLabel(configuredReduceGraphics);
 }
 
 function parseShortcutBinding(shortcutText) {
@@ -1310,6 +1371,7 @@ async function toggleSettings() {
         const settings = await window.pywebview.api.get_settings();
         applyShortcutSettings(settings);
         applyAppLauncherSettings(settings);
+        applySystemVisualSettings(settings);
         await loadFileProcessorSupport();
 
         document.getElementById('wallpaperInput').value = settings.wallpaper || '';
@@ -1656,6 +1718,73 @@ async function saveAppsPerRing(value) {
     }
 }
 
+async function saveColorTheme() {
+    const select = document.getElementById('colorThemeSelect');
+    if (!select) {
+        return;
+    }
+
+    const theme = normalizeColorTheme(select.value);
+    select.value = theme;
+
+    try {
+        if (typeof window.pywebview?.api?.set_color_theme !== 'function') {
+            alert('Color theme is not supported by this build.');
+            return;
+        }
+
+        const result = await window.pywebview.api.set_color_theme(theme);
+        if (!result) {
+            alert('Failed to update color theme.');
+            return;
+        }
+
+        applySystemVisualSettings({
+            color_theme: theme,
+            reduce_graphics: configuredReduceGraphics
+        });
+    } catch (error) {
+        console.error('Error setting color theme:', error);
+        alert('Error setting color theme.');
+    }
+}
+
+function previewReduceGraphics(value) {
+    updateReduceGraphicsLabel(normalizeReduceGraphics(value));
+}
+
+async function saveReduceGraphics(value) {
+    const slider = document.getElementById('reduceGraphicsSlider');
+    if (!slider) {
+        return;
+    }
+
+    const level = normalizeReduceGraphics(value ?? slider.value);
+    slider.value = graphicsLevelNumber(level);
+    updateReduceGraphicsLabel(level);
+
+    try {
+        if (typeof window.pywebview?.api?.set_reduce_graphics !== 'function') {
+            alert('Graphics reduction is not supported by this build.');
+            return;
+        }
+
+        const result = await window.pywebview.api.set_reduce_graphics(level);
+        if (!result) {
+            alert('Failed to update graphics reduction level.');
+            return;
+        }
+
+        applySystemVisualSettings({
+            color_theme: configuredColorTheme,
+            reduce_graphics: level
+        });
+    } catch (error) {
+        console.error('Error setting graphics reduction:', error);
+        alert('Error setting graphics reduction.');
+    }
+}
+
 async function selectLogo(logoType) {
     console.log('selectLogo called with:', logoType);
     try {
@@ -1971,6 +2100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const safeSettings = settings || {};
                 applyShortcutSettings(safeSettings);
                 applyAppLauncherSettings(safeSettings);
+                applySystemVisualSettings(safeSettings);
             })
             .catch(error => console.error('Error loading shortcut settings:', error));
         checkForUpdateNotification();

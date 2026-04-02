@@ -197,6 +197,21 @@ This file contains the structure and layout for the psuedo-desktop environment t
                             <input type="range" id="appsPerRingInput" min="1" max="30" step="1" value="8" oninput="previewAppsPerRing(this.value)" onchange="saveAppsPerRing(this.value)">
                         </div>
                     </div>
+                    <div class="setting-item">
+                        <label for="colorThemeSelect">System Theme:</label>
+                        <div class="setting-input-group">
+                            <select id="colorThemeSelect" onchange="saveColorTheme()">
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="reduceGraphicsSlider">Graphics Reduction: <span id="reduceGraphicsLabel">Level 0 (Default)</span></label>
+                        <div class="setting-input-group">
+                            <input type="range" id="reduceGraphicsSlider" min="0" max="2" step="1" value="0" oninput="previewReduceGraphics(this.value)" onchange="saveReduceGraphics(this.value)">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
