@@ -36,7 +36,7 @@ const DEFAULT_NOTIFICATION_BIND = 'Ctrl+N';
 const DEFAULT_COMMAND_PALETTE_BIND = 'Ctrl+Space';
 const DEFAULT_APPS_PER_RING = 8;
 const MIN_APPS_PER_RING = 1;
-const MAX_APPS_PER_RING = 64;
+const MAX_APPS_PER_RING = 30;
 let configuredNotificationBind = DEFAULT_NOTIFICATION_BIND;
 let configuredCommandPaletteBind = DEFAULT_COMMAND_PALETTE_BIND;
 let configuredAppsPerRing = DEFAULT_APPS_PER_RING;
@@ -149,6 +149,15 @@ function normalizeAppsPerRing(value, fallback = DEFAULT_APPS_PER_RING) {
     }
 
     return Math.min(MAX_APPS_PER_RING, Math.max(MIN_APPS_PER_RING, parsed));
+}
+
+function previewAppsPerRing(value) {
+    const label = document.getElementById('appsPerRingLabel');
+    if (!label) {
+        return;
+    }
+
+    label.textContent = String(normalizeAppsPerRing(value, configuredAppsPerRing));
 }
 
 function applyAppLauncherSettings(settings = {}) {
@@ -1312,6 +1321,7 @@ async function toggleSettings() {
         const appsPerRingInput = document.getElementById('appsPerRingInput');
         if (appsPerRingInput) {
             appsPerRingInput.value = configuredAppsPerRing;
+            previewAppsPerRing(configuredAppsPerRing);
         }
 
         cachedSettingsFonts = settings.fonts || {};
@@ -1612,14 +1622,15 @@ async function saveCommandPaletteBind() {
     }
 }
 
-async function saveAppsPerRing() {
+async function saveAppsPerRing(value) {
     const input = document.getElementById('appsPerRingInput');
     if (!input) {
         return;
     }
 
-    const value = normalizeAppsPerRing(input.value, configuredAppsPerRing);
-    input.value = value;
+    const normalizedValue = normalizeAppsPerRing(value ?? input.value, configuredAppsPerRing);
+    input.value = normalizedValue;
+    previewAppsPerRing(normalizedValue);
 
     try {
         if (typeof window.pywebview?.api?.set_apps_per_ring !== 'function') {
@@ -1627,13 +1638,13 @@ async function saveAppsPerRing() {
             return;
         }
 
-        const result = await window.pywebview.api.set_apps_per_ring(value);
+        const result = await window.pywebview.api.set_apps_per_ring(normalizedValue);
         if (!result) {
             alert('Failed to update apps per ring setting.');
             return;
         }
 
-        configuredAppsPerRing = value;
+        configuredAppsPerRing = normalizedValue;
 
         const interactions = window.SanctumStation?.interactions;
         if (interactions?.isAppLauncherOpen) {

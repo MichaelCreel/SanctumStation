@@ -175,13 +175,9 @@ This file contains the structure and layout for the psuedo-desktop environment t
                         </div>
                     </div>
                     <div class="setting-item">
-                        <label for="updatesSelect">Updates Channel:</label>
+                        <label for="appsPerRingInput">Apps Per Ring: <span id="appsPerRingLabel">8</span></label>
                         <div class="setting-input-group">
-                            <select id="updatesSelect" onchange="saveUpdates()">
-                                <option value="none">None</option>
-                                <option value="release">Release</option>
-                                <option value="all">All</option>
-                            </select>
+                            <input type="range" id="appsPerRingInput" min="1" max="30" step="1" value="8" oninput="previewAppsPerRing(this.value)" onchange="saveAppsPerRing(this.value)">
                         </div>
                     </div>
                     <div class="setting-item">
@@ -199,10 +195,13 @@ This file contains the structure and layout for the psuedo-desktop environment t
                         </div>
                     </div>
                     <div class="setting-item">
-                        <label for="appsPerRingInput">Apps Per Ring:</label>
+                        <label for="updatesSelect">Updates Channel:</label>
                         <div class="setting-input-group">
-                            <input type="number" id="appsPerRingInput" min="1" max="64" step="1" placeholder="8">
-                            <button onclick="saveAppsPerRing()">Apply</button>
+                            <select id="updatesSelect" onchange="saveUpdates()">
+                                <option value="none">None</option>
+                                <option value="release">Release</option>
+                                <option value="all">All</option>
+                            </select>
                         </div>
                     </div>
                 </div>
