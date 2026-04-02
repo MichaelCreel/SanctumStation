@@ -52,6 +52,13 @@ This file contains the structure and layout for the psuedo-desktop environment t
 
         <!-- Popup notifications (Phase 3) -->
         <div class="notification-toast-container" id="notificationToastContainer" aria-live="polite" aria-atomic="false"></div>
+
+        <!-- App launch loading indicator -->
+        <div class="app-launch-indicator" id="appLaunchIndicator" aria-hidden="true">
+            <div class="launch-spinner" role="presentation">
+                <div class="launch-spinner-orbit-dot"></div>
+            </div>
+        </div>
         
         <!-- Fullscreen button in top right -->
         <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">

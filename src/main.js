@@ -36,6 +36,62 @@ const DEFAULT_NOTIFICATION_BIND = 'Ctrl+N';
 const DEFAULT_COMMAND_PALETTE_BIND = 'Ctrl+Space';
 let configuredNotificationBind = DEFAULT_NOTIFICATION_BIND;
 let configuredCommandPaletteBind = DEFAULT_COMMAND_PALETTE_BIND;
+const APP_LAUNCH_INDICATOR_MIN_VISIBLE_MS = 260;
+let appLaunchIndicatorElement = null;
+let activeAppLaunchIndicatorToken = 0;
+let appLaunchIndicatorShownAt = 0;
+
+function getAppLaunchIndicatorElement() {
+    if (!appLaunchIndicatorElement) {
+        appLaunchIndicatorElement = document.getElementById('appLaunchIndicator');
+    }
+    return appLaunchIndicatorElement;
+}
+
+function beginAppLaunchIndicator() {
+    const indicator = getAppLaunchIndicatorElement();
+    const token = ++activeAppLaunchIndicatorToken;
+    appLaunchIndicatorShownAt = Date.now();
+
+    if (indicator) {
+        indicator.classList.add('visible');
+    }
+
+    return token;
+}
+
+async function endAppLaunchIndicator(token) {
+    if (token !== activeAppLaunchIndicatorToken) {
+        return;
+    }
+
+    const elapsed = Date.now() - appLaunchIndicatorShownAt;
+    const remaining = Math.max(0, APP_LAUNCH_INDICATOR_MIN_VISIBLE_MS - elapsed);
+    if (remaining > 0) {
+        await new Promise(resolve => setTimeout(resolve, remaining));
+    }
+
+    if (token !== activeAppLaunchIndicatorToken) {
+        return;
+    }
+
+    const indicator = getAppLaunchIndicatorElement();
+    if (indicator) {
+        indicator.classList.remove('visible');
+    }
+}
+
+async function launchAppWithIndicator(appName, payload) {
+    const token = beginAppLaunchIndicator();
+    try {
+        if (payload === undefined) {
+            return await window.pywebview.api.launch_app(appName);
+        }
+        return await window.pywebview.api.launch_app(appName, payload);
+    } finally {
+        await endAppLaunchIndicator(token);
+    }
+}
 
 function normalizeShortcutText(value, fallback) {
     const text = String(value || '').trim();
@@ -605,7 +661,7 @@ class DesktopInteractions {
                 console.log(`Launching app: ${app.name}`);
                 try {
                     if (window.pywebview && window.pywebview.api) {
-                        await window.pywebview.api.launch_app(app.id || app.name);
+                        await launchAppWithIndicator(app.id || app.name);
                         this.closeAppLauncher();
                     }
                 } catch (error) {
@@ -1189,7 +1245,7 @@ async function openFileBrowserPicker(options = {}) {
         };
 
         try {
-            await window.pywebview.api.launch_app('File-Browser', pickerPayload);
+            await launchAppWithIndicator('File-Browser', pickerPayload);
         } catch (error) {
             const request = activePickerRequest;
             activePickerRequest = null;
@@ -1747,7 +1803,7 @@ function updateCommandPaletteSelection() {
 
 async function launchAppFromPalette(appName) {
     hideCommandPalette();
-    await window.pywebview.api.launch_app(appName);
+    await launchAppWithIndicator(appName);
 }
 
 // Setup command palette event listeners
