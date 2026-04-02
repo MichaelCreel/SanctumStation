@@ -71,6 +71,12 @@
             border-color: rgba(99, 102, 241, 0.6);
         }
 
+        .tool-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .color-picker {
             width: 40px;
             height: 32px;
@@ -463,6 +469,12 @@
             <div class="toolbar-divider"></div>
 
             <div class="toolbar-group">
+                <button class="tool-btn" id="undoBtn" onclick="undoStroke()" disabled>
+                    Undo
+                </button>
+                <button class="tool-btn" id="redoBtn" onclick="redoStroke()" disabled>
+                    Redo
+                </button>
                 <button class="tool-btn" onclick="clearCanvas()">
                     Clear
                 </button>
@@ -536,6 +548,7 @@
             let currentColor = '#000000';
             let currentSize = 5;
             let drawingData = [];
+            let redoStack = [];
             let confirmCallback = null;
 
             // Custom confirm modal functions
@@ -655,6 +668,26 @@
                 return null;
             }
 
+            function updateHistoryButtons() {
+                const undoBtn = document.getElementById('undoBtn');
+                const redoBtn = document.getElementById('redoBtn');
+                if (undoBtn) {
+                    undoBtn.disabled = drawingData.length === 0;
+                }
+                if (redoBtn) {
+                    redoBtn.disabled = redoStack.length === 0;
+                }
+            }
+
+            function getLastStrokeStartIndex() {
+                for (let i = drawingData.length - 1; i >= 0; i--) {
+                    if (drawingData[i] && drawingData[i].newStroke) {
+                        return i;
+                    }
+                }
+                return drawingData.length > 0 ? 0 : -1;
+            }
+
             async function loadInjectedBoardFromLaunchContext() {
                 const injectedPath = getLaunchFilePath();
                 if (!injectedPath || !String(injectedPath).toLowerCase().endsWith('.json')) {
@@ -677,8 +710,10 @@
                     }
 
                     drawingData = loadedData;
+                    redoStack = [];
                     boardNameInput.value = getBoardNameFromPath(injectedPath) || 'untitled';
                     redrawCanvas();
+                    updateHistoryButtons();
 
                     saveStatus.textContent = 'Injected board loaded ✓';
                     saveStatus.className = 'save-status saved';
@@ -708,6 +743,7 @@
             // Set up canvas
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
+            updateHistoryButtons();
 
             // Tool selection
             window.selectTool = function(tool) {
@@ -737,6 +773,10 @@
                 const pos = getMousePos(e);
                 ctx.beginPath();
                 ctx.moveTo(pos.x, pos.y);
+
+                if (redoStack.length > 0) {
+                    redoStack = [];
+                }
                 
                 // Mark this as the start of a new stroke
                 drawingData.push({
@@ -747,6 +787,8 @@
                     y: pos.y,
                     newStroke: true
                 });
+
+                updateHistoryButtons();
             }
 
             function draw(e) {
@@ -847,7 +889,39 @@
                 if (confirmed) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     drawingData = [];
+                    redoStack = [];
+                    updateHistoryButtons();
                 }
+            };
+
+            window.undoStroke = function() {
+                if (drawingData.length === 0) {
+                    return;
+                }
+
+                const strokeStart = getLastStrokeStartIndex();
+                if (strokeStart < 0) {
+                    return;
+                }
+
+                const removedStroke = drawingData.slice(strokeStart);
+                drawingData = drawingData.slice(0, strokeStart);
+                redoStack.push(removedStroke);
+
+                redrawCanvas();
+                updateHistoryButtons();
+            };
+
+            window.redoStroke = function() {
+                if (redoStack.length === 0) {
+                    return;
+                }
+
+                const restoredStroke = redoStack.pop();
+                drawingData = drawingData.concat(restoredStroke);
+
+                redrawCanvas();
+                updateHistoryButtons();
             };
 
             // Redraw canvas from data
@@ -1018,9 +1092,11 @@
 
                     if (result.success) {
                         drawingData = result.data;
+                        redoStack = [];
                         console.log('Loaded drawing data:', drawingData.length, 'points');
                         boardNameInput.value = boardName;
                         redrawCanvas();
+                        updateHistoryButtons();
                         saveStatus.textContent = 'Loaded ✓';
                         saveStatus.className = 'save-status saved';
                         setTimeout(() => {
@@ -1053,8 +1129,10 @@
 
                     if (result.success) {
                         drawingData = result.data;
+                        redoStack = [];
                         console.log('Loaded drawing data:', drawingData.length, 'points');
                         redrawCanvas();
+                        updateHistoryButtons();
                         saveStatus.textContent = 'Loaded ✓';
                         saveStatus.className = 'save-status saved';
                         setTimeout(() => {
@@ -1077,6 +1155,21 @@
                     window.saveBoard();
                 }
             }, 30000);
+
+            document.addEventListener('keydown', (event) => {
+                if (!(event.ctrlKey || event.metaKey)) {
+                    return;
+                }
+
+                const key = String(event.key || '').toLowerCase();
+                if (key === 'z' && !event.shiftKey) {
+                    event.preventDefault();
+                    window.undoStroke();
+                } else if (key === 'y' || (key === 'z' && event.shiftKey)) {
+                    event.preventDefault();
+                    window.redoStroke();
+                }
+            });
 
             // If Whiteboard was launched with a .json path, load it immediately.
             setTimeout(() => {
