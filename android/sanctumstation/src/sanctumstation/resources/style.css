@@ -1602,6 +1602,38 @@ body[data-theme="light"] .wallpaper-thumb {
     border-color: var(--system-border-strong);
 }
 
+body[data-theme="light"] .toggle-slider {
+    background-color: rgba(20, 32, 51, 0.2);
+    border: 1px solid var(--system-border-strong);
+}
+
+body[data-theme="light"] .toggle-slider:before {
+    background-color: #ffffff;
+    box-shadow: 0 1px 3px rgba(20, 32, 51, 0.35);
+}
+
+body[data-theme="light"] .toggle-switch input:checked + .toggle-slider {
+    background-color: var(--system-accent-strong);
+    border-color: var(--system-accent);
+}
+
+body[data-theme="light"] .setting-input-group input[type="range"] {
+    background: rgba(20, 32, 51, 0.22);
+    box-shadow: inset 0 0 0 1px var(--system-border);
+}
+
+body[data-theme="light"] .setting-input-group input[type="range"]::-webkit-slider-thumb {
+    background: var(--system-accent);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px var(--system-border-strong);
+}
+
+body[data-theme="light"] .setting-input-group input[type="range"]::-moz-range-thumb {
+    background: var(--system-accent);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px var(--system-border-strong);
+}
+
 body[data-graphics-level="level_1"],
 body[data-graphics-level="level_2"] {
     background: var(--system-flat-background) !important;
