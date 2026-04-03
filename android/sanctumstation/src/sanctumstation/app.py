@@ -236,6 +236,16 @@ class APIHandler(SimpleHTTPRequestHandler):
             return settings_manager.set_logo(*args)
         elif method == 'set_ui_scale':
             return settings_manager.set_ui_scale(*args)
+        elif method == 'set_notification_bind':
+            return settings_manager.set_notification_bind(*args)
+        elif method == 'set_command_palette_bind':
+            return settings_manager.set_command_palette_bind(*args)
+        elif method == 'set_apps_per_ring':
+            return settings_manager.set_apps_per_ring(*args)
+        elif method == 'set_reduce_graphics':
+            return settings_manager.set_reduce_graphics(*args)
+        elif method == 'set_color_theme':
+            return settings_manager.set_color_theme(*args)
         else:
             raise ValueError(f"Unknown API method: {method}")
 
@@ -735,7 +745,7 @@ class SanctumStation(toga.App):
                 'get_fonts', 'get_version', 'get_wallpaper', 'get_wallpaper_data',
                 'get_day_gradient', 'get_fullscreen',
                 'get_settings', 'set_wallpaper', 'set_day_gradient', 'set_fullscreen',
-                'set_font', 'set_updates', 'get_available_update', 'get_file_processor_support',
+                'set_font', 'set_updates', 'set_notification_bind', 'set_command_palette_bind', 'set_apps_per_ring', 'set_reduce_graphics', 'set_color_theme', 'get_available_update', 'get_file_processor_support',
                 'fuzzy_search_apps', 'call_app_function'
             ];
             
@@ -830,6 +840,16 @@ class SanctumStation(toga.App):
                 result = settings_manager.set_font(*args)
             elif method == 'set_updates':
                 result = settings_manager.set_updates(*args)
+            elif method == 'set_notification_bind':
+                result = settings_manager.set_notification_bind(*args)
+            elif method == 'set_command_palette_bind':
+                result = settings_manager.set_command_palette_bind(*args)
+            elif method == 'set_apps_per_ring':
+                result = settings_manager.set_apps_per_ring(*args)
+            elif method == 'set_reduce_graphics':
+                result = settings_manager.set_reduce_graphics(*args)
+            elif method == 'set_color_theme':
+                result = settings_manager.set_color_theme(*args)
             elif method == 'get_available_update':
                 result = backend.available_update
             elif method == 'fuzzy_search_apps':

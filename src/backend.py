@@ -78,6 +78,11 @@ webview_window = None # Reference to the main webview window
 main_event_loop = None # Reference to the main event loop (for mobile async calls)
 fullscreen = False # Whether the app is in fullscreen mode or not
 ui_scale = 1.0 # UI scale multiplier (1.0 = 16px base font, 100%)
+notification_bind = "Ctrl+N" # Keyboard shortcut for opening the notification panel
+command_palette_bind = "Ctrl+Space" # Keyboard shortcut for opening the command palette
+apps_per_ring = 8 # Number of apps to show per ring in the app wheel
+reduce_graphics = "level_0" # The level of graphics reduction to apply (0 = none, 1 = no gradients, 2 = 1 + no transparency)
+color_theme = "dark" # Color theme for the UI (dark or light)
 extension_support = {} # Cache for which apps support which file extensions.
 
 SUPPORTED_WALLPAPER_EXTENSIONS = sorted([
@@ -141,7 +146,7 @@ def initialize():
 # Initializes the environment settings from data/settings.yaml
 # Returns True on success, False on failure
 def init_settings():
-    global version, wallpaper, fonts, updates, day_gradient, fullscreen, logo, ui_scale
+    global version, wallpaper, fonts, updates, day_gradient, fullscreen, logo, ui_scale, notification_bind, command_palette_bind, apps_per_ring, reduce_graphics, color_theme
     try:
         settings_path = os.path.join(DATA_DIR, "settings.yaml")
         print(f"Loading settings from: {settings_path}")
@@ -162,6 +167,16 @@ def init_settings():
             logo = settings["logo"]
         if "ui_scale" in settings:
             ui_scale = float(settings["ui_scale"])
+        if "notification_bind" in settings:
+            notification_bind = settings["notification_bind"]
+        if "command_palette_bind" in settings:
+            command_palette_bind = settings["command_palette_bind"]
+        if "apps_per_ring" in settings:
+            apps_per_ring = int(settings["apps_per_ring"])
+        if "reduce_graphics" in settings:
+            reduce_graphics = settings["reduce_graphics"]
+        if "color_theme" in settings:
+            color_theme = settings["color_theme"]
         
         # Load all font weights
         font_keys = ['black_font', 'extra_bold_font', 'bold_font', 'semi_bold_font', 
@@ -169,7 +184,7 @@ def init_settings():
         for key in font_keys:
             if key in settings:
                 fonts[key] = settings[key]
-        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}\n    -logo={logo}\n    -ui_scale={ui_scale}")
+        print(f"IS: Settings loaded:\n    -version={version}\n    -wallpaper={wallpaper}\n    -fonts={len(fonts)} weights\n    -updates={updates}\n    -day_gradient={day_gradient}\n    -fullscreen={fullscreen}\n    -logo={logo}\n    -ui_scale={ui_scale}\n    -notification_bind={notification_bind}\n    -command_palette_bind={command_palette_bind}\n    -apps_per_ring={apps_per_ring}\n    -reduce_graphics={reduce_graphics}\n    -color_theme={color_theme}\n")
         return True
     except FileNotFoundError:
         print("IS-E1: Settings file not found. Using default settings.")
@@ -726,6 +741,21 @@ def init_webview():
             def set_ui_scale(self, scale):
                 return settings_manager.set_ui_scale(scale)
             
+            def set_notification_bind(self, key_combination):
+                return settings_manager.set_notification_bind(key_combination)
+            
+            def set_command_palette_bind(self, key_combination):
+                return settings_manager.set_command_palette_bind(key_combination)
+            
+            def set_apps_per_ring(self, number):
+                return settings_manager.set_apps_per_ring(number)
+            
+            def set_reduce_graphics(self, level):
+                return settings_manager.set_reduce_graphics(level)
+            
+            def set_color_theme(self, theme):
+                return settings_manager.set_color_theme(theme)
+
             def get_available_update(self):
                 global available_update
                 return available_update
@@ -1315,7 +1345,7 @@ class AppManagerAPI:
 class SettingsManagerAPI:
     # Gets current settings
     def get_settings(self):
-        global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo, ui_scale
+        global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo, ui_scale, notification_bind, command_palette_bind, reduce_graphics, color_theme
         return {
             "wallpaper": wallpaper,
             "fonts": fonts,
@@ -1324,7 +1354,12 @@ class SettingsManagerAPI:
             "fullscreen": fullscreen,
             "logo": logo,
             "is_mobile": IS_MOBILE,
-            "ui_scale": ui_scale
+            "ui_scale": ui_scale,
+            "notification_bind": notification_bind,
+            "command_palette_bind": command_palette_bind,
+            "apps_per_ring": apps_per_ring,
+            "reduce_graphics": reduce_graphics,
+            "color_theme": color_theme
         }
 
     # Returns extension support used by settings and file picker filters
@@ -1554,6 +1589,108 @@ class SettingsManagerAPI:
             print(f"SMA-E7: Error setting logo preference: {e}")
             if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("SMA-E7")')
+            return False
+        return True
+    # Sets keybind for notifications
+    def set_notification_bind(self, keybind):
+        global notification_bind
+        notification_bind = keybind
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["notification_bind"] = keybind
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E9: Error setting notification_bind: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E9")')
+            return False
+        return True
+    
+    # Sets keybind for command palette
+    def set_command_palette_bind(self, keybind):
+        global command_palette_bind
+        command_palette_bind = keybind
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["command_palette_bind"] = keybind
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E10: Error setting command_palette_bind: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E10")')
+            return False
+        return True
+    
+    def get_notification_bind(self):
+        global notification_bind
+        return notification_bind
+    
+    def get_command_palette_bind(self):
+        global command_palette_bind
+        return command_palette_bind
+
+    def set_apps_per_ring(self, count):
+        global apps_per_ring
+        apps_per_ring = int(count)
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["apps_per_ring"] = apps_per_ring
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E11: Error setting apps_per_ring: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E11")')
+            return False
+        return True
+    
+    def set_reduce_graphics(self, level):
+        global reduce_graphics
+        normalized_level = str(level).strip().lower()
+        if normalized_level in ["0", "level_0"]:
+            reduce_graphics = "level_0"
+        elif normalized_level in ["1", "level_1"]:
+            reduce_graphics = "level_1"
+        elif normalized_level in ["2", "level_2"]:
+            reduce_graphics = "level_2"
+        else:
+            reduce_graphics = "level_0"
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["reduce_graphics"] = reduce_graphics
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E12: Error setting reduce_graphics: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E12")')
+            return False
+        return True
+    
+    def set_color_theme(self, theme):
+        global color_theme
+        color_theme = theme
+        try:
+            settings_path = os.path.join(DATA_DIR, "settings.yaml")
+            with open(settings_path, "r") as file:
+                settings = yaml.load(file, Loader=yaml_loader) or {}
+            settings["color_theme"] = color_theme
+            with open(settings_path, "w") as file:
+                yaml.safe_dump(settings, file)
+        except Exception as e:
+            print(f"SMA-E13: Error setting color_theme: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("SMA-E13")')
             return False
         return True
 

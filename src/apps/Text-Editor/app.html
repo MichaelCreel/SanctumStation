@@ -403,6 +403,8 @@
                 <button class="btn" onclick="saveFile()" id="saveBtn" disabled>Save</button>
                 <button class="btn" onclick="saveAsFile()">Save As...</button>
                 <button class="btn" onclick="newFile()">New</button>
+                <button class="btn" onclick="undoEdit()" id="undoBtn" disabled>Undo</button>
+                <button class="btn" onclick="redoEdit()" id="redoBtn" disabled>Redo</button>
                 <span class="file-info" id="fileInfo"></span>
             </div>
             <div class="editor-area">
@@ -463,6 +465,12 @@
             let selectedItem = null;
             let isModified = false;
             let confirmCallback = null;
+            let editHistory = [];
+            let redoHistory = [];
+            let isApplyingHistory = false;
+            let lastSavedContent = '';
+
+            const HISTORY_LIMIT = 200;
 
             // Custom confirm modal functions
             function showConfirmModal(title, message) {
@@ -548,6 +556,83 @@
                 }, duration);
             }
 
+            function updateFileInfoDirtyState() {
+                const fileInfo = document.getElementById('fileInfo');
+                const baseLabel = fileInfo.dataset.baseLabel || fileInfo.textContent.replace(/\s\*$/, '');
+                fileInfo.dataset.baseLabel = baseLabel;
+                fileInfo.textContent = isModified ? `${baseLabel} *` : baseLabel;
+            }
+
+            function setFileInfoLabel(label) {
+                const fileInfo = document.getElementById('fileInfo');
+                fileInfo.dataset.baseLabel = label;
+                updateFileInfoDirtyState();
+            }
+
+            function updateUndoRedoButtons() {
+                const undoBtn = document.getElementById('undoBtn');
+                const redoBtn = document.getElementById('redoBtn');
+                if (undoBtn) {
+                    undoBtn.disabled = editHistory.length <= 1;
+                }
+                if (redoBtn) {
+                    redoBtn.disabled = redoHistory.length === 0;
+                }
+            }
+
+            function resetEditHistory(initialValue = '') {
+                editHistory = [initialValue];
+                redoHistory = [];
+                updateUndoRedoButtons();
+            }
+
+            function pushEditHistorySnapshot(value) {
+                if (isApplyingHistory) {
+                    return;
+                }
+
+                if (editHistory.length === 0 || editHistory[editHistory.length - 1] !== value) {
+                    editHistory.push(value);
+                    if (editHistory.length > HISTORY_LIMIT) {
+                        editHistory.shift();
+                    }
+                }
+
+                redoHistory = [];
+                updateUndoRedoButtons();
+            }
+
+            function applyHistoryValue(value) {
+                const textEditor = document.getElementById('textEditor');
+                isApplyingHistory = true;
+                textEditor.value = value;
+                isApplyingHistory = false;
+
+                isModified = value !== lastSavedContent;
+                updateFileInfoDirtyState();
+                updateUndoRedoButtons();
+            }
+
+            window.undoEdit = function undoEdit() {
+                if (editHistory.length <= 1) {
+                    return;
+                }
+
+                const currentValue = editHistory.pop();
+                redoHistory.push(currentValue);
+                applyHistoryValue(editHistory[editHistory.length - 1]);
+            }
+
+            window.redoEdit = function redoEdit() {
+                if (redoHistory.length === 0) {
+                    return;
+                }
+
+                const nextValue = redoHistory.pop();
+                editHistory.push(nextValue);
+                applyHistoryValue(nextValue);
+            }
+
             // Initialize path and directory
             async function initializePath() {
                 const result = await pywebview.api.get_storage_path('', true);
@@ -595,12 +680,14 @@
                     const content = await window.pywebview.api.read_file(normalizedPath);
                     currentFile = normalizedPath;
                     isModified = false;
+                    lastSavedContent = content;
 
                     document.getElementById('emptyState').style.display = 'none';
                     document.getElementById('textEditor').style.display = 'block';
                     document.getElementById('textEditor').value = content;
-                    document.getElementById('fileInfo').textContent = getFileNameFromPath(normalizedPath);
+                    setFileInfoLabel(getFileNameFromPath(normalizedPath));
                     document.getElementById('saveBtn').disabled = false;
+                    resetEditHistory(content);
 
                     const matchingItem = Array.from(document.querySelectorAll('.file-item')).find((item) => item.dataset.path === normalizedPath);
                     if (matchingItem) {
@@ -620,6 +707,7 @@
             setTimeout(async () => {
                 console.log('Text Editor initializing...');
                 await initializePath();
+                resetEditHistory('');
 
                 const launchFilePath = getLaunchFilePath();
                 if (launchFilePath) {
@@ -753,10 +841,9 @@
                 const success = await window.pywebview.api.write_file(currentFile, content);
                 
                 if (success) {
+                    lastSavedContent = content;
                     isModified = false;
-                    // Remove the "*" marker from the file info when changes are saved
-                    const fileInfo = document.getElementById('fileInfo');
-                    fileInfo.textContent = fileInfo.textContent.replace(/\s*\*$/, '');
+                    updateFileInfoDirtyState();
                     console.log('File saved:', currentFile);
                     showToast('File saved successfully!');
                 } else {
@@ -781,9 +868,11 @@
                 
                 if (success) {
                     currentFile = savePath;
+                    lastSavedContent = content;
                     isModified = false;
-                    document.getElementById('fileInfo').textContent = filename;
+                    setFileInfoLabel(filename);
                     document.getElementById('saveBtn').disabled = false;
+                    updateUndoRedoButtons();
                     console.log('File saved as:', currentFile);
                     showToast('File saved successfully!');
                     loadDirectory(currentPath); // Refresh file list
@@ -810,20 +899,26 @@
 
             currentFile = null;
             isModified = false;
+            lastSavedContent = '';
             
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('textEditor').style.display = 'block';
             document.getElementById('textEditor').value = '';
-            document.getElementById('fileInfo').textContent = 'Untitled';
+            setFileInfoLabel('Untitled');
             document.getElementById('saveBtn').disabled = false;
+            resetEditHistory('');
         }
 
         // Track modifications
         document.getElementById('textEditor').addEventListener('input', () => {
-            if (currentFile) {
-                isModified = true;
-                document.getElementById('fileInfo').textContent = document.getElementById('fileInfo').textContent.replace(' *', '') + ' *';
+            if (isApplyingHistory) {
+                return;
             }
+
+            const textValue = document.getElementById('textEditor').value;
+            pushEditHistorySnapshot(textValue);
+            isModified = textValue !== lastSavedContent;
+            updateFileInfoDirtyState();
         });
 
         // Stop event propagation for textarea to prevent desktop environment from capturing keys
@@ -835,6 +930,16 @@
                 if (e.key === 's') {
                     e.preventDefault();
                     saveFile();
+                } else if (e.key === 'z') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        redoEdit();
+                    } else {
+                        undoEdit();
+                    }
+                } else if (e.key === 'y') {
+                    e.preventDefault();
+                    redoEdit();
                 } else if (e.key === 'n') {
                     e.preventDefault();
                     newFile();
@@ -860,6 +965,16 @@
                 if (e.key === 's') {
                     e.preventDefault();
                     saveFile();
+                } else if (e.key === 'z') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        redoEdit();
+                    } else {
+                        undoEdit();
+                    }
+                } else if (e.key === 'y') {
+                    e.preventDefault();
+                    redoEdit();
                 } else if (e.key === 'o') {
                     e.preventDefault();
                     if (selectedItem && !selectedItem.isDirectory) {

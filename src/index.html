@@ -52,6 +52,13 @@ This file contains the structure and layout for the psuedo-desktop environment t
 
         <!-- Popup notifications (Phase 3) -->
         <div class="notification-toast-container" id="notificationToastContainer" aria-live="polite" aria-atomic="false"></div>
+
+        <!-- App launch loading indicator -->
+        <div class="app-launch-indicator" id="appLaunchIndicator" aria-hidden="true">
+            <div class="launch-spinner" role="presentation">
+                <div class="launch-spinner-orbit-dot"></div>
+            </div>
+        </div>
         
         <!-- Fullscreen button in top right -->
         <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">
@@ -141,6 +148,18 @@ This file contains the structure and layout for the psuedo-desktop environment t
                                 </div>
                                 <div class="logo-label">Solid</div>
                             </div>
+                            <div class="logo-option" onclick="selectLogo('light')" id="logoLight">
+                                <div class="logo-preview" style="background: linear-gradient(135deg, #d9e6ff 0%, #f0e9ff 100%);">
+                                    <img src="logo_light.png" alt="Light Logo">
+                                </div>
+                                <div class="logo-label">Light</div>
+                            </div>
+                            <div class="logo-option" onclick="selectLogo('solid_light')" id="logoSolidLight">
+                                <div class="logo-preview" style="background: linear-gradient(135deg, #d9e6ff 0%, #f0e9ff 100%);">
+                                    <img src="logo_solid_light.png" alt="Solid Light Logo">
+                                </div>
+                                <div class="logo-label">Solid Light</div>
+                            </div>
                         </div>
                     </div>
                     <div class="setting-item">
@@ -165,6 +184,41 @@ This file contains the structure and layout for the psuedo-desktop environment t
                         <label for="uiScaleSlider">UI Scale: <span id="uiScaleLabel">100%</span></label>
                         <div class="setting-input-group">
                             <input type="range" id="uiScaleSlider" min="25" max="200" step="25" value="100" oninput="previewScale(this.value)" onchange="saveScale(this.value)">
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="appsPerRingInput">Apps Per Ring: <span id="appsPerRingLabel">8</span></label>
+                        <div class="setting-input-group">
+                            <input type="range" id="appsPerRingInput" min="1" max="30" step="1" value="8" oninput="previewAppsPerRing(this.value)" onchange="saveAppsPerRing(this.value)">
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="colorThemeSelect">System Theme:</label>
+                        <div class="setting-input-group">
+                            <select id="colorThemeSelect" onchange="saveColorTheme()">
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="reduceGraphicsSlider">Graphics Reduction: <span id="reduceGraphicsLabel">Level 0 (Default)</span></label>
+                        <div class="setting-input-group">
+                            <input type="range" id="reduceGraphicsSlider" min="0" max="2" step="1" value="0" oninput="previewReduceGraphics(this.value)" onchange="saveReduceGraphics(this.value)">
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="notificationBindInput">Notification Panel Shortcut:</label>
+                        <div class="setting-input-group">
+                            <input type="text" id="notificationBindInput" placeholder="Ctrl+N">
+                            <button onclick="saveNotificationBind()">Apply</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="commandPaletteBindInput">Command Palette Shortcut:</label>
+                        <div class="setting-input-group">
+                            <input type="text" id="commandPaletteBindInput" placeholder="Ctrl+Space">
+                            <button onclick="saveCommandPaletteBind()">Apply</button>
                         </div>
                     </div>
                     <div class="setting-item">

@@ -1,5 +1,8 @@
+apps_per_ring: 8
 black_font: fonts/Inter-Black.ttf
 bold_font: fonts/Inter-Bold.ttf
+color_theme: dark
+command_palette_bind: Ctrl+Space
 day_gradient: true
 extra_bold_font: fonts/Inter-ExtraBold.ttf
 extra_light_font: fonts/Inter-ExtraLight.ttf
@@ -7,6 +10,8 @@ fullscreen: false
 light_font: fonts/Inter-Light.ttf
 logo: default
 medium_font: fonts/Inter-Medium.ttf
+notification_bind: Ctrl+N
+reduce_graphics: level_0
 regular_font: fonts/Inter-Regular.ttf
 semi_bold_font: fonts/Inter-SemiBold.ttf
 thin_font: fonts/Inter-Thin.ttf
