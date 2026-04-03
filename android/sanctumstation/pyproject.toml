@@ -2,7 +2,7 @@
 [tool.briefcase]
 project_name = "Sanctum Station"
 bundle = "com.michaelcreel"
-version = "0.8.1"
+version = "0.8.2"
 url = "https://michaelcreel.github.io/solo-stack/12-sanctum-station/"
 license.file = "LICENSE"
 author = "Michael Creel"
