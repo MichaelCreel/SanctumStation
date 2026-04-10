@@ -820,8 +820,8 @@ def init_webview():
         
         # Debug line - desktop only debug console
         # Uncomment debug line and comment normal line to enable the console
-        webview.start(debug=True, func=on_webview_ready)
-        #webview.start(func=on_webview_ready)
+        #webview.start(debug=True, func=on_webview_ready)
+        webview.start(func=on_webview_ready)
         return True
     except Exception as e:
         print(f"IW-E1: Error initializing webview: {e}")

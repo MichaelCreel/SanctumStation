@@ -9,15 +9,25 @@
 			<button class="btn" id="zoomOutBtn" type="button" disabled>Zoom -</button>
 			<button class="btn" id="zoomInBtn" type="button" disabled>Zoom +</button>
 			<button class="btn" id="zoomResetBtn" type="button" disabled>Reset View</button>
+			<button class="btn" id="playlistFromFolderBtn" type="button" style="display:none;">Queue Folder</button>
+			<button class="btn" id="clearPlaylistBtn" type="button" style="display:none;">Clear Queue</button>
 			<button class="btn" id="loopBtn" type="button" aria-pressed="false">Loop: Off</button>
+			<button class="btn" id="subtitleToggleBtn" type="button" style="display:none;">Subtitles: On</button>
 			<button class="btn" id="photoFullscreenBtn" type="button" style="display:none;">Photo Fullscreen</button>
 		</div>
 	</div>
 
 	<div class="media-stage" id="mediaStage">
 		<img id="imageView" alt="Media preview" style="display:none;" />
+		<div class="photo-editor-wrap" id="photoEditorWrap" style="display:none;">
+			<canvas id="photoCanvas" width="1280" height="720"></canvas>
+			<div class="crop-box" id="photoCropBox" style="display:none;"></div>
+		</div>
 		<video id="videoView" preload="metadata" style="display:none;"></video>
 		<audio id="audioView" preload="metadata" style="display:none;"></audio>
+		<div class="waveform-wrap" id="waveformWrap" style="display:none;">
+			<canvas id="waveformCanvas" width="1280" height="720"></canvas>
+		</div>
 
 		<div class="empty-state" id="emptyState">
 			<h2>Media Viewer</h2>
@@ -44,6 +54,39 @@
 			<label for="volumeBar">Volume</label>
 			<input id="volumeBar" type="range" min="0" max="1" step="0.01" value="1" />
 		</div>
+		<div class="controls-row" id="subtitleStatusRow" style="display:none;">
+			<span class="type-label" id="subtitleStatus">Subtitle: none</span>
+		</div>
+		<div class="controls-row" id="trimSummaryRow" style="display:none;">
+			<span class="type-label" id="trimRangeLabel">Trim: Full Length</span>
+			<button class="btn" id="trimResetBtn" type="button">Reset Trim</button>
+			<button class="btn" id="trimSaveBtn" type="button">Save Trim As</button>
+		</div>
+		<div class="controls-row" id="trimStartRow" style="display:none;">
+			<label for="trimStartBar">Trim Start</label>
+			<input id="trimStartBar" type="range" min="0" max="1000" value="0" step="1" />
+		</div>
+		<div class="controls-row" id="trimEndRow" style="display:none;">
+			<label for="trimEndBar">Trim End</label>
+			<input id="trimEndBar" type="range" min="0" max="1000" value="1000" step="1" />
+		</div>
+		<div class="controls-row" id="imageEditRow" style="display:none;">
+			<button class="btn" id="cropModeBtn" type="button">Crop: Off</button>
+			<button class="btn" id="applyCropBtn" type="button" disabled>Apply Crop</button>
+			<button class="btn" id="rotatePhotoBtn" type="button">Rotate 90</button>
+			<button class="btn" id="flipPhotoHBtn" type="button">Flip H</button>
+			<button class="btn" id="flipPhotoVBtn" type="button">Flip V</button>
+			<button class="btn" id="drawModeBtn" type="button">Draw: Off</button>
+			<button class="btn" id="savePhotoBtn" type="button">Save As</button>
+			<label for="resizePercentInput">Resize %</label>
+			<input id="resizePercentInput" type="number" min="10" max="100" step="5" value="100" />
+			<button class="btn" id="applyResizeBtn" type="button">Resize</button>
+		</div>
+	</div>
+
+	<div class="playlist-panel" id="playlistPanel" style="display:none;">
+		<div class="playlist-head">Audio Queue</div>
+		<div class="playlist-list" id="playlistList"></div>
 	</div>
 
 	<div class="media-footer" id="mediaFooter">
@@ -51,7 +94,33 @@
 		<div class="type-label" id="typeLabel">Type: none</div>
 		<div class="type-label" id="zoomLabel">Zoom: 100%</div>
 	</div>
+
+	<div class="thumb-strip" id="thumbStrip" style="display:none;"></div>
 </div>
+
+<div class="mv-modal" id="mvMessageModal" style="display:none;">
+	<div class="mv-modal-card">
+		<div class="mv-modal-title" id="mvMessageTitle">Message</div>
+		<div class="mv-modal-text" id="mvMessageText">Status</div>
+		<div class="mv-modal-actions">
+			<button class="btn" id="mvMessageOkBtn" type="button">OK</button>
+		</div>
+	</div>
+</div>
+
+<div class="mv-modal" id="mvPromptModal" style="display:none;">
+	<div class="mv-modal-card">
+		<div class="mv-modal-title" id="mvPromptTitle">Save As</div>
+		<div class="mv-modal-text" id="mvPromptText">Choose an output file name.</div>
+		<input class="mv-modal-input" id="mvPromptInput" type="text" />
+		<div class="mv-modal-actions">
+			<button class="btn" id="mvPromptCancelBtn" type="button">Cancel</button>
+			<button class="btn" id="mvPromptOkBtn" type="button">Save</button>
+		</div>
+	</div>
+</div>
+
+<div class="mv-toast" id="mvToast" style="display:none;"></div>
 
 <style>
 	.media-viewer {
@@ -134,6 +203,37 @@
 		-webkit-user-drag: none;
 	}
 
+	.photo-editor-wrap {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: stretch;
+		justify-content: stretch;
+		z-index: 2;
+	}
+
+	#photoCanvas {
+		width: 100%;
+		height: 100%;
+		cursor: crosshair;
+		background: #000;
+	}
+
+	.photo-editor-wrap.draw-mode #photoCanvas {
+		cursor: crosshair;
+	}
+
+	.photo-editor-wrap.crop-mode #photoCanvas {
+		cursor: crosshair;
+	}
+
+	.crop-box {
+		position: absolute;
+		border: 2px dashed rgba(246, 185, 59, 0.95);
+		background: rgba(246, 185, 59, 0.15);
+		pointer-events: none;
+	}
+
 	.media-stage.pannable {
 		cursor: grab;
 	}
@@ -143,7 +243,12 @@
 	}
 
 	#audioView {
-		width: min(700px, 94%);
+		display: none !important;
+	}
+
+	.media-stage.audio-mode {
+		align-items: stretch;
+		justify-content: stretch;
 	}
 
 	.empty-state,
@@ -166,6 +271,61 @@
 		transition: opacity 120ms ease;
 	}
 
+	.waveform-wrap {
+		position: absolute;
+		inset: 0;
+		padding: clamp(0.65rem, 1.6vw, 1.1rem);
+		z-index: 1;
+	}
+
+	#waveformCanvas {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: 1px solid var(--panel-soft);
+		border-radius: 0.6rem;
+		background: rgba(0, 0, 0, 0.24);
+		cursor: pointer;
+	}
+
+	.playlist-panel {
+		border-top: 1px solid var(--panel-soft);
+		background: var(--panel);
+		padding: 0.5rem 0.85rem;
+		display: grid;
+		gap: 0.45rem;
+	}
+
+	.playlist-head {
+		font-size: 0.84rem;
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.playlist-list {
+		display: flex;
+		gap: 0.4rem;
+		overflow-x: auto;
+		padding-bottom: 0.15rem;
+	}
+
+	.playlist-item {
+		border: 1px solid var(--panel-soft);
+		background: rgba(0, 0, 0, 0.26);
+		color: var(--text);
+		border-radius: 0.35rem;
+		padding: 0.3rem 0.55rem;
+		font-size: 0.82rem;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+
+	.playlist-item.active {
+		border-color: var(--accent);
+		background: rgba(116, 185, 255, 0.18);
+	}
+
 	.media-viewer.video-playing-controls-hidden .media-controls {
 		opacity: 0.08;
 	}
@@ -179,6 +339,20 @@
 
 	#seekBar {
 		width: 100%;
+	}
+
+	#trimStartBar,
+	#trimEndBar {
+		width: min(700px, 100%);
+	}
+
+	#resizePercentInput {
+		width: 5.5rem;
+		padding: 0.3rem;
+		border-radius: 0.35rem;
+		border: 1px solid var(--panel-soft);
+		background: rgba(0, 0, 0, 0.28);
+		color: var(--text);
 	}
 
 	.time-readout {
@@ -204,6 +378,115 @@
 		font-size: 0.8rem;
 	}
 
+	.thumb-strip {
+		border-top: 1px solid var(--panel-soft);
+		background: var(--panel);
+		display: flex;
+		gap: 0.45rem;
+		overflow-x: auto;
+		padding: 0.45rem 0.65rem 0.5rem;
+	}
+
+	.thumb-item {
+		width: 120px;
+		height: 78px;
+		border: 1px solid var(--panel-soft);
+		background: rgba(0, 0, 0, 0.24);
+		border-radius: 0.3rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.2rem;
+		color: var(--text);
+		font-size: 0.72rem;
+		cursor: pointer;
+		flex: 0 0 auto;
+		padding: 0.2rem;
+	}
+
+	.thumb-item img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		border-radius: 0.24rem;
+	}
+
+	.thumb-item.active {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 1px var(--accent-soft) inset;
+	}
+
+	.thumb-label {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.mv-modal {
+		position: fixed;
+		inset: 0;
+		z-index: 1900;
+		background: rgba(0, 0, 0, 0.6);
+		backdrop-filter: blur(5px);
+		display: none;
+		align-items: center;
+		justify-content: center;
+		padding: 1rem;
+	}
+
+	.mv-modal-card {
+		width: min(92vw, 460px);
+		background: linear-gradient(160deg, rgba(20, 20, 32, 0.98), rgba(12, 12, 20, 0.98));
+		border: 1px solid var(--panel-soft);
+		border-radius: 0.75rem;
+		padding: 1rem 1rem 0.9rem;
+		display: grid;
+		gap: 0.7rem;
+	}
+
+	.mv-modal-title {
+		font-size: 1rem;
+		font-weight: 600;
+	}
+
+	.mv-modal-text {
+		color: var(--muted);
+		font-size: 0.92rem;
+		line-height: 1.45;
+	}
+
+	.mv-modal-input {
+		width: 100%;
+		padding: 0.55rem 0.7rem;
+		border-radius: 0.4rem;
+		border: 1px solid var(--panel-soft);
+		background: rgba(0, 0, 0, 0.26);
+		color: var(--text);
+	}
+
+	.mv-modal-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+	}
+
+	.mv-toast {
+		position: fixed;
+		right: 1rem;
+		bottom: 1rem;
+		z-index: 1950;
+		max-width: min(88vw, 420px);
+		padding: 0.58rem 0.75rem;
+		border-radius: 0.5rem;
+		border: 1px solid var(--panel-soft);
+		background: rgba(0, 0, 0, 0.82);
+		color: var(--text);
+		font-size: 0.86rem;
+		display: none;
+	}
+
 	@media (max-width: 700px) {
 		.media-toolbar {
 			padding-right: 3.4rem;
@@ -218,12 +501,20 @@
 		const MIN_ZOOM = 1;
 		const MAX_ZOOM = 6;
 		const ZOOM_STEP = 0.2;
+		const WAVEFORM_PADDING = 18;
+		const WAVEFORM_DEFAULT_BINS = 2048;
+		const TRIM_MIN_GAP_RATIO = 0.005;
 
 		const state = {
 			mediaPath: null,
 			mediaType: 'none',
 			siblingFiles: [],
 			siblingIndex: -1,
+			audioQueue: [],
+			audioQueueIndex: -1,
+			subtitleEnabled: true,
+			subtitleTrackAttached: false,
+			thumbRenderToken: 0,
 			looping: false,
 			supports: {
 				image_extensions: [],
@@ -232,6 +523,35 @@
 				subtitle_extensions: []
 			},
 			controlHideTimer: null,
+			waveform: {
+				audioContext: null,
+				frameRequest: null,
+				decodeToken: 0,
+				envelopeBins: 0,
+				envelopeMin: null,
+				envelopeMax: null
+			},
+			trim: {
+				startRatio: 0,
+				endRatio: 1
+			},
+			ui: {
+				toastTimer: null,
+				promptResolver: null,
+				messageResolver: null
+			},
+			photo: {
+				canvas: null,
+				ctx: null,
+				displayRect: null,
+				cropMode: false,
+				drawMode: false,
+				cropRect: null,
+				cropAnchor: null,
+				drawing: false,
+				lastDrawPoint: null,
+				mimeType: 'image/png'
+			},
 			view: {
 				scale: 1,
 				offsetX: 0,
@@ -254,9 +574,15 @@
 			zoomOutBtn: document.getElementById('zoomOutBtn'),
 			zoomInBtn: document.getElementById('zoomInBtn'),
 			zoomResetBtn: document.getElementById('zoomResetBtn'),
+			playlistFromFolderBtn: document.getElementById('playlistFromFolderBtn'),
+			clearPlaylistBtn: document.getElementById('clearPlaylistBtn'),
 			loopBtn: document.getElementById('loopBtn'),
+			subtitleToggleBtn: document.getElementById('subtitleToggleBtn'),
 			photoFullscreenBtn: document.getElementById('photoFullscreenBtn'),
 			image: document.getElementById('imageView'),
+			photoEditorWrap: document.getElementById('photoEditorWrap'),
+			photoCanvas: document.getElementById('photoCanvas'),
+			photoCropBox: document.getElementById('photoCropBox'),
 			video: document.getElementById('videoView'),
 			audio: document.getElementById('audioView'),
 			emptyState: document.getElementById('emptyState'),
@@ -270,15 +596,1065 @@
 			currentTime: document.getElementById('currentTime'),
 			totalTime: document.getElementById('totalTime'),
 			volumeBar: document.getElementById('volumeBar'),
+			subtitleStatusRow: document.getElementById('subtitleStatusRow'),
+			subtitleStatus: document.getElementById('subtitleStatus'),
+			trimSummaryRow: document.getElementById('trimSummaryRow'),
+			trimRangeLabel: document.getElementById('trimRangeLabel'),
+			trimStartRow: document.getElementById('trimStartRow'),
+			trimStartBar: document.getElementById('trimStartBar'),
+			trimEndRow: document.getElementById('trimEndRow'),
+			trimEndBar: document.getElementById('trimEndBar'),
+			trimResetBtn: document.getElementById('trimResetBtn'),
+			trimSaveBtn: document.getElementById('trimSaveBtn'),
+			imageEditRow: document.getElementById('imageEditRow'),
+			cropModeBtn: document.getElementById('cropModeBtn'),
+			applyCropBtn: document.getElementById('applyCropBtn'),
+			rotatePhotoBtn: document.getElementById('rotatePhotoBtn'),
+			flipPhotoHBtn: document.getElementById('flipPhotoHBtn'),
+			flipPhotoVBtn: document.getElementById('flipPhotoVBtn'),
+			drawModeBtn: document.getElementById('drawModeBtn'),
+			savePhotoBtn: document.getElementById('savePhotoBtn'),
+			resizePercentInput: document.getElementById('resizePercentInput'),
+			applyResizeBtn: document.getElementById('applyResizeBtn'),
+			waveformWrap: document.getElementById('waveformWrap'),
+			waveformCanvas: document.getElementById('waveformCanvas'),
+			playlistPanel: document.getElementById('playlistPanel'),
+			playlistList: document.getElementById('playlistList'),
 			pathLabel: document.getElementById('pathLabel'),
 			typeLabel: document.getElementById('typeLabel'),
-			zoomLabel: document.getElementById('zoomLabel')
+			zoomLabel: document.getElementById('zoomLabel'),
+			thumbStrip: document.getElementById('thumbStrip'),
+			mvMessageModal: document.getElementById('mvMessageModal'),
+			mvMessageTitle: document.getElementById('mvMessageTitle'),
+			mvMessageText: document.getElementById('mvMessageText'),
+			mvMessageOkBtn: document.getElementById('mvMessageOkBtn'),
+			mvPromptModal: document.getElementById('mvPromptModal'),
+			mvPromptTitle: document.getElementById('mvPromptTitle'),
+			mvPromptText: document.getElementById('mvPromptText'),
+			mvPromptInput: document.getElementById('mvPromptInput'),
+			mvPromptCancelBtn: document.getElementById('mvPromptCancelBtn'),
+			mvPromptOkBtn: document.getElementById('mvPromptOkBtn'),
+			mvToast: document.getElementById('mvToast')
 		};
 
-		function activeVisualElement() {
-			if (state.mediaType === 'image') {
-				return refs.image;
+		function isAudioPath(path) {
+			return state.supports.audio_extensions.includes(getExtension(path));
+		}
+
+		function isImagePath(path) {
+			return state.supports.image_extensions.includes(getExtension(path));
+		}
+
+		function isVideoPath(path) {
+			return state.supports.video_extensions.includes(getExtension(path));
+		}
+
+		function imageMimeTypeForPath(path) {
+			const extension = getExtension(path);
+			if (extension === '.jpg' || extension === '.jpeg') {
+				return 'image/jpeg';
 			}
+			if (extension === '.webp') {
+				return 'image/webp';
+			}
+			if (extension === '.gif') {
+				return 'image/gif';
+			}
+			return 'image/png';
+		}
+
+		function createEditedPath(path, suffix) {
+			const normalized = normalizePath(path);
+			const extension = getExtension(normalized);
+			if (!extension) {
+				return `${normalized}${suffix}`;
+			}
+			return `${normalized.slice(0, -extension.length)}${suffix}${extension}`;
+		}
+
+		function showToast(message, durationMs = 2200) {
+			if (!refs.mvToast) {
+				return;
+			}
+			refs.mvToast.textContent = String(message || 'Done');
+			refs.mvToast.style.display = 'block';
+			if (state.ui.toastTimer) {
+				clearTimeout(state.ui.toastTimer);
+			}
+			state.ui.toastTimer = setTimeout(() => {
+				refs.mvToast.style.display = 'none';
+				state.ui.toastTimer = null;
+			}, Math.max(900, durationMs));
+		}
+
+		function showMessageModal(title, message) {
+			return new Promise((resolve) => {
+				refs.mvMessageTitle.textContent = String(title || 'Message');
+				refs.mvMessageText.textContent = String(message || '');
+				refs.mvMessageModal.style.display = 'flex';
+				state.ui.messageResolver = resolve;
+			});
+		}
+
+		function closeMessageModal() {
+			refs.mvMessageModal.style.display = 'none';
+			if (state.ui.messageResolver) {
+				state.ui.messageResolver();
+				state.ui.messageResolver = null;
+			}
+		}
+
+		function showPromptModal(title, message, defaultValue = '') {
+			return new Promise((resolve) => {
+				refs.mvPromptTitle.textContent = String(title || 'Input');
+				refs.mvPromptText.textContent = String(message || '');
+				refs.mvPromptInput.value = String(defaultValue || '');
+				refs.mvPromptModal.style.display = 'flex';
+				state.ui.promptResolver = resolve;
+				setTimeout(() => {
+					refs.mvPromptInput.focus();
+					refs.mvPromptInput.select();
+				}, 0);
+			});
+		}
+
+		function closePromptModal(valueOrNull) {
+			refs.mvPromptModal.style.display = 'none';
+			if (state.ui.promptResolver) {
+				state.ui.promptResolver(valueOrNull);
+				state.ui.promptResolver = null;
+			}
+		}
+
+		async function saveTrimmedMedia() {
+			if (!(state.mediaType === 'audio' || state.mediaType === 'video') || !state.mediaPath) {
+				return;
+			}
+
+			const player = currentPlayer();
+			if (!player || !Number.isFinite(player.duration) || player.duration <= 0) {
+				await showMessageModal('Trim Save', 'Media duration is not ready yet. Play or seek once and try again.');
+				return;
+			}
+
+			const bounds = getTrimBounds(player);
+			if (bounds.segment <= 0) {
+				await showMessageModal('Trim Save', 'Trim range is empty. Move the start/end handles and try again.');
+				return;
+			}
+
+			const defaultPath = createEditedPath(state.mediaPath, '_trimmed');
+			const targetPath = await showPromptModal('Save Trimmed Media', 'Enter output file path:', defaultPath);
+			if (targetPath === null) {
+				return;
+			}
+
+			const cleanTarget = String(targetPath || '').trim();
+			if (!cleanTarget) {
+				await showMessageModal('Trim Save', 'Please enter an output path.');
+				return;
+			}
+
+			try {
+				const result = await window.pywebview.api.call_app_function(
+					APP_ID,
+					'save_trimmed_media',
+					state.mediaPath,
+					cleanTarget,
+					bounds.start,
+					bounds.end
+				);
+
+				if (!result || !result.success) {
+					const reason = result && result.error ? result.error : 'Trim export failed.';
+					const hint = result && result.hint ? `\n${result.hint}` : '';
+					await showMessageModal('Trim Save Failed', `${reason}${hint}`);
+					return;
+				}
+
+				showToast('Trimmed file saved.');
+				setStatus(result.path || cleanTarget, `Type: ${state.mediaType} (trim saved)`);
+			} catch (error) {
+				await showMessageModal('Trim Save Failed', String(error));
+			}
+		}
+
+		function setTrimUiVisible(visible) {
+			const display = visible ? 'flex' : 'none';
+			refs.trimSummaryRow.style.display = display;
+			refs.trimStartRow.style.display = display;
+			refs.trimEndRow.style.display = display;
+		}
+
+		function setImageEditUiVisible(visible) {
+			refs.imageEditRow.style.display = visible ? 'flex' : 'none';
+			refs.photoEditorWrap.style.display = visible ? 'flex' : 'none';
+			refs.photoCropBox.style.display = 'none';
+		}
+
+		function resetTrimRange() {
+			state.trim.startRatio = 0;
+			state.trim.endRatio = 1;
+			refs.trimStartBar.value = '0';
+			refs.trimEndBar.value = '1000';
+			updateTrimRangeLabel();
+			clampCurrentTimeToTrimBounds();
+			if (state.mediaType === 'audio') {
+				drawWaveformFrame();
+			}
+		}
+
+		function getTrimBounds(player) {
+			const duration = Number.isFinite(player?.duration) ? player.duration : 0;
+			if (duration <= 0) {
+				return { duration: 0, start: 0, end: 0, segment: 0 };
+			}
+
+			const start = Math.max(0, Math.min(duration, state.trim.startRatio * duration));
+			const end = Math.max(start, Math.min(duration, state.trim.endRatio * duration));
+			return {
+				duration,
+				start,
+				end,
+				segment: Math.max(0, end - start)
+			};
+		}
+
+		function updateTrimRangeLabel() {
+			const player = currentPlayer();
+			if (!player || !Number.isFinite(player.duration) || player.duration <= 0) {
+				refs.trimRangeLabel.textContent = 'Trim: Full Length';
+				return;
+			}
+
+			const bounds = getTrimBounds(player);
+			if (Math.abs(bounds.start) < 0.001 && Math.abs(bounds.end - bounds.duration) < 0.001) {
+				refs.trimRangeLabel.textContent = `Trim: Full (${formatTime(bounds.duration)})`;
+				return;
+			}
+
+			refs.trimRangeLabel.textContent = `Trim: ${formatTime(bounds.start)} - ${formatTime(bounds.end)} (${formatTime(bounds.segment)})`;
+		}
+
+		function updateTrimFromStartSlider() {
+			let nextStart = Number(refs.trimStartBar.value) / 1000;
+			let nextEnd = state.trim.endRatio;
+			if (nextStart > (nextEnd - TRIM_MIN_GAP_RATIO)) {
+				nextStart = Math.max(0, nextEnd - TRIM_MIN_GAP_RATIO);
+				refs.trimStartBar.value = String(Math.round(nextStart * 1000));
+			}
+			state.trim.startRatio = nextStart;
+			updateTrimRangeLabel();
+			clampCurrentTimeToTrimBounds();
+			if (state.mediaType === 'audio') {
+				drawWaveformFrame();
+			}
+		}
+
+		function updateTrimFromEndSlider() {
+			let nextEnd = Number(refs.trimEndBar.value) / 1000;
+			let nextStart = state.trim.startRatio;
+			if (nextEnd < (nextStart + TRIM_MIN_GAP_RATIO)) {
+				nextEnd = Math.min(1, nextStart + TRIM_MIN_GAP_RATIO);
+				refs.trimEndBar.value = String(Math.round(nextEnd * 1000));
+			}
+			state.trim.endRatio = nextEnd;
+			updateTrimRangeLabel();
+			clampCurrentTimeToTrimBounds();
+			if (state.mediaType === 'audio') {
+				drawWaveformFrame();
+			}
+		}
+
+		function clampCurrentTimeToTrimBounds() {
+			const player = currentPlayer();
+			if (!player || !Number.isFinite(player.duration) || player.duration <= 0) {
+				return;
+			}
+
+			const bounds = getTrimBounds(player);
+			if (player.currentTime < bounds.start) {
+				player.currentTime = bounds.start;
+			}
+			if (player.currentTime > bounds.end) {
+				player.currentTime = bounds.end;
+			}
+			updateTimeUi();
+		}
+
+		function maybeApplyTrimPlaybackLimit(player) {
+			if (!player || !Number.isFinite(player.duration) || player.duration <= 0) {
+				return;
+			}
+
+			const bounds = getTrimBounds(player);
+			if (player.currentTime < bounds.start) {
+				player.currentTime = bounds.start;
+				return;
+			}
+
+			if (player.currentTime >= bounds.end) {
+				if (state.looping) {
+					player.currentTime = bounds.start;
+					if (player.paused) {
+						player.play().catch(() => {});
+					}
+				} else {
+					player.currentTime = bounds.end;
+					player.pause();
+				}
+			}
+		}
+
+		function resetPhotoEditModes() {
+			state.photo.cropMode = false;
+			state.photo.drawMode = false;
+			state.photo.cropRect = null;
+			state.photo.cropAnchor = null;
+			state.photo.drawing = false;
+			state.photo.lastDrawPoint = null;
+			refs.photoEditorWrap.classList.remove('crop-mode');
+			refs.photoEditorWrap.classList.remove('draw-mode');
+			refs.cropModeBtn.textContent = 'Crop: Off';
+			refs.drawModeBtn.textContent = 'Draw: Off';
+			refs.applyCropBtn.disabled = true;
+			refs.photoCropBox.style.display = 'none';
+		}
+
+		function ensurePhotoBuffer() {
+			if (!state.photo.canvas) {
+				state.photo.canvas = document.createElement('canvas');
+				state.photo.ctx = state.photo.canvas.getContext('2d');
+			}
+		}
+
+		function getPhotoCanvasRect() {
+			const canvas = refs.photoCanvas;
+			const width = Math.max(420, canvas.clientWidth || refs.stage.clientWidth || 0);
+			const height = Math.max(220, canvas.clientHeight || refs.stage.clientHeight || 0);
+			return { width, height };
+		}
+
+		function imagePointFromEvent(event) {
+			const displayRect = state.photo.displayRect;
+			if (!displayRect) {
+				return null;
+			}
+
+			const canvasRect = refs.photoCanvas.getBoundingClientRect();
+			const localX = event.clientX - canvasRect.left;
+			const localY = event.clientY - canvasRect.top;
+			if (
+				localX < displayRect.x ||
+				localY < displayRect.y ||
+				localX > (displayRect.x + displayRect.w) ||
+				localY > (displayRect.y + displayRect.h)
+			) {
+				return null;
+			}
+
+			const px = ((localX - displayRect.x) / displayRect.w) * state.photo.canvas.width;
+			const py = ((localY - displayRect.y) / displayRect.h) * state.photo.canvas.height;
+			return {
+				x: Math.max(0, Math.min(state.photo.canvas.width, px)),
+				y: Math.max(0, Math.min(state.photo.canvas.height, py))
+			};
+		}
+
+		function updateCropBoxOverlay() {
+			const cropRect = state.photo.cropRect;
+			const displayRect = state.photo.displayRect;
+			if (!cropRect || !displayRect) {
+				refs.photoCropBox.style.display = 'none';
+				refs.applyCropBtn.disabled = true;
+				return;
+			}
+
+			const left = displayRect.x + ((cropRect.x / state.photo.canvas.width) * displayRect.w);
+			const top = displayRect.y + ((cropRect.y / state.photo.canvas.height) * displayRect.h);
+			const width = (cropRect.w / state.photo.canvas.width) * displayRect.w;
+			const height = (cropRect.h / state.photo.canvas.height) * displayRect.h;
+
+			refs.photoCropBox.style.left = `${left}px`;
+			refs.photoCropBox.style.top = `${top}px`;
+			refs.photoCropBox.style.width = `${width}px`;
+			refs.photoCropBox.style.height = `${height}px`;
+			refs.photoCropBox.style.display = (width >= 4 && height >= 4) ? 'block' : 'none';
+			refs.applyCropBtn.disabled = !(width >= 4 && height >= 4);
+		}
+
+		function renderPhotoCanvas() {
+			if (state.mediaType !== 'image' || !state.photo.canvas || !state.photo.ctx) {
+				return;
+			}
+
+			const stage = getPhotoCanvasRect();
+			if (!stage.width || !stage.height) {
+				return;
+			}
+
+			if (refs.photoCanvas.width !== stage.width || refs.photoCanvas.height !== stage.height) {
+				refs.photoCanvas.width = stage.width;
+				refs.photoCanvas.height = stage.height;
+			}
+
+			const drawCtx = refs.photoCanvas.getContext('2d');
+			drawCtx.fillStyle = '#000';
+			drawCtx.fillRect(0, 0, stage.width, stage.height);
+
+			const scale = Math.min(stage.width / state.photo.canvas.width, stage.height / state.photo.canvas.height);
+			const drawWidth = Math.max(1, Math.floor(state.photo.canvas.width * scale));
+			const drawHeight = Math.max(1, Math.floor(state.photo.canvas.height * scale));
+			const drawX = Math.floor((stage.width - drawWidth) / 2);
+			const drawY = Math.floor((stage.height - drawHeight) / 2);
+
+			state.photo.displayRect = {
+				x: drawX,
+				y: drawY,
+				w: drawWidth,
+				h: drawHeight
+			};
+
+			drawCtx.imageSmoothingEnabled = true;
+			drawCtx.drawImage(state.photo.canvas, 0, 0, state.photo.canvas.width, state.photo.canvas.height, drawX, drawY, drawWidth, drawHeight);
+			updateCropBoxOverlay();
+		}
+
+		function replacePhotoCanvas(nextCanvas) {
+			if (!nextCanvas || !nextCanvas.width || !nextCanvas.height) {
+				return;
+			}
+			ensurePhotoBuffer();
+			state.photo.canvas.width = nextCanvas.width;
+			state.photo.canvas.height = nextCanvas.height;
+			state.photo.ctx.clearRect(0, 0, state.photo.canvas.width, state.photo.canvas.height);
+			state.photo.ctx.drawImage(nextCanvas, 0, 0);
+			state.photo.cropRect = null;
+			renderPhotoCanvas();
+		}
+
+		function runPhotoTransform(width, height, drawFn) {
+			if (!state.photo.canvas || !state.photo.ctx) {
+				return;
+			}
+			const nextCanvas = document.createElement('canvas');
+			nextCanvas.width = Math.max(1, Math.floor(width));
+			nextCanvas.height = Math.max(1, Math.floor(height));
+			const nextCtx = nextCanvas.getContext('2d');
+			nextCtx.imageSmoothingEnabled = true;
+			drawFn(nextCtx, nextCanvas);
+			replacePhotoCanvas(nextCanvas);
+		}
+
+		function rotatePhotoClockwise() {
+			if (state.mediaType !== 'image' || !state.photo.canvas) {
+				return;
+			}
+			runPhotoTransform(state.photo.canvas.height, state.photo.canvas.width, (ctx, canvas) => {
+				ctx.translate(canvas.width, 0);
+				ctx.rotate(Math.PI / 2);
+				ctx.drawImage(state.photo.canvas, 0, 0);
+			});
+		}
+
+		function flipPhotoHorizontal() {
+			if (state.mediaType !== 'image' || !state.photo.canvas) {
+				return;
+			}
+			runPhotoTransform(state.photo.canvas.width, state.photo.canvas.height, (ctx, canvas) => {
+				ctx.translate(canvas.width, 0);
+				ctx.scale(-1, 1);
+				ctx.drawImage(state.photo.canvas, 0, 0);
+			});
+		}
+
+		function flipPhotoVertical() {
+			if (state.mediaType !== 'image' || !state.photo.canvas) {
+				return;
+			}
+			runPhotoTransform(state.photo.canvas.width, state.photo.canvas.height, (ctx, canvas) => {
+				ctx.translate(0, canvas.height);
+				ctx.scale(1, -1);
+				ctx.drawImage(state.photo.canvas, 0, 0);
+			});
+		}
+
+		function applyPhotoCrop() {
+			if (state.mediaType !== 'image' || !state.photo.cropRect || !state.photo.canvas) {
+				return;
+			}
+			const crop = state.photo.cropRect;
+			if (crop.w < 2 || crop.h < 2) {
+				return;
+			}
+
+			runPhotoTransform(crop.w, crop.h, (ctx) => {
+				ctx.drawImage(state.photo.canvas, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
+			});
+			state.photo.cropRect = null;
+			updateCropBoxOverlay();
+		}
+
+		function applyPhotoResize() {
+			if (state.mediaType !== 'image' || !state.photo.canvas) {
+				return;
+			}
+
+			const ratio = Math.max(0.1, Math.min(1, Number(refs.resizePercentInput.value || 100) / 100));
+			const nextWidth = Math.max(1, Math.floor(state.photo.canvas.width * ratio));
+			const nextHeight = Math.max(1, Math.floor(state.photo.canvas.height * ratio));
+			if (nextWidth >= state.photo.canvas.width && nextHeight >= state.photo.canvas.height) {
+				return;
+			}
+
+			runPhotoTransform(nextWidth, nextHeight, (ctx, canvas) => {
+				ctx.drawImage(state.photo.canvas, 0, 0, state.photo.canvas.width, state.photo.canvas.height, 0, 0, canvas.width, canvas.height);
+			});
+			refs.resizePercentInput.value = '100';
+		}
+
+		async function saveEditedPhoto() {
+			if (state.mediaType !== 'image' || !state.photo.canvas || !state.mediaPath) {
+				return;
+			}
+
+			const defaultPath = createEditedPath(state.mediaPath, '_edited');
+			const targetPath = await showPromptModal('Save Edited Image', 'Enter output file path:', defaultPath);
+			if (targetPath === null) {
+				return;
+			}
+
+			const cleanTarget = String(targetPath || '').trim();
+			if (!cleanTarget) {
+				await showMessageModal('Save Image', 'Please enter an output path.');
+				return;
+			}
+
+			try {
+				const dataUrl = state.photo.canvas.toDataURL(state.photo.mimeType, 0.92);
+				const result = await window.pywebview.api.call_app_function(APP_ID, 'save_media_data_url', cleanTarget, dataUrl);
+				if (!result || !result.success) {
+					const reason = result && result.error ? result.error : 'Unknown save error.';
+					await showMessageModal('Save Image Failed', `Could not save edited image: ${reason}`);
+					return;
+				}
+				showToast('Edited image saved.');
+				setStatus(result.path || cleanTarget, 'Type: image (saved)');
+			} catch (error) {
+				await showMessageModal('Save Image Failed', `Could not save edited image: ${error}`);
+			}
+		}
+
+		async function loadImageIntoEditor(dataUrl, path) {
+			ensurePhotoBuffer();
+			resetPhotoEditModes();
+			state.photo.mimeType = imageMimeTypeForPath(path);
+
+			const image = new Image();
+			image.decoding = 'async';
+			await new Promise((resolve, reject) => {
+				image.onload = () => resolve();
+				image.onerror = () => reject(new Error('Could not decode image source.'));
+				image.src = dataUrl;
+			});
+
+			state.photo.canvas.width = Math.max(1, image.naturalWidth || image.width || 1);
+			state.photo.canvas.height = Math.max(1, image.naturalHeight || image.height || 1);
+			state.photo.ctx.clearRect(0, 0, state.photo.canvas.width, state.photo.canvas.height);
+			state.photo.ctx.drawImage(image, 0, 0);
+			renderPhotoCanvas();
+		}
+
+		function handlePhotoPointerDown(event) {
+			if (state.mediaType !== 'image' || refs.photoEditorWrap.style.display === 'none') {
+				return;
+			}
+
+			const point = imagePointFromEvent(event);
+			if (!point) {
+				return;
+			}
+
+			if (state.photo.cropMode) {
+				state.photo.cropAnchor = point;
+				state.photo.cropRect = { x: point.x, y: point.y, w: 0, h: 0 };
+				updateCropBoxOverlay();
+				return;
+			}
+
+			if (state.photo.drawMode) {
+				state.photo.drawing = true;
+				state.photo.lastDrawPoint = point;
+				return;
+			}
+		}
+
+		function handlePhotoPointerMove(event) {
+			if (state.mediaType !== 'image' || refs.photoEditorWrap.style.display === 'none') {
+				return;
+			}
+
+			if (state.photo.cropMode && state.photo.cropAnchor) {
+				const point = imagePointFromEvent(event);
+				if (!point) {
+					return;
+				}
+
+				const x1 = Math.min(state.photo.cropAnchor.x, point.x);
+				const y1 = Math.min(state.photo.cropAnchor.y, point.y);
+				const x2 = Math.max(state.photo.cropAnchor.x, point.x);
+				const y2 = Math.max(state.photo.cropAnchor.y, point.y);
+				state.photo.cropRect = {
+					x: Math.floor(x1),
+					y: Math.floor(y1),
+					w: Math.max(1, Math.floor(x2 - x1)),
+					h: Math.max(1, Math.floor(y2 - y1))
+				};
+				updateCropBoxOverlay();
+				return;
+			}
+
+			if (state.photo.drawMode && state.photo.drawing) {
+				const point = imagePointFromEvent(event);
+				if (!point || !state.photo.lastDrawPoint) {
+					return;
+				}
+
+				const ctx = state.photo.ctx;
+				ctx.strokeStyle = 'rgba(246, 94, 94, 0.98)';
+				ctx.lineWidth = Math.max(2, Math.round(Math.max(state.photo.canvas.width, state.photo.canvas.height) / 520));
+				ctx.lineCap = 'round';
+				ctx.lineJoin = 'round';
+				ctx.beginPath();
+				ctx.moveTo(state.photo.lastDrawPoint.x, state.photo.lastDrawPoint.y);
+				ctx.lineTo(point.x, point.y);
+				ctx.stroke();
+				state.photo.lastDrawPoint = point;
+				renderPhotoCanvas();
+			}
+		}
+
+		function handlePhotoPointerUp() {
+			state.photo.cropAnchor = null;
+			state.photo.drawing = false;
+			state.photo.lastDrawPoint = null;
+		}
+
+		function togglePhotoCropMode() {
+			if (state.mediaType !== 'image') {
+				return;
+			}
+			state.photo.cropMode = !state.photo.cropMode;
+			if (state.photo.cropMode) {
+				state.photo.drawMode = false;
+			}
+			refs.cropModeBtn.textContent = state.photo.cropMode ? 'Crop: On' : 'Crop: Off';
+			refs.drawModeBtn.textContent = state.photo.drawMode ? 'Draw: On' : 'Draw: Off';
+			refs.photoEditorWrap.classList.toggle('crop-mode', state.photo.cropMode);
+			refs.photoEditorWrap.classList.toggle('draw-mode', state.photo.drawMode);
+			if (!state.photo.cropMode) {
+				state.photo.cropRect = null;
+				updateCropBoxOverlay();
+			}
+		}
+
+		function togglePhotoDrawMode() {
+			if (state.mediaType !== 'image') {
+				return;
+			}
+			state.photo.drawMode = !state.photo.drawMode;
+			if (state.photo.drawMode) {
+				state.photo.cropMode = false;
+				state.photo.cropRect = null;
+				updateCropBoxOverlay();
+			}
+			refs.drawModeBtn.textContent = state.photo.drawMode ? 'Draw: On' : 'Draw: Off';
+			refs.cropModeBtn.textContent = state.photo.cropMode ? 'Crop: On' : 'Crop: Off';
+			refs.photoEditorWrap.classList.toggle('draw-mode', state.photo.drawMode);
+			refs.photoEditorWrap.classList.toggle('crop-mode', state.photo.cropMode);
+		}
+
+		function clearVideoSubtitles() {
+			const tracks = Array.from(refs.video.querySelectorAll('track[data-generated="true"]'));
+			tracks.forEach((track) => track.remove());
+			state.subtitleTrackAttached = false;
+			refs.subtitleStatus.textContent = 'Subtitle: none';
+			refs.subtitleStatusRow.style.display = 'none';
+			refs.subtitleToggleBtn.style.display = 'none';
+		}
+
+		function updateSubtitleToggleButton() {
+			refs.subtitleToggleBtn.textContent = state.subtitleEnabled ? 'Subtitles: On' : 'Subtitles: Off';
+		}
+
+		function setTrackShowing(enabled) {
+			const track = refs.video.querySelector('track[data-generated="true"]');
+			if (!track || !track.track) {
+				return;
+			}
+			track.track.mode = enabled ? 'showing' : 'hidden';
+		}
+
+		function toggleSubtitles() {
+			if (!state.subtitleTrackAttached) {
+				return;
+			}
+			state.subtitleEnabled = !state.subtitleEnabled;
+			setTrackShowing(state.subtitleEnabled);
+			updateSubtitleToggleButton();
+		}
+
+		async function tryLoadSubtitle(path) {
+			clearVideoSubtitles();
+			try {
+				const result = await window.pywebview.api.call_app_function(APP_ID, 'get_subtitle_track', path, 'en', 'Default');
+				if (!result || !result.success || !result.data_url) {
+					return;
+				}
+
+				const track = document.createElement('track');
+				track.kind = 'subtitles';
+				track.label = result.label || 'Default';
+				track.srclang = result.srclang || 'en';
+				track.src = result.data_url;
+				track.default = true;
+				track.dataset.generated = 'true';
+				refs.video.appendChild(track);
+				state.subtitleTrackAttached = true;
+				refs.subtitleStatus.textContent = `Subtitle: ${getFileName(result.path || '').trim() || 'loaded'}`;
+				refs.subtitleStatusRow.style.display = 'flex';
+				refs.subtitleToggleBtn.style.display = 'inline-block';
+				updateSubtitleToggleButton();
+
+				setTimeout(() => setTrackShowing(state.subtitleEnabled), 0);
+			} catch (error) {
+				console.warn('Subtitle load failed:', error);
+			}
+		}
+
+		function clearAudioQueue() {
+			state.audioQueue = [];
+			state.audioQueueIndex = -1;
+			renderAudioQueue();
+		}
+
+		function setAudioQueueFromSiblingFiles() {
+			state.audioQueue = state.siblingFiles.filter(isAudioPath);
+			state.audioQueueIndex = state.audioQueue.findIndex((path) => normalizePath(path) === normalizePath(state.mediaPath));
+			renderAudioQueue();
+		}
+
+		function renderAudioQueue() {
+			refs.playlistList.innerHTML = '';
+			if (!state.audioQueue.length) {
+				refs.playlistPanel.style.display = 'none';
+				refs.playlistFromFolderBtn.style.display = state.mediaType === 'audio' ? 'inline-block' : 'none';
+				refs.clearPlaylistBtn.style.display = 'none';
+				return;
+			}
+
+			refs.playlistPanel.style.display = 'grid';
+			refs.playlistFromFolderBtn.style.display = 'inline-block';
+			refs.clearPlaylistBtn.style.display = 'inline-block';
+
+			state.audioQueue.forEach((trackPath, index) => {
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.className = `playlist-item ${index === state.audioQueueIndex ? 'active' : ''}`;
+				button.textContent = getFileName(trackPath);
+				button.addEventListener('click', async () => {
+					state.audioQueueIndex = index;
+					await loadMedia(trackPath);
+				});
+				refs.playlistList.appendChild(button);
+			});
+		}
+
+		function stopWaveformLoop() {
+			if (state.waveform.frameRequest) {
+				cancelAnimationFrame(state.waveform.frameRequest);
+				state.waveform.frameRequest = null;
+			}
+		}
+
+		function resetWaveformEnvelope() {
+			state.waveform.decodeToken += 1;
+			state.waveform.envelopeBins = 0;
+			state.waveform.envelopeMin = null;
+			state.waveform.envelopeMax = null;
+		}
+
+		function drawWaveformPlaceholder() {
+			const canvas = refs.waveformCanvas;
+			const ctx = canvas.getContext('2d');
+			const width = Math.max(420, canvas.clientWidth || refs.stage.clientWidth || 0);
+			const height = Math.max(220, canvas.clientHeight || refs.stage.clientHeight || 0);
+			if (!width || !height) {
+				return;
+			}
+			canvas.width = width;
+			canvas.height = height;
+			ctx.fillStyle = 'rgba(8, 10, 18, 0.95)';
+			ctx.fillRect(0, 0, width, height);
+			ctx.strokeStyle = 'rgba(116, 185, 255, 0.68)';
+			ctx.lineWidth = 3;
+			ctx.beginPath();
+			ctx.moveTo(0, height / 2);
+			ctx.lineTo(width, height / 2);
+			ctx.stroke();
+		}
+
+		async function ensureWaveformContext() {
+			if (!state.waveform.audioContext) {
+				state.waveform.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+			}
+			return state.waveform.audioContext;
+		}
+
+		function drawWaveformFrame() {
+			const canvas = refs.waveformCanvas;
+			const ctx = canvas.getContext('2d');
+			const width = Math.max(420, canvas.clientWidth || refs.stage.clientWidth || 0);
+			const height = Math.max(220, canvas.clientHeight || refs.stage.clientHeight || 0);
+			if (!width || !height) {
+				return;
+			}
+
+			if (canvas.width !== width || canvas.height !== height) {
+				canvas.width = width;
+				canvas.height = height;
+			}
+
+			ctx.fillStyle = 'rgba(8, 10, 18, 0.95)';
+			ctx.fillRect(0, 0, width, height);
+			ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(0, height / 2);
+			ctx.lineTo(width, height / 2);
+			ctx.stroke();
+
+			const bins = state.waveform.envelopeBins;
+			const envelopeMin = state.waveform.envelopeMin;
+			const envelopeMax = state.waveform.envelopeMax;
+			if (bins > 0 && envelopeMin && envelopeMax) {
+				const centerY = height / 2;
+				const verticalAmplitude = Math.max(12, centerY - WAVEFORM_PADDING);
+				ctx.strokeStyle = 'rgba(116, 185, 255, 0.9)';
+				ctx.lineWidth = 1;
+				const columns = Math.max(96, Math.min(width, bins));
+
+				for (let column = 0; column < columns; column++) {
+					const ratio = column / Math.max(1, columns - 1);
+					const index = Math.min(bins - 1, Math.floor(ratio * (bins - 1)));
+					const minSample = envelopeMin[index];
+					const maxSample = envelopeMax[index];
+					const x = (ratio * width);
+					const yMin = Math.max(2, Math.min(height - 2, centerY + (minSample * verticalAmplitude)));
+					const yMax = Math.max(2, Math.min(height - 2, centerY + (maxSample * verticalAmplitude)));
+					ctx.beginPath();
+					ctx.moveTo(x, yMin);
+					ctx.lineTo(x, yMax);
+					ctx.stroke();
+				}
+			}
+
+			if (refs.audio.duration > 0) {
+				const trimStartX = state.trim.startRatio * width;
+				const trimEndX = state.trim.endRatio * width;
+				if (trimStartX > 0) {
+					ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+					ctx.fillRect(0, 0, trimStartX, height);
+				}
+				if (trimEndX < width) {
+					ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+					ctx.fillRect(trimEndX, 0, width - trimEndX, height);
+				}
+
+				const progressX = (refs.audio.currentTime / refs.audio.duration) * width;
+				ctx.strokeStyle = 'rgba(246, 185, 59, 0.95)';
+				ctx.lineWidth = 2;
+				ctx.beginPath();
+				ctx.moveTo(progressX, 0);
+				ctx.lineTo(progressX, height);
+				ctx.stroke();
+			}
+		}
+
+		async function prepareStaticWaveform(dataUrl) {
+			if (!dataUrl) {
+				resetWaveformEnvelope();
+				drawWaveformPlaceholder();
+				return;
+			}
+
+			resetWaveformEnvelope();
+			const token = state.waveform.decodeToken;
+			drawWaveformPlaceholder();
+
+			try {
+				const audioContext = await ensureWaveformContext();
+				const response = await fetch(dataUrl);
+				const arrayBuffer = await response.arrayBuffer();
+				const decodedBuffer = await new Promise((resolve, reject) => {
+					audioContext.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
+				});
+
+				if (token !== state.waveform.decodeToken) {
+					return;
+				}
+
+				const length = decodedBuffer.length;
+				const channelCount = Math.max(1, decodedBuffer.numberOfChannels);
+				const channelData = [];
+				for (let channel = 0; channel < channelCount; channel++) {
+					channelData.push(decodedBuffer.getChannelData(channel));
+				}
+
+				const bins = Math.max(512, Math.min(WAVEFORM_DEFAULT_BINS, Math.floor(length / 32) || WAVEFORM_DEFAULT_BINS));
+				const envelopeMin = new Float32Array(bins);
+				const envelopeMax = new Float32Array(bins);
+				let globalPeak = 0.001;
+
+				for (let bin = 0; bin < bins; bin++) {
+					const start = Math.floor((bin / bins) * length);
+					const end = Math.max(start + 1, Math.floor(((bin + 1) / bins) * length));
+					const stride = Math.max(1, Math.floor((end - start) / 180));
+					let minValue = 1;
+					let maxValue = -1;
+
+					for (let i = start; i < end && i < length; i += stride) {
+						let mixed = 0;
+						for (let channel = 0; channel < channelCount; channel++) {
+							mixed += channelData[channel][i] || 0;
+						}
+						mixed /= channelCount;
+						if (mixed < minValue) {
+							minValue = mixed;
+						}
+						if (mixed > maxValue) {
+							maxValue = mixed;
+						}
+					}
+
+					envelopeMin[bin] = minValue;
+					envelopeMax[bin] = maxValue;
+					globalPeak = Math.max(globalPeak, Math.abs(minValue), Math.abs(maxValue));
+				}
+
+				const normalization = Math.max(0.015, globalPeak);
+				for (let bin = 0; bin < bins; bin++) {
+					envelopeMin[bin] = Math.max(-1, Math.min(1, envelopeMin[bin] / normalization));
+					envelopeMax[bin] = Math.max(-1, Math.min(1, envelopeMax[bin] / normalization));
+				}
+
+				if (token !== state.waveform.decodeToken) {
+					return;
+				}
+
+				state.waveform.envelopeBins = bins;
+				state.waveform.envelopeMin = envelopeMin;
+				state.waveform.envelopeMax = envelopeMax;
+				drawWaveformFrame();
+			} catch (error) {
+				if (token !== state.waveform.decodeToken) {
+					return;
+				}
+				console.warn('Waveform decode failed:', error);
+				drawWaveformPlaceholder();
+			}
+		}
+
+		function startWaveformLoop() {
+			stopWaveformLoop();
+
+			const render = () => {
+				drawWaveformFrame();
+				if (state.mediaType === 'audio' && !refs.audio.paused && refs.waveformWrap.style.display !== 'none') {
+					state.waveform.frameRequest = requestAnimationFrame(render);
+					return;
+				}
+				state.waveform.frameRequest = null;
+			};
+
+			render();
+		}
+
+		function seekFromWaveform(event) {
+			if (state.mediaType !== 'audio') {
+				return;
+			}
+			if (!Number.isFinite(refs.audio.duration) || refs.audio.duration <= 0) {
+				return;
+			}
+
+			const rect = refs.waveformCanvas.getBoundingClientRect();
+			const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)));
+			const bounds = getTrimBounds(refs.audio);
+			if (bounds.segment > 0) {
+				refs.audio.currentTime = bounds.start + (ratio * bounds.segment);
+			} else {
+				refs.audio.currentTime = ratio * refs.audio.duration;
+			}
+			updateTimeUi();
+			drawWaveformFrame();
+		}
+
+		function renderThumbnails() {
+			const token = ++state.thumbRenderToken;
+			refs.thumbStrip.innerHTML = '';
+			const files = state.siblingFiles.slice(0, 40);
+			if (!files.length) {
+				refs.thumbStrip.style.display = 'none';
+				return;
+			}
+
+			refs.thumbStrip.style.display = 'flex';
+
+			files.forEach((path, index) => {
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.className = `thumb-item ${index === state.siblingIndex ? 'active' : ''}`;
+				button.addEventListener('click', async () => {
+					await loadMedia(path);
+				});
+
+				if (isImagePath(path)) {
+					const image = document.createElement('img');
+					image.alt = getFileName(path);
+					button.appendChild(image);
+
+					window.pywebview.api.get_file_data_url(path, 4 * 1024 * 1024, 'image/png')
+						.then((result) => {
+							if (token !== state.thumbRenderToken) {
+								return;
+							}
+							if (result && result.success && result.data_url) {
+								image.src = result.data_url;
+							}
+						})
+						.catch(() => {
+							image.remove();
+							const label = document.createElement('span');
+							label.className = 'thumb-label';
+							label.textContent = getFileName(path);
+							button.appendChild(label);
+						});
+				} else {
+					const icon = document.createElement('div');
+					icon.textContent = isVideoPath(path) ? 'VIDEO' : (isAudioPath(path) ? 'AUDIO' : 'FILE');
+					const label = document.createElement('span');
+					label.className = 'thumb-label';
+					label.textContent = getFileName(path);
+					button.appendChild(icon);
+					button.appendChild(label);
+				}
+
+				refs.thumbStrip.appendChild(button);
+			});
+		}
+
+		function activeVisualElement() {
 			if (state.mediaType === 'video') {
 				return refs.video;
 			}
@@ -286,7 +1662,7 @@
 		}
 
 		function hasPanZoomSurface() {
-			return state.mediaType === 'image' || state.mediaType === 'video';
+			return state.mediaType === 'video';
 		}
 
 		function updateZoomLabel() {
@@ -538,11 +1914,27 @@
 			refs.audio.removeAttribute('src');
 			refs.image.removeAttribute('src');
 			refs.image.style.display = 'none';
+			refs.photoEditorWrap.style.display = 'none';
 			refs.video.style.display = 'none';
 			refs.audio.style.display = 'none';
 			refs.emptyState.style.display = 'none';
 			refs.unsupportedState.style.display = 'none';
 			refs.controls.style.display = 'none';
+			refs.waveformWrap.style.display = 'none';
+			refs.stage.classList.remove('audio-mode');
+			refs.playlistPanel.style.display = 'none';
+			refs.playlistFromFolderBtn.style.display = 'none';
+			refs.clearPlaylistBtn.style.display = 'none';
+			refs.subtitleToggleBtn.style.display = 'none';
+			refs.subtitleStatusRow.style.display = 'none';
+			setTrimUiVisible(false);
+			setImageEditUiVisible(false);
+			refs.thumbStrip.style.display = 'none';
+			clearVideoSubtitles();
+			stopWaveformLoop();
+			resetWaveformEnvelope();
+			resetPhotoEditModes();
+			resetTrimRange();
 			refs.photoFullscreenBtn.style.display = 'none';
 			setZoomControlsEnabled(false);
 			resetPanZoom();
@@ -605,16 +1997,22 @@
 				return;
 			}
 
-			const duration = Number.isFinite(player.duration) ? player.duration : 0;
-			const current = Number.isFinite(player.currentTime) ? player.currentTime : 0;
-			refs.currentTime.textContent = formatTime(current);
-			refs.totalTime.textContent = formatTime(duration);
+			const bounds = getTrimBounds(player);
+			const currentRaw = Number.isFinite(player.currentTime) ? player.currentTime : 0;
+			const clampedCurrent = Math.max(bounds.start, Math.min(bounds.end || bounds.duration, currentRaw));
+			const segmentDuration = bounds.segment > 0 ? bounds.segment : bounds.duration;
+			const segmentCurrent = Math.max(0, clampedCurrent - bounds.start);
 
-			if (duration > 0) {
-				refs.seekBar.value = String(Math.floor((current / duration) * 1000));
+			refs.currentTime.textContent = formatTime(segmentCurrent);
+			refs.totalTime.textContent = formatTime(segmentDuration);
+
+			if (segmentDuration > 0) {
+				refs.seekBar.value = String(Math.floor((segmentCurrent / segmentDuration) * 1000));
 			} else {
 				refs.seekBar.value = '0';
 			}
+
+			updateTrimRangeLabel();
 		}
 
 		function updatePlayButton() {
@@ -711,13 +2109,16 @@
 			state.mediaType = result.media_type;
 			setStatus(path, `Type: ${result.media_type}`);
 			await refreshSiblingFiles(path);
+			renderThumbnails();
 
 			if (result.media_type === 'image') {
-				refs.image.src = source;
-				refs.image.style.display = 'block';
-				setZoomControlsEnabled(true);
+				setZoomControlsEnabled(false);
 				resetPanZoom();
 				refs.photoFullscreenBtn.style.display = 'inline-block';
+				refs.controls.style.display = 'grid';
+				setImageEditUiVisible(true);
+				setTrimUiVisible(false);
+				await loadImageIntoEditor(source, path);
 				refs.emptyState.style.display = 'none';
 				updateTimeUi();
 				updatePlayButton();
@@ -734,6 +2135,10 @@
 				setZoomControlsEnabled(true);
 				resetPanZoom();
 				refs.controls.style.display = 'grid';
+				setImageEditUiVisible(false);
+				setTrimUiVisible(true);
+				resetTrimRange();
+				await tryLoadSubtitle(path);
 				refs.video.load();
 				updateTimeUi();
 				updatePlayButton();
@@ -747,10 +2152,17 @@
 				refs.audio.currentTime = 0;
 				refs.audio.loop = state.looping;
 				refs.audio.volume = Number(refs.volumeBar.value);
-				refs.audio.style.display = 'block';
+				refs.stage.classList.add('audio-mode');
 				setZoomControlsEnabled(false);
 				resetPanZoom();
 				refs.controls.style.display = 'grid';
+				setImageEditUiVisible(false);
+				setTrimUiVisible(true);
+				resetTrimRange();
+				refs.waveformWrap.style.display = 'block';
+				setAudioQueueFromSiblingFiles();
+				drawWaveformPlaceholder();
+				prepareStaticWaveform(source);
 				refs.audio.load();
 				updateTimeUi();
 				updatePlayButton();
@@ -803,6 +2215,10 @@
 
 			try {
 				if (player.paused) {
+					const bounds = getTrimBounds(player);
+					if (bounds.segment > 0 && player.currentTime >= (bounds.end - 0.02)) {
+						player.currentTime = bounds.start;
+					}
 					await player.play();
 				} else {
 					player.pause();
@@ -821,9 +2237,9 @@
 			}
 
 			player.pause();
-			const duration = Number.isFinite(player.duration) ? player.duration : 0;
+			const bounds = getTrimBounds(player);
 			const current = Number.isFinite(player.currentTime) ? player.currentTime : 0;
-			const nextTime = Math.max(0, Math.min(duration || Number.MAX_SAFE_INTEGER, current + (FRAME_SECONDS * direction)));
+			const nextTime = Math.max(bounds.start, Math.min(bounds.end || Number.MAX_SAFE_INTEGER, current + (FRAME_SECONDS * direction)));
 			player.currentTime = nextTime;
 			updatePlayButton();
 			updateTimeUi();
@@ -836,9 +2252,17 @@
 				return;
 			}
 
+			const bounds = getTrimBounds(player);
 			const percentage = Number(refs.seekBar.value) / 1000;
-			player.currentTime = percentage * player.duration;
+			if (bounds.segment > 0) {
+				player.currentTime = bounds.start + (percentage * bounds.segment);
+			} else {
+				player.currentTime = percentage * player.duration;
+			}
 			updateTimeUi();
+			if (state.mediaType === 'audio') {
+				drawWaveformFrame();
+			}
 			showVideoControlsTemporarily();
 		}
 
@@ -874,26 +2298,54 @@
 
 		function bindPlayerEvents(player) {
 			player.addEventListener('timeupdate', () => {
+				maybeApplyTrimPlaybackLimit(player);
 				updateTimeUi();
+				if (player === refs.audio && refs.waveformWrap.style.display !== 'none') {
+					drawWaveformFrame();
+				}
 			});
 
 			player.addEventListener('loadedmetadata', () => {
 				updateTimeUi();
+				if (player === refs.audio && refs.waveformWrap.style.display !== 'none') {
+					drawWaveformFrame();
+				}
 			});
 
 			player.addEventListener('play', () => {
+				clampCurrentTimeToTrimBounds();
 				updatePlayButton();
+				if (player === refs.audio && refs.waveformWrap.style.display !== 'none') {
+					startWaveformLoop();
+				}
 				showVideoControlsTemporarily();
 			});
 
 			player.addEventListener('pause', () => {
 				updatePlayButton();
+				if (player === refs.audio) {
+					stopWaveformLoop();
+					drawWaveformFrame();
+				}
 				refs.root.classList.remove('video-playing-controls-hidden');
 				clearHideControlsTimer();
 			});
 
 			player.addEventListener('ended', () => {
 				updatePlayButton();
+				if (player === refs.audio) {
+					stopWaveformLoop();
+					drawWaveformFrame();
+				}
+				const bounds = getTrimBounds(player);
+				const fullTrackMode = bounds.duration > 0 && Math.abs(bounds.start) < 0.001 && Math.abs(bounds.end - bounds.duration) < 0.001;
+				if (player === refs.audio && fullTrackMode && !state.looping && state.audioQueue.length) {
+					const nextIndex = state.audioQueueIndex + 1;
+					if (nextIndex >= 0 && nextIndex < state.audioQueue.length) {
+						state.audioQueueIndex = nextIndex;
+						loadMedia(state.audioQueue[nextIndex]);
+					}
+				}
 			});
 		}
 
@@ -904,7 +2356,10 @@
 			refs.zoomOutBtn.addEventListener('click', () => adjustZoom(-1));
 			refs.zoomInBtn.addEventListener('click', () => adjustZoom(1));
 			refs.zoomResetBtn.addEventListener('click', resetPanZoom);
+			refs.playlistFromFolderBtn.addEventListener('click', setAudioQueueFromSiblingFiles);
+			refs.clearPlaylistBtn.addEventListener('click', clearAudioQueue);
 			refs.loopBtn.addEventListener('click', toggleLooping);
+			refs.subtitleToggleBtn.addEventListener('click', toggleSubtitles);
 			refs.photoFullscreenBtn.addEventListener('click', handlePhotoFullscreen);
 
 			refs.playPauseBtn.addEventListener('click', togglePlayPause);
@@ -912,6 +2367,47 @@
 			refs.stepForwardBtn.addEventListener('click', () => stepFrame(1));
 			refs.seekBar.addEventListener('input', onSeekInput);
 			refs.volumeBar.addEventListener('input', onVolumeInput);
+			refs.trimStartBar.addEventListener('input', updateTrimFromStartSlider);
+			refs.trimEndBar.addEventListener('input', updateTrimFromEndSlider);
+			refs.trimResetBtn.addEventListener('click', resetTrimRange);
+			refs.trimSaveBtn.addEventListener('click', saveTrimmedMedia);
+
+			refs.cropModeBtn.addEventListener('click', togglePhotoCropMode);
+			refs.applyCropBtn.addEventListener('click', applyPhotoCrop);
+			refs.rotatePhotoBtn.addEventListener('click', rotatePhotoClockwise);
+			refs.flipPhotoHBtn.addEventListener('click', flipPhotoHorizontal);
+			refs.flipPhotoVBtn.addEventListener('click', flipPhotoVertical);
+			refs.drawModeBtn.addEventListener('click', togglePhotoDrawMode);
+			refs.applyResizeBtn.addEventListener('click', applyPhotoResize);
+			refs.savePhotoBtn.addEventListener('click', saveEditedPhoto);
+
+			refs.mvMessageOkBtn.addEventListener('click', closeMessageModal);
+			refs.mvPromptOkBtn.addEventListener('click', () => {
+				closePromptModal(refs.mvPromptInput.value);
+			});
+			refs.mvPromptCancelBtn.addEventListener('click', () => {
+				closePromptModal(null);
+			});
+			refs.mvPromptInput.addEventListener('keydown', (event) => {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					closePromptModal(refs.mvPromptInput.value);
+				}
+				if (event.key === 'Escape') {
+					event.preventDefault();
+					closePromptModal(null);
+				}
+			});
+			refs.mvPromptModal.addEventListener('click', (event) => {
+				if (event.target === refs.mvPromptModal) {
+					closePromptModal(null);
+				}
+			});
+			refs.mvMessageModal.addEventListener('click', (event) => {
+				if (event.target === refs.mvMessageModal) {
+					closeMessageModal();
+				}
+			});
 
 			bindPlayerEvents(refs.video);
 			bindPlayerEvents(refs.audio);
@@ -931,6 +2427,19 @@
 			refs.stage.addEventListener('click', () => {
 				if (state.mediaType === 'video') {
 					showVideoControlsTemporarily();
+				}
+			});
+
+			refs.waveformCanvas.addEventListener('click', seekFromWaveform);
+			refs.photoCanvas.addEventListener('pointerdown', handlePhotoPointerDown);
+			window.addEventListener('pointermove', handlePhotoPointerMove);
+			window.addEventListener('pointerup', handlePhotoPointerUp);
+			window.addEventListener('pointercancel', handlePhotoPointerUp);
+			window.addEventListener('resize', () => {
+				if (state.mediaType === 'audio') {
+					drawWaveformFrame();
+				} else if (state.mediaType === 'image') {
+					renderPhotoCanvas();
 				}
 			});
 		}
