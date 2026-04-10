@@ -507,6 +507,8 @@ class DesktopInteractions {
         this.appLauncher = document.getElementById('appLauncher');
         this.isAppLauncherOpen = false;
         this.apps = [];
+        this.appLauncherDirty = true;
+        this.preloadedIconPaths = new Set();
         this.init();
     }
 
@@ -605,6 +607,35 @@ class DesktopInteractions {
                 this.closeAppLauncher();
             }
         });
+
+        window.addEventListener('resize', () => {
+            this.appLauncherDirty = true;
+            if (this.isAppLauncherOpen) {
+                this.displayAppsInCircle();
+            }
+        });
+    }
+
+    preloadAppIcons() {
+        if (!Array.isArray(this.apps) || !this.apps.length) {
+            return;
+        }
+
+        for (const app of this.apps) {
+            const iconPath = app && app.icon;
+            if (!iconPath || this.preloadedIconPaths.has(iconPath)) {
+                continue;
+            }
+
+            this.preloadedIconPaths.add(iconPath);
+            const img = new Image();
+            img.src = iconPath;
+            if (typeof img.decode === 'function') {
+                img.decode().catch(() => {
+                    // Ignore decode errors; the runtime fallback placeholder remains in place.
+                });
+            }
+        }
     }
 
     async loadApps() {
@@ -613,10 +644,8 @@ class DesktopInteractions {
             if (window.pywebview && window.pywebview.api) {
                 this.apps = await window.pywebview.api.get_apps();
                 this.apps.sort((a, b) => a.name.localeCompare(b.name));
-                console.log('=== LOADED APPS ===');
-                console.log('Number of apps:', this.apps.length);
-                console.log('Apps data:', JSON.stringify(this.apps, null, 2));
-                console.log('==================');
+                this.appLauncherDirty = true;
+                this.preloadAppIcons();
             } else {
                 console.log('PyWebview API not available yet');
             }
@@ -659,8 +688,10 @@ class DesktopInteractions {
         // Show app launcher
         this.appLauncher.classList.add('active');
         
-        // Display apps in a circle
-        this.displayAppsInCircle();
+        // Display apps in a circle when needed (pre-rendered icons are reused).
+        if (this.appLauncherDirty || this.appLauncher.children.length === 0) {
+            this.displayAppsInCircle();
+        }
     }
 
     closeAppLauncher() {
@@ -671,20 +702,12 @@ class DesktopInteractions {
         
         // Hide app launcher
         this.appLauncher.classList.remove('active');
-        
-        // Clear apps
-        this.appLauncher.innerHTML = '';
     }
 
     displayAppsInCircle() {
-        console.log('=== DISPLAY APPS IN CIRCLE ===');
-        console.log('App launcher element:', this.appLauncher);
-        console.log('Apps array:', this.apps);
-        
         this.appLauncher.innerHTML = '';
         
         if (!this.apps || this.apps.length === 0) {
-            console.log('No apps to display - apps is empty or null');
             return;
         }
 
@@ -692,9 +715,6 @@ class DesktopInteractions {
         const appsPerRing = configuredAppsPerRing;
         const baseRadius = Math.min(window.innerWidth, window.innerHeight) * 0.25;
         const ringSpacing = Math.min(window.innerWidth, window.innerHeight) * 0.12; // Space between rings
-        
-        console.log(`Displaying ${numApps} apps with ${appsPerRing} apps per ring and base radius ${baseRadius}px`);
-        console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
         
         // Distribute apps across rings
         let appsPlaced = 0;
@@ -711,10 +731,6 @@ class DesktopInteractions {
             appsPlaced += appsToPlace;
             currentRing++;
         }
-        
-        console.log('Ring assignments:', ringAssignments);
-        
-        const maxAppRadius = 10;
 
         this.apps.forEach((app, index) => {
             // Find which ring this app belongs to
@@ -734,33 +750,23 @@ class DesktopInteractions {
             const x = Math.cos(angle) * radius;
             const y = Math.sin(angle) * radius;
             
-            console.log(`App ${index} (${app.name}): ring=${ringIndex}, indexInRing=${indexInRing}, angle=${angle}, x=${x}, y=${y}, icon=${app.icon}`);
-            
             const appIcon = document.createElement('div');
             appIcon.className = 'app-icon';
             appIcon.style.transform = `translate(${x}px, ${y}px)`;
             appIcon.title = app.name;
-            console.log('Created app icon element:', appIcon);
             
             // Try to load app icon, fallback to placeholder
             const iconPath = app.icon;
-            console.log(`Icon path for ${app.name}:`, iconPath);
             
             if (iconPath) {
-                console.log(`Creating img element for ${app.name}`);
                 const img = document.createElement('img');
                 img.src = iconPath;
                 img.alt = app.name;
-                img.onload = () => {
-                    console.log(`Successfully loaded icon for ${app.name}`);
-                };
                 img.onerror = () => {
-                    console.log(`Failed to load icon for ${app.name}, using placeholder`);
                     appIcon.innerHTML = `<div class="app-icon-placeholder"></div>`;
                 };
                 appIcon.appendChild(img);
             } else {
-                console.log(`No icon path for ${app.name}, using placeholder`);
                 appIcon.innerHTML = `<div class="app-icon-placeholder"></div>`;
             }
             
@@ -784,12 +790,9 @@ class DesktopInteractions {
             });
             
             this.appLauncher.appendChild(appIcon);
-            console.log(`Appended icon for ${app.name} to launcher`);
         });
-        
-        console.log('App launcher children count:', this.appLauncher.children.length);
-        console.log('App launcher HTML:', this.appLauncher.innerHTML.substring(0, 200));
-        console.log('=== END DISPLAY APPS ===');
+
+        this.appLauncherDirty = false;
     }
 
     handleKeyboardShortcuts(event) {
@@ -1735,6 +1738,8 @@ async function saveAppsPerRing(value) {
         const interactions = window.SanctumStation?.interactions;
         if (interactions?.isAppLauncherOpen) {
             interactions.displayAppsInCircle();
+        } else if (interactions) {
+            interactions.appLauncherDirty = true;
         }
     } catch (error) {
         console.error('Error setting apps per ring:', error);
