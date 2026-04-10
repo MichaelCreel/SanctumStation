@@ -5,6 +5,7 @@
 
 import json
 import os
+import base64
 import threading
 import importlib.util
 import sys
@@ -51,6 +52,7 @@ except ImportError:
     print("Warning: requests library not available, update checking disabled")
 
 MAX_ERROR_LOG_SIZE = 2 * 1024 * 1024  # 2 MB
+MAX_FILE_DATA_URL_BYTES = 100 * 1024 * 1024  # 100 MB
 
 # Get the base directory (where backend.py is located)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -688,6 +690,12 @@ def init_webview():
             
             def get_storage_path(self, sub_path="", is_data=True):
                 return file_manager.get_storage_path(sub_path, is_data)
+
+            def get_file_info(self, path):
+                return file_manager.get_file_info(path)
+
+            def get_file_data_url(self, path, max_bytes=None, fallback_mime=None):
+                return file_manager.get_file_data_url(path, max_bytes, fallback_mime)
             
             # Settings access
             def get_fonts(self):
@@ -1103,6 +1111,11 @@ class ErrorManagerAPI:
 
 # API for file management between the app and the system(s)
 class FileManagerAPI:
+    def _resolve_path(self, path):
+        if not os.path.isabs(path):
+            return os.path.join(DATA_DIR, path)
+        return path
+
     # Lists contents of a directory
     def list_directory(self, path):
         try:
@@ -1287,6 +1300,96 @@ class FileManagerAPI:
             if webview_window and not IS_MOBILE:
                 webview_window.evaluate_js('displayError("FMAPI-E11")')
             return {}
+
+    # Gets extended file info including extension and mime type
+    def get_file_info(self, path):
+        try:
+            resolved_path = self._resolve_path(path)
+            if not os.path.exists(resolved_path):
+                return {
+                    "success": False,
+                    "error": "File not found.",
+                    "path": path
+                }
+
+            stats = os.stat(resolved_path)
+            extension = os.path.splitext(resolved_path)[1].lower()
+            mime_type, _ = mimetypes.guess_type(resolved_path)
+
+            return {
+                "success": True,
+                "path": resolved_path,
+                "extension": extension,
+                "mime_type": mime_type,
+                "size": stats.st_size,
+                "modified": stats.st_mtime,
+                "created": stats.st_ctime,
+                "is_directory": os.path.isdir(resolved_path)
+            }
+        except Exception as e:
+            print(f"FMAPI-E12: Error getting file info for {path}: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("FMAPI-E12")')
+            return {
+                "success": False,
+                "error": str(e),
+                "path": path
+            }
+
+    # Gets a base64 data URL for a file (useful when file:// loading is blocked)
+    def get_file_data_url(self, path, max_bytes=None, fallback_mime=None):
+        try:
+            resolved_path = self._resolve_path(path)
+            if not os.path.isfile(resolved_path):
+                return {
+                    "success": False,
+                    "error": "File not found.",
+                    "path": path
+                }
+
+            byte_size = os.path.getsize(resolved_path)
+            limit = MAX_FILE_DATA_URL_BYTES
+            if max_bytes is not None:
+                try:
+                    parsed_limit = int(max_bytes)
+                    if parsed_limit > 0:
+                        limit = parsed_limit
+                except Exception:
+                    pass
+
+            if byte_size > limit:
+                return {
+                    "success": False,
+                    "error": f"File too large for embedded data URL ({byte_size} > {limit} bytes).",
+                    "path": path,
+                    "byte_size": byte_size,
+                    "limit_bytes": limit
+                }
+
+            mime_type, _ = mimetypes.guess_type(resolved_path)
+            if not mime_type:
+                fallback = str(fallback_mime or "").strip()
+                mime_type = fallback if fallback else "application/octet-stream"
+
+            with open(resolved_path, "rb") as source_file:
+                encoded = base64.b64encode(source_file.read()).decode("utf-8")
+
+            return {
+                "success": True,
+                "path": resolved_path,
+                "mime_type": mime_type,
+                "byte_size": byte_size,
+                "data_url": f"data:{mime_type};base64,{encoded}"
+            }
+        except Exception as e:
+            print(f"FMAPI-E13: Error creating file data URL for {path}: {e}")
+            if webview_window and not IS_MOBILE:
+                webview_window.evaluate_js('displayError("FMAPI-E13")')
+            return {
+                "success": False,
+                "error": str(e),
+                "path": path
+            }
 
     # Checks if a file or directory exists
     def exists(self, path):
