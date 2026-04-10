@@ -6,3 +6,5 @@ package.sh
 
 development.md
 .github/prompts/
+.plans/
+testing/

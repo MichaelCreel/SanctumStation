@@ -1,0 +1,32 @@
+{
+  "name": "Media Viewer",
+  "extensions": [
+    ".aac",
+    ".avi",
+    ".avif",
+    ".bmp",
+    ".flac",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".m4a",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".png",
+    ".svg",
+    ".tif",
+    ".tiff",
+    ".wav",
+    ".webm",
+    ".webp"
+  ],
+  "mime_types": [
+    "audio/*",
+    "image/*",
+    "video/*"
+  ]
+}
