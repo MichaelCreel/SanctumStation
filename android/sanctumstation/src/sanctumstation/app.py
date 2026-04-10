@@ -202,6 +202,10 @@ class APIHandler(SimpleHTTPRequestHandler):
             return file_manager.copy_item(*args)
         elif method == 'get_metadata':
             return file_manager.get_metadata(*args)
+        elif method == 'get_file_info':
+            return file_manager.get_file_info(*args)
+        elif method == 'get_file_data_url':
+            return file_manager.get_file_data_url(*args)
         elif method == 'exists':
             return file_manager.exists(*args)
         elif method == 'get_storage_path':

@@ -1,0 +1,961 @@
+<div class="media-viewer" id="mediaViewerRoot">
+	<div class="media-toolbar">
+		<div class="toolbar-group">
+			<button class="btn" id="openFileBtn" type="button">Open File</button>
+			<button class="btn" id="prevBtn" type="button" disabled>Prev</button>
+			<button class="btn" id="nextBtn" type="button" disabled>Next</button>
+		</div>
+		<div class="toolbar-group">
+			<button class="btn" id="zoomOutBtn" type="button" disabled>Zoom -</button>
+			<button class="btn" id="zoomInBtn" type="button" disabled>Zoom +</button>
+			<button class="btn" id="zoomResetBtn" type="button" disabled>Reset View</button>
+			<button class="btn" id="loopBtn" type="button" aria-pressed="false">Loop: Off</button>
+			<button class="btn" id="photoFullscreenBtn" type="button" style="display:none;">Photo Fullscreen</button>
+		</div>
+	</div>
+
+	<div class="media-stage" id="mediaStage">
+		<img id="imageView" alt="Media preview" style="display:none;" />
+		<video id="videoView" preload="metadata" style="display:none;"></video>
+		<audio id="audioView" preload="metadata" style="display:none;"></audio>
+
+		<div class="empty-state" id="emptyState">
+			<h2>Media Viewer</h2>
+			<p>Open a media file to get started.</p>
+		</div>
+
+		<div class="unsupported-state" id="unsupportedState" style="display:none;">
+			<h2>Cannot Open File</h2>
+			<p id="unsupportedMessage">This file is not supported yet.</p>
+		</div>
+	</div>
+
+	<div class="media-controls" id="mediaControls" style="display:none;">
+		<div class="controls-row">
+			<button class="btn" id="playPauseBtn" type="button">Play</button>
+			<button class="btn" id="stepBackBtn" type="button">-1 Frame</button>
+			<button class="btn" id="stepForwardBtn" type="button">+1 Frame</button>
+			<span class="time-readout"><span id="currentTime">00:00</span> / <span id="totalTime">00:00</span></span>
+		</div>
+		<div class="controls-row">
+			<input id="seekBar" type="range" min="0" max="1000" value="0" step="1" />
+		</div>
+		<div class="controls-row">
+			<label for="volumeBar">Volume</label>
+			<input id="volumeBar" type="range" min="0" max="1" step="0.01" value="1" />
+		</div>
+	</div>
+
+	<div class="media-footer" id="mediaFooter">
+		<div class="path-label" id="pathLabel">No file selected.</div>
+		<div class="type-label" id="typeLabel">Type: none</div>
+		<div class="type-label" id="zoomLabel">Zoom: 100%</div>
+	</div>
+</div>
+
+<style>
+	.media-viewer {
+		--bg: #141420;
+		--panel: rgba(20, 20, 32, 0.9);
+		--panel-soft: rgba(255, 255, 255, 0.08);
+		--text: #f5f5f9;
+		--muted: rgba(245, 245, 249, 0.72);
+		--accent: #74b9ff;
+		--accent-soft: rgba(116, 185, 255, 0.28);
+		position: fixed;
+		inset: 0;
+		display: grid;
+		grid-template-rows: auto 1fr auto auto;
+		background:
+			radial-gradient(circle at 16% 14%, rgba(116, 185, 255, 0.24), transparent 40%),
+			radial-gradient(circle at 82% 82%, rgba(246, 185, 59, 0.14), transparent 34%),
+			var(--bg);
+		color: var(--text);
+		font-family: "Segoe UI", "Noto Sans", sans-serif;
+	}
+
+	.media-toolbar,
+	.media-footer,
+	.media-controls {
+		background: var(--panel);
+		backdrop-filter: blur(5px);
+		border-color: var(--panel-soft);
+	}
+
+	.media-toolbar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.7rem 0.9rem;
+		border-bottom: 1px solid var(--panel-soft);
+		gap: 0.6rem;
+	}
+
+	.toolbar-group {
+		display: flex;
+		gap: 0.45rem;
+		flex-wrap: wrap;
+	}
+
+	.btn {
+		border: 1px solid var(--accent-soft);
+		background: rgba(0, 0, 0, 0.28);
+		color: var(--text);
+		border-radius: 0.45rem;
+		padding: 0.4rem 0.72rem;
+		cursor: pointer;
+		font-size: 0.9rem;
+	}
+
+	.btn:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	.media-stage {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	#imageView,
+	#videoView {
+		max-width: 100%;
+		max-height: 100%;
+		object-fit: contain;
+		background: #000;
+		transform-origin: center center;
+		will-change: transform;
+		user-select: none;
+		-webkit-user-drag: none;
+	}
+
+	.media-stage.pannable {
+		cursor: grab;
+	}
+
+	.media-stage.panning {
+		cursor: grabbing;
+	}
+
+	#audioView {
+		width: min(700px, 94%);
+	}
+
+	.empty-state,
+	.unsupported-state {
+		text-align: center;
+		max-width: 48rem;
+		padding: 1rem;
+	}
+
+	.empty-state p,
+	.unsupported-state p {
+		color: var(--muted);
+	}
+
+	.media-controls {
+		border-top: 1px solid var(--panel-soft);
+		padding: 0.65rem 0.85rem;
+		display: grid;
+		gap: 0.48rem;
+		transition: opacity 120ms ease;
+	}
+
+	.media-viewer.video-playing-controls-hidden .media-controls {
+		opacity: 0.08;
+	}
+
+	.controls-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	#seekBar {
+		width: 100%;
+	}
+
+	.time-readout {
+		color: var(--muted);
+		font-size: 0.9rem;
+		min-width: 8rem;
+	}
+
+	.media-footer {
+		border-top: 1px solid var(--panel-soft);
+		padding: 0.55rem 0.85rem;
+		display: grid;
+		gap: 0.22rem;
+	}
+
+	.path-label {
+		font-size: 0.88rem;
+		word-break: break-all;
+	}
+
+	.type-label {
+		color: var(--muted);
+		font-size: 0.8rem;
+	}
+
+	@media (max-width: 700px) {
+		.media-toolbar {
+			padding-right: 3.4rem;
+		}
+	}
+</style>
+
+<script>
+	(function () {
+		const APP_ID = 'Media-Viewer';
+		const FRAME_SECONDS = 1 / 30;
+		const MIN_ZOOM = 1;
+		const MAX_ZOOM = 6;
+		const ZOOM_STEP = 0.2;
+
+		const state = {
+			mediaPath: null,
+			mediaType: 'none',
+			siblingFiles: [],
+			siblingIndex: -1,
+			looping: false,
+			supports: {
+				image_extensions: [],
+				video_extensions: [],
+				audio_extensions: [],
+				subtitle_extensions: []
+			},
+			controlHideTimer: null,
+			view: {
+				scale: 1,
+				offsetX: 0,
+				offsetY: 0,
+				dragging: false,
+				pointerId: null,
+				startX: 0,
+				startY: 0,
+				startOffsetX: 0,
+				startOffsetY: 0
+			}
+		};
+
+		const refs = {
+			root: document.getElementById('mediaViewerRoot'),
+			stage: document.getElementById('mediaStage'),
+			openFileBtn: document.getElementById('openFileBtn'),
+			prevBtn: document.getElementById('prevBtn'),
+			nextBtn: document.getElementById('nextBtn'),
+			zoomOutBtn: document.getElementById('zoomOutBtn'),
+			zoomInBtn: document.getElementById('zoomInBtn'),
+			zoomResetBtn: document.getElementById('zoomResetBtn'),
+			loopBtn: document.getElementById('loopBtn'),
+			photoFullscreenBtn: document.getElementById('photoFullscreenBtn'),
+			image: document.getElementById('imageView'),
+			video: document.getElementById('videoView'),
+			audio: document.getElementById('audioView'),
+			emptyState: document.getElementById('emptyState'),
+			unsupportedState: document.getElementById('unsupportedState'),
+			unsupportedMessage: document.getElementById('unsupportedMessage'),
+			controls: document.getElementById('mediaControls'),
+			playPauseBtn: document.getElementById('playPauseBtn'),
+			stepBackBtn: document.getElementById('stepBackBtn'),
+			stepForwardBtn: document.getElementById('stepForwardBtn'),
+			seekBar: document.getElementById('seekBar'),
+			currentTime: document.getElementById('currentTime'),
+			totalTime: document.getElementById('totalTime'),
+			volumeBar: document.getElementById('volumeBar'),
+			pathLabel: document.getElementById('pathLabel'),
+			typeLabel: document.getElementById('typeLabel'),
+			zoomLabel: document.getElementById('zoomLabel')
+		};
+
+		function activeVisualElement() {
+			if (state.mediaType === 'image') {
+				return refs.image;
+			}
+			if (state.mediaType === 'video') {
+				return refs.video;
+			}
+			return null;
+		}
+
+		function hasPanZoomSurface() {
+			return state.mediaType === 'image' || state.mediaType === 'video';
+		}
+
+		function updateZoomLabel() {
+			if (!refs.zoomLabel) {
+				return;
+			}
+			refs.zoomLabel.textContent = `Zoom: ${Math.round(state.view.scale * 100)}%`;
+		}
+
+		function setZoomControlsEnabled(enabled) {
+			refs.zoomOutBtn.disabled = !enabled;
+			refs.zoomInBtn.disabled = !enabled;
+			refs.zoomResetBtn.disabled = !enabled;
+		}
+
+		function clampPanOffsets(scale, offsetX, offsetY) {
+			if (scale <= MIN_ZOOM) {
+				return { offsetX: 0, offsetY: 0 };
+			}
+
+			const stageWidth = refs.stage.clientWidth || 0;
+			const stageHeight = refs.stage.clientHeight || 0;
+			const maxX = (stageWidth * (scale - 1)) / 2 + 36;
+			const maxY = (stageHeight * (scale - 1)) / 2 + 36;
+
+			return {
+				offsetX: Math.max(-maxX, Math.min(maxX, offsetX)),
+				offsetY: Math.max(-maxY, Math.min(maxY, offsetY))
+			};
+		}
+
+		function applyPanZoom() {
+			const element = activeVisualElement();
+			const { scale, offsetX, offsetY } = state.view;
+
+			if (!element) {
+				refs.image.style.transform = 'translate(0px, 0px) scale(1)';
+				refs.video.style.transform = 'translate(0px, 0px) scale(1)';
+				refs.stage.classList.remove('pannable');
+				refs.stage.classList.remove('panning');
+				updateZoomLabel();
+				return;
+			}
+
+			element.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+			refs.stage.classList.toggle('pannable', scale > MIN_ZOOM);
+			refs.stage.classList.toggle('panning', scale > MIN_ZOOM && state.view.dragging);
+			updateZoomLabel();
+		}
+
+		function resetPanZoom() {
+			state.view.scale = 1;
+			state.view.offsetX = 0;
+			state.view.offsetY = 0;
+			state.view.dragging = false;
+			state.view.pointerId = null;
+			applyPanZoom();
+		}
+
+		function setZoom(nextScale, anchorClientX = null, anchorClientY = null) {
+			if (!hasPanZoomSurface()) {
+				return;
+			}
+
+			const clampedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextScale));
+			const previousScale = state.view.scale;
+			if (Math.abs(clampedScale - previousScale) < 0.0001) {
+				return;
+			}
+
+			let offsetX = state.view.offsetX;
+			let offsetY = state.view.offsetY;
+			if (anchorClientX !== null && anchorClientY !== null && refs.stage) {
+				const stageRect = refs.stage.getBoundingClientRect();
+				const ax = anchorClientX - (stageRect.left + stageRect.width / 2);
+				const ay = anchorClientY - (stageRect.top + stageRect.height / 2);
+				const ratio = clampedScale / previousScale;
+				offsetX = ax * (1 - ratio) + offsetX * ratio;
+				offsetY = ay * (1 - ratio) + offsetY * ratio;
+			}
+
+			const clampedOffsets = clampPanOffsets(clampedScale, offsetX, offsetY);
+			state.view.scale = clampedScale;
+			state.view.offsetX = clampedOffsets.offsetX;
+			state.view.offsetY = clampedOffsets.offsetY;
+			applyPanZoom();
+		}
+
+		function adjustZoom(deltaDirection) {
+			const factor = 1 + (ZOOM_STEP * deltaDirection);
+			setZoom(state.view.scale * factor);
+		}
+
+		function startPanning(event) {
+			if (!hasPanZoomSurface()) {
+				return;
+			}
+
+			const element = activeVisualElement();
+			if (!element || event.target !== element) {
+				return;
+			}
+
+			if (state.view.scale <= MIN_ZOOM) {
+				return;
+			}
+
+			state.view.dragging = true;
+			state.view.pointerId = event.pointerId;
+			state.view.startX = event.clientX;
+			state.view.startY = event.clientY;
+			state.view.startOffsetX = state.view.offsetX;
+			state.view.startOffsetY = state.view.offsetY;
+			if (element.setPointerCapture) {
+				element.setPointerCapture(event.pointerId);
+			}
+			applyPanZoom();
+		}
+
+		function movePanning(event) {
+			if (!state.view.dragging || state.view.pointerId !== event.pointerId) {
+				return;
+			}
+
+			const nextOffsetX = state.view.startOffsetX + (event.clientX - state.view.startX);
+			const nextOffsetY = state.view.startOffsetY + (event.clientY - state.view.startY);
+			const clamped = clampPanOffsets(state.view.scale, nextOffsetX, nextOffsetY);
+			state.view.offsetX = clamped.offsetX;
+			state.view.offsetY = clamped.offsetY;
+			applyPanZoom();
+			showVideoControlsTemporarily();
+		}
+
+		function endPanning(event) {
+			if (!state.view.dragging || state.view.pointerId !== event.pointerId) {
+				return;
+			}
+
+			state.view.dragging = false;
+			state.view.pointerId = null;
+			applyPanZoom();
+		}
+
+		function onStageWheel(event) {
+			if (!hasPanZoomSurface()) {
+				return;
+			}
+
+			event.preventDefault();
+			const direction = event.deltaY < 0 ? 1 : -1;
+			const factor = 1 + (ZOOM_STEP * direction);
+			setZoom(state.view.scale * factor, event.clientX, event.clientY);
+			showVideoControlsTemporarily();
+		}
+
+		function getLaunchFilePath() {
+			const byApp = window.__SANCTUM_LAUNCH_CONTEXT_BY_APP || {};
+			const appContext = byApp[APP_ID];
+			if (appContext && typeof appContext.filePath === 'string' && appContext.filePath.trim()) {
+				return appContext.filePath;
+			}
+
+			const fallback = window.__SANCTUM_LAUNCH_CONTEXT || null;
+			if (fallback && typeof fallback.filePath === 'string' && fallback.filePath.trim()) {
+				return fallback.filePath;
+			}
+
+			return null;
+		}
+
+		function normalizePath(path) {
+			return String(path || '').replace(/\\/g, '/');
+		}
+
+		function getParentPath(path) {
+			const normalized = normalizePath(path);
+			const index = normalized.lastIndexOf('/');
+			if (index <= 0) {
+				return '/';
+			}
+			return normalized.slice(0, index);
+		}
+
+		function getExtension(path) {
+			const normalized = normalizePath(path);
+			const name = normalized.split('/').pop() || '';
+			const dot = name.lastIndexOf('.');
+			if (dot <= 0 || dot === name.length - 1) {
+				return '';
+			}
+			return name.slice(dot).toLowerCase();
+		}
+
+		function getFileName(path) {
+			const normalized = normalizePath(path);
+			const name = normalized.split('/').pop();
+			return name || normalized;
+		}
+
+		function formatTime(totalSeconds) {
+			if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+				return '00:00';
+			}
+
+			const seconds = Math.floor(totalSeconds % 60);
+			const minutes = Math.floor((totalSeconds / 60) % 60);
+			const hours = Math.floor(totalSeconds / 3600);
+
+			const secText = String(seconds).padStart(2, '0');
+			const minText = String(minutes).padStart(2, '0');
+			if (hours > 0) {
+				return `${hours}:${minText}:${secText}`;
+			}
+			return `${minText}:${secText}`;
+		}
+
+		function setStatus(pathText, typeText) {
+			refs.pathLabel.textContent = pathText;
+			refs.typeLabel.textContent = typeText;
+		}
+
+		function clearHideControlsTimer() {
+			if (state.controlHideTimer) {
+				clearTimeout(state.controlHideTimer);
+				state.controlHideTimer = null;
+			}
+		}
+
+		function showVideoControlsTemporarily() {
+			if (state.mediaType !== 'video') {
+				refs.root.classList.remove('video-playing-controls-hidden');
+				return;
+			}
+
+			refs.root.classList.remove('video-playing-controls-hidden');
+			clearHideControlsTimer();
+
+			if (!refs.video.paused) {
+				state.controlHideTimer = setTimeout(() => {
+					refs.root.classList.add('video-playing-controls-hidden');
+				}, 1700);
+			}
+		}
+
+		function resetSurfaceVisibility() {
+			refs.video.pause();
+			refs.audio.pause();
+			refs.video.removeAttribute('src');
+			refs.audio.removeAttribute('src');
+			refs.image.removeAttribute('src');
+			refs.image.style.display = 'none';
+			refs.video.style.display = 'none';
+			refs.audio.style.display = 'none';
+			refs.emptyState.style.display = 'none';
+			refs.unsupportedState.style.display = 'none';
+			refs.controls.style.display = 'none';
+			refs.photoFullscreenBtn.style.display = 'none';
+			setZoomControlsEnabled(false);
+			resetPanZoom();
+			refs.root.classList.remove('video-playing-controls-hidden');
+			clearHideControlsTimer();
+		}
+
+		async function fetchMediaDataUrl(path) {
+			return window.pywebview.api.call_app_function(APP_ID, 'get_media_data_url', path);
+		}
+
+		async function fetchMediaContract() {
+			try {
+				const result = await window.pywebview.api.call_app_function(APP_ID, 'get_media_contract');
+				if (result && result.success && result.contract && result.contract.supports) {
+					state.supports = {
+						image_extensions: result.contract.supports.image_extensions || [],
+						video_extensions: result.contract.supports.video_extensions || [],
+						audio_extensions: result.contract.supports.audio_extensions || [],
+						subtitle_extensions: result.contract.supports.subtitle_extensions || []
+					};
+					return;
+				}
+			} catch (error) {
+				console.warn('Media contract call failed:', error);
+			}
+
+			state.supports = {
+				image_extensions: ['.avif', '.bmp', '.gif', '.ico', '.jpeg', '.jpg', '.png', '.svg', '.tif', '.tiff', '.webp'],
+				video_extensions: ['.avi', '.mkv', '.mov', '.mp4', '.webm'],
+				audio_extensions: ['.aac', '.flac', '.m4a', '.mp3', '.ogg', '.wav'],
+				subtitle_extensions: ['.srt', '.vtt']
+			};
+		}
+
+		function getPickerExtensions() {
+			return [
+				...state.supports.image_extensions,
+				...state.supports.video_extensions,
+				...state.supports.audio_extensions
+			];
+		}
+
+		function currentPlayer() {
+			if (state.mediaType === 'video') {
+				return refs.video;
+			}
+			if (state.mediaType === 'audio') {
+				return refs.audio;
+			}
+			return null;
+		}
+
+		function updateTimeUi() {
+			const player = currentPlayer();
+			if (!player) {
+				refs.currentTime.textContent = '00:00';
+				refs.totalTime.textContent = '00:00';
+				refs.seekBar.value = '0';
+				return;
+			}
+
+			const duration = Number.isFinite(player.duration) ? player.duration : 0;
+			const current = Number.isFinite(player.currentTime) ? player.currentTime : 0;
+			refs.currentTime.textContent = formatTime(current);
+			refs.totalTime.textContent = formatTime(duration);
+
+			if (duration > 0) {
+				refs.seekBar.value = String(Math.floor((current / duration) * 1000));
+			} else {
+				refs.seekBar.value = '0';
+			}
+		}
+
+		function updatePlayButton() {
+			const player = currentPlayer();
+			if (!player) {
+				refs.playPauseBtn.textContent = 'Play';
+				return;
+			}
+			refs.playPauseBtn.textContent = player.paused ? 'Play' : 'Pause';
+		}
+
+		function updateNavButtons() {
+			refs.prevBtn.disabled = !(state.siblingIndex > 0);
+			refs.nextBtn.disabled = !(state.siblingIndex >= 0 && state.siblingIndex < state.siblingFiles.length - 1);
+		}
+
+		async function refreshSiblingFiles(activePath) {
+			const parentPath = getParentPath(activePath);
+			const supported = new Set(getPickerExtensions().map((ext) => ext.toLowerCase()));
+
+			try {
+				const items = await window.pywebview.api.list_directory(parentPath);
+				const files = (Array.isArray(items) ? items : [])
+					.filter((item) => item && item.type === 'file')
+					.map((item) => item.path)
+					.filter((path) => supported.has(getExtension(path)))
+					.sort((a, b) => getFileName(a).localeCompare(getFileName(b), undefined, { sensitivity: 'base' }));
+
+				state.siblingFiles = files;
+				state.siblingIndex = files.findIndex((path) => normalizePath(path) === normalizePath(activePath));
+				updateNavButtons();
+			} catch (error) {
+				console.warn('Failed to refresh sibling list:', error);
+				state.siblingFiles = [];
+				state.siblingIndex = -1;
+				updateNavButtons();
+			}
+		}
+
+		function showUnsupported(message) {
+			resetSurfaceVisibility();
+			state.mediaPath = null;
+			state.mediaType = 'none';
+			refs.unsupportedMessage.textContent = message || 'This file is not supported.';
+			refs.unsupportedState.style.display = 'block';
+			setStatus('No file selected.', 'Type: unsupported');
+			updateNavButtons();
+		}
+
+		async function loadMedia(path) {
+			if (!path) {
+				showUnsupported('No path was provided for this media file.');
+				return;
+			}
+
+			let result;
+			try {
+				result = await window.pywebview.api.call_app_function(APP_ID, 'inspect_media_path', path);
+			} catch (error) {
+				showUnsupported(`Failed to inspect media path: ${error}`);
+				return;
+			}
+
+			if (!result || !result.success) {
+				const reason = (result && result.error) ? result.error : 'File could not be inspected.';
+				showUnsupported(reason);
+				return;
+			}
+
+			if (!result.is_supported) {
+				const fallback = result.fallback || {};
+				showUnsupported(fallback.message || 'This file type is currently unsupported.');
+				return;
+			}
+
+			resetSurfaceVisibility();
+
+			let sourceResult;
+			try {
+				sourceResult = await fetchMediaDataUrl(path);
+			} catch (error) {
+				showUnsupported(`Failed to load media binary: ${error}`);
+				return;
+			}
+
+			if (!sourceResult || !sourceResult.success || !sourceResult.data_url) {
+				const reason = (sourceResult && sourceResult.error) ? sourceResult.error : 'Could not create media source URL.';
+				showUnsupported(reason);
+				return;
+			}
+
+			const source = sourceResult.data_url;
+			state.mediaPath = path;
+			state.mediaType = result.media_type;
+			setStatus(path, `Type: ${result.media_type}`);
+			await refreshSiblingFiles(path);
+
+			if (result.media_type === 'image') {
+				refs.image.src = source;
+				refs.image.style.display = 'block';
+				setZoomControlsEnabled(true);
+				resetPanZoom();
+				refs.photoFullscreenBtn.style.display = 'inline-block';
+				refs.emptyState.style.display = 'none';
+				updateTimeUi();
+				updatePlayButton();
+				return;
+			}
+
+			if (result.media_type === 'video') {
+				refs.video.pause();
+				refs.video.src = source;
+				refs.video.currentTime = 0;
+				refs.video.loop = state.looping;
+				refs.video.volume = Number(refs.volumeBar.value);
+				refs.video.style.display = 'block';
+				setZoomControlsEnabled(true);
+				resetPanZoom();
+				refs.controls.style.display = 'grid';
+				refs.video.load();
+				updateTimeUi();
+				updatePlayButton();
+				showVideoControlsTemporarily();
+				return;
+			}
+
+			if (result.media_type === 'audio') {
+				refs.audio.pause();
+				refs.audio.src = source;
+				refs.audio.currentTime = 0;
+				refs.audio.loop = state.looping;
+				refs.audio.volume = Number(refs.volumeBar.value);
+				refs.audio.style.display = 'block';
+				setZoomControlsEnabled(false);
+				resetPanZoom();
+				refs.controls.style.display = 'grid';
+				refs.audio.load();
+				updateTimeUi();
+				updatePlayButton();
+				return;
+			}
+
+			showUnsupported('This file is not viewable in the current phase.');
+		}
+
+		async function moveSibling(direction) {
+			const nextIndex = state.siblingIndex + direction;
+			if (nextIndex < 0 || nextIndex >= state.siblingFiles.length) {
+				return;
+			}
+			const nextPath = state.siblingFiles[nextIndex];
+			await loadMedia(nextPath);
+		}
+
+		async function openViaPicker() {
+			if (typeof window.openFileBrowserPicker !== 'function') {
+				showUnsupported('File picker bridge is unavailable in this session.');
+				return;
+			}
+
+			try {
+				const pickerResult = await window.openFileBrowserPicker({
+					title: 'Select media file',
+					allowFiles: true,
+					allowFolders: false,
+					extensions: getPickerExtensions()
+				});
+
+				if (!pickerResult || pickerResult.cancelled) {
+					return;
+				}
+
+				if (pickerResult.selectedPath) {
+					await loadMedia(pickerResult.selectedPath);
+				}
+			} catch (error) {
+				showUnsupported(`Could not open file picker: ${error}`);
+			}
+		}
+
+		async function togglePlayPause() {
+			const player = currentPlayer();
+			if (!player) {
+				return;
+			}
+
+			try {
+				if (player.paused) {
+					await player.play();
+				} else {
+					player.pause();
+				}
+				updatePlayButton();
+				showVideoControlsTemporarily();
+			} catch (error) {
+				showUnsupported(`Playback error: ${error}`);
+			}
+		}
+
+		function stepFrame(direction) {
+			const player = currentPlayer();
+			if (!player) {
+				return;
+			}
+
+			player.pause();
+			const duration = Number.isFinite(player.duration) ? player.duration : 0;
+			const current = Number.isFinite(player.currentTime) ? player.currentTime : 0;
+			const nextTime = Math.max(0, Math.min(duration || Number.MAX_SAFE_INTEGER, current + (FRAME_SECONDS * direction)));
+			player.currentTime = nextTime;
+			updatePlayButton();
+			updateTimeUi();
+			showVideoControlsTemporarily();
+		}
+
+		function onSeekInput() {
+			const player = currentPlayer();
+			if (!player || !Number.isFinite(player.duration) || player.duration <= 0) {
+				return;
+			}
+
+			const percentage = Number(refs.seekBar.value) / 1000;
+			player.currentTime = percentage * player.duration;
+			updateTimeUi();
+			showVideoControlsTemporarily();
+		}
+
+		function onVolumeInput() {
+			const volume = Math.max(0, Math.min(1, Number(refs.volumeBar.value)));
+			refs.video.volume = volume;
+			refs.audio.volume = volume;
+		}
+
+		function toggleLooping() {
+			state.looping = !state.looping;
+			refs.video.loop = state.looping;
+			refs.audio.loop = state.looping;
+			refs.loopBtn.textContent = state.looping ? 'Loop: On' : 'Loop: Off';
+			refs.loopBtn.setAttribute('aria-pressed', state.looping ? 'true' : 'false');
+		}
+
+		function handlePhotoFullscreen() {
+			if (state.mediaType !== 'image') {
+				return;
+			}
+
+			const target = refs.stage;
+			if (document.fullscreenElement) {
+				document.exitFullscreen().catch(() => {});
+				return;
+			}
+
+			if (target.requestFullscreen) {
+				target.requestFullscreen().catch(() => {});
+			}
+		}
+
+		function bindPlayerEvents(player) {
+			player.addEventListener('timeupdate', () => {
+				updateTimeUi();
+			});
+
+			player.addEventListener('loadedmetadata', () => {
+				updateTimeUi();
+			});
+
+			player.addEventListener('play', () => {
+				updatePlayButton();
+				showVideoControlsTemporarily();
+			});
+
+			player.addEventListener('pause', () => {
+				updatePlayButton();
+				refs.root.classList.remove('video-playing-controls-hidden');
+				clearHideControlsTimer();
+			});
+
+			player.addEventListener('ended', () => {
+				updatePlayButton();
+			});
+		}
+
+		function bindEvents() {
+			refs.openFileBtn.addEventListener('click', openViaPicker);
+			refs.prevBtn.addEventListener('click', () => moveSibling(-1));
+			refs.nextBtn.addEventListener('click', () => moveSibling(1));
+			refs.zoomOutBtn.addEventListener('click', () => adjustZoom(-1));
+			refs.zoomInBtn.addEventListener('click', () => adjustZoom(1));
+			refs.zoomResetBtn.addEventListener('click', resetPanZoom);
+			refs.loopBtn.addEventListener('click', toggleLooping);
+			refs.photoFullscreenBtn.addEventListener('click', handlePhotoFullscreen);
+
+			refs.playPauseBtn.addEventListener('click', togglePlayPause);
+			refs.stepBackBtn.addEventListener('click', () => stepFrame(-1));
+			refs.stepForwardBtn.addEventListener('click', () => stepFrame(1));
+			refs.seekBar.addEventListener('input', onSeekInput);
+			refs.volumeBar.addEventListener('input', onVolumeInput);
+
+			bindPlayerEvents(refs.video);
+			bindPlayerEvents(refs.audio);
+
+			refs.stage.addEventListener('mousemove', showVideoControlsTemporarily);
+			refs.stage.addEventListener('touchstart', showVideoControlsTemporarily, { passive: true });
+			refs.stage.addEventListener('wheel', onStageWheel, { passive: false });
+			refs.stage.addEventListener('pointerdown', startPanning);
+			window.addEventListener('pointermove', movePanning);
+			window.addEventListener('pointerup', endPanning);
+			window.addEventListener('pointercancel', endPanning);
+			refs.stage.addEventListener('dblclick', () => {
+				if (hasPanZoomSurface()) {
+					resetPanZoom();
+				}
+			});
+			refs.stage.addEventListener('click', () => {
+				if (state.mediaType === 'video') {
+					showVideoControlsTemporarily();
+				}
+			});
+		}
+
+		async function initialize() {
+			bindEvents();
+			await fetchMediaContract();
+			onVolumeInput();
+			toggleLooping();
+			toggleLooping();
+
+			const launchFilePath = getLaunchFilePath();
+			if (launchFilePath) {
+				await loadMedia(launchFilePath);
+			} else {
+				resetSurfaceVisibility();
+				refs.emptyState.style.display = 'block';
+				setStatus('No file selected.', 'Type: none');
+			}
+		}
+
+		setTimeout(() => {
+			initialize().catch((error) => {
+				showUnsupported(`Initialization failed: ${error}`);
+			});
+		}, 80);
+	})();
+</script>
