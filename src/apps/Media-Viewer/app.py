@@ -6,6 +6,9 @@ import mimetypes
 import os
 import base64
 import re
+import shutil
+import subprocess
+import wave
 
 from backend import FileManagerAPI
 
@@ -166,6 +169,245 @@ def get_media_data_url(path):
 
     result["media_type"] = media_type
     return result
+
+
+def save_media_data_url(path, data_url):
+    output_path = str(path or "").strip()
+    if not output_path:
+        return {
+            "success": False,
+            "error": "Output path is required."
+        }
+
+    extension = _extension_for_path(output_path)
+    if extension not in SUPPORTED_IMAGE_EXTENSIONS:
+        return {
+            "success": False,
+            "error": "Only image output is currently supported for save_media_data_url.",
+            "path": output_path,
+            "extension": extension
+        }
+
+    raw_data_url = str(data_url or "").strip()
+    if not raw_data_url.startswith("data:") or "," not in raw_data_url:
+        return {
+            "success": False,
+            "error": "Invalid data URL payload.",
+            "path": output_path
+        }
+
+    header, encoded_payload = raw_data_url.split(",", 1)
+    if ";base64" not in header:
+        return {
+            "success": False,
+            "error": "Only base64 data URLs are supported.",
+            "path": output_path
+        }
+
+    try:
+        payload = base64.b64decode(encoded_payload.encode("utf-8"), validate=True)
+    except Exception as decode_error:
+        return {
+            "success": False,
+            "error": f"Could not decode data URL payload: {decode_error}",
+            "path": output_path
+        }
+
+    try:
+        resolved_path = FILE_MANAGER._resolve_path(output_path)
+        output_dir = os.path.dirname(resolved_path)
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+
+        with open(resolved_path, "wb") as output_file:
+            output_file.write(payload)
+
+        return {
+            "success": True,
+            "path": resolved_path,
+            "byte_size": len(payload)
+        }
+    except Exception as write_error:
+        return {
+            "success": False,
+            "error": str(write_error),
+            "path": output_path
+        }
+
+
+def _run_ffmpeg_trim(input_path, output_path, start_seconds, end_seconds):
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if not ffmpeg_bin:
+        return {
+            "success": False,
+            "error": "ffmpeg is not available on this system."
+        }
+
+    start_text = f"{float(start_seconds):.6f}"
+    end_text = f"{float(end_seconds):.6f}"
+
+    copy_command = [
+        ffmpeg_bin,
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-ss",
+        start_text,
+        "-to",
+        end_text,
+        "-i",
+        input_path,
+        "-c",
+        "copy",
+        output_path,
+    ]
+
+    copy_process = subprocess.run(copy_command, capture_output=True, text=True)
+    if copy_process.returncode == 0 and os.path.isfile(output_path):
+        return {
+            "success": True,
+            "mode": "ffmpeg-copy"
+        }
+
+    reencode_command = [
+        ffmpeg_bin,
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-ss",
+        start_text,
+        "-to",
+        end_text,
+        "-i",
+        input_path,
+        output_path,
+    ]
+    reencode_process = subprocess.run(reencode_command, capture_output=True, text=True)
+    if reencode_process.returncode == 0 and os.path.isfile(output_path):
+        return {
+            "success": True,
+            "mode": "ffmpeg-reencode"
+        }
+
+    stderr_text = (reencode_process.stderr or copy_process.stderr or "").strip()
+    return {
+        "success": False,
+        "error": stderr_text or "ffmpeg trim command failed."
+    }
+
+
+def _trim_wav_pcm(input_path, output_path, start_seconds, end_seconds):
+    with wave.open(input_path, "rb") as source:
+        frame_rate = source.getframerate()
+        total_frames = source.getnframes()
+        start_frame = max(0, min(total_frames, int(float(start_seconds) * frame_rate)))
+        end_frame = max(start_frame, min(total_frames, int(float(end_seconds) * frame_rate)))
+
+        source.setpos(start_frame)
+        frame_data = source.readframes(end_frame - start_frame)
+        params = source.getparams()
+
+    with wave.open(output_path, "wb") as target:
+        target.setparams(params)
+        target.writeframes(frame_data)
+
+
+def save_trimmed_media(path, output_path, start_seconds, end_seconds):
+    info = inspect_media_path(path)
+    if not info.get("success"):
+        return info
+
+    media_type = info.get("media_type")
+    if media_type not in {"audio", "video"}:
+        return {
+            "success": False,
+            "error": "save_trimmed_media currently supports audio and video files only.",
+            "path": path,
+            "media_type": media_type
+        }
+
+    raw_output_path = str(output_path or "").strip()
+    if not raw_output_path:
+        return {
+            "success": False,
+            "error": "Output path is required.",
+            "path": path
+        }
+
+    try:
+        start_value = float(start_seconds)
+        end_value = float(end_seconds)
+    except Exception:
+        return {
+            "success": False,
+            "error": "Invalid trim range values.",
+            "path": path
+        }
+
+    if start_value < 0:
+        start_value = 0.0
+
+    if end_value <= start_value:
+        return {
+            "success": False,
+            "error": "Trim end must be greater than trim start.",
+            "path": path,
+            "start_seconds": start_value,
+            "end_seconds": end_value
+        }
+
+    resolved_input = FILE_MANAGER._resolve_path(path)
+    resolved_output = FILE_MANAGER._resolve_path(raw_output_path)
+    if os.path.exists(resolved_output):
+        return {
+            "success": False,
+            "error": "Output file already exists.",
+            "path": raw_output_path
+        }
+
+    output_dir = os.path.dirname(resolved_output)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    ffmpeg_result = _run_ffmpeg_trim(resolved_input, resolved_output, start_value, end_value)
+    if ffmpeg_result.get("success"):
+        return {
+            "success": True,
+            "path": resolved_output,
+            "mode": ffmpeg_result.get("mode"),
+            "start_seconds": start_value,
+            "end_seconds": end_value,
+            "duration_seconds": end_value - start_value
+        }
+
+    input_extension = _extension_for_path(resolved_input)
+    output_extension = _extension_for_path(resolved_output)
+    if media_type == "audio" and input_extension == ".wav" and output_extension == ".wav":
+        try:
+            _trim_wav_pcm(resolved_input, resolved_output, start_value, end_value)
+            return {
+                "success": True,
+                "path": resolved_output,
+                "mode": "wave-fallback",
+                "start_seconds": start_value,
+                "end_seconds": end_value,
+                "duration_seconds": end_value - start_value
+            }
+        except Exception as wav_error:
+            return {
+                "success": False,
+                "error": str(wav_error),
+                "path": raw_output_path
+            }
+
+    return {
+        "success": False,
+        "error": ffmpeg_result.get("error") or "Trim save failed.",
+        "path": raw_output_path,
+        "hint": "Install ffmpeg for trim export support on this format."
+    }
 
 
 def get_subtitle_track(path, preferred_lang="en", preferred_label="Default"):
