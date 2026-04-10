@@ -6,6 +6,9 @@
 			<button class="btn" id="nextBtn" type="button" disabled>Next</button>
 		</div>
 		<div class="toolbar-group">
+			<button class="btn" id="zoomOutBtn" type="button" disabled>Zoom -</button>
+			<button class="btn" id="zoomInBtn" type="button" disabled>Zoom +</button>
+			<button class="btn" id="zoomResetBtn" type="button" disabled>Reset View</button>
 			<button class="btn" id="loopBtn" type="button" aria-pressed="false">Loop: Off</button>
 			<button class="btn" id="photoFullscreenBtn" type="button" style="display:none;">Photo Fullscreen</button>
 		</div>
@@ -46,6 +49,7 @@
 	<div class="media-footer" id="mediaFooter">
 		<div class="path-label" id="pathLabel">No file selected.</div>
 		<div class="type-label" id="typeLabel">Type: none</div>
+		<div class="type-label" id="zoomLabel">Zoom: 100%</div>
 	</div>
 </div>
 
@@ -124,6 +128,18 @@
 		max-height: 100%;
 		object-fit: contain;
 		background: #000;
+		transform-origin: center center;
+		will-change: transform;
+		user-select: none;
+		-webkit-user-drag: none;
+	}
+
+	.media-stage.pannable {
+		cursor: grab;
+	}
+
+	.media-stage.panning {
+		cursor: grabbing;
 	}
 
 	#audioView {
@@ -199,6 +215,9 @@
 	(function () {
 		const APP_ID = 'Media-Viewer';
 		const FRAME_SECONDS = 1 / 30;
+		const MIN_ZOOM = 1;
+		const MAX_ZOOM = 6;
+		const ZOOM_STEP = 0.2;
 
 		const state = {
 			mediaPath: null,
@@ -212,7 +231,18 @@
 				audio_extensions: [],
 				subtitle_extensions: []
 			},
-			controlHideTimer: null
+			controlHideTimer: null,
+			view: {
+				scale: 1,
+				offsetX: 0,
+				offsetY: 0,
+				dragging: false,
+				pointerId: null,
+				startX: 0,
+				startY: 0,
+				startOffsetX: 0,
+				startOffsetY: 0
+			}
 		};
 
 		const refs = {
@@ -221,6 +251,9 @@
 			openFileBtn: document.getElementById('openFileBtn'),
 			prevBtn: document.getElementById('prevBtn'),
 			nextBtn: document.getElementById('nextBtn'),
+			zoomOutBtn: document.getElementById('zoomOutBtn'),
+			zoomInBtn: document.getElementById('zoomInBtn'),
+			zoomResetBtn: document.getElementById('zoomResetBtn'),
 			loopBtn: document.getElementById('loopBtn'),
 			photoFullscreenBtn: document.getElementById('photoFullscreenBtn'),
 			image: document.getElementById('imageView'),
@@ -238,8 +271,176 @@
 			totalTime: document.getElementById('totalTime'),
 			volumeBar: document.getElementById('volumeBar'),
 			pathLabel: document.getElementById('pathLabel'),
-			typeLabel: document.getElementById('typeLabel')
+			typeLabel: document.getElementById('typeLabel'),
+			zoomLabel: document.getElementById('zoomLabel')
 		};
+
+		function activeVisualElement() {
+			if (state.mediaType === 'image') {
+				return refs.image;
+			}
+			if (state.mediaType === 'video') {
+				return refs.video;
+			}
+			return null;
+		}
+
+		function hasPanZoomSurface() {
+			return state.mediaType === 'image' || state.mediaType === 'video';
+		}
+
+		function updateZoomLabel() {
+			if (!refs.zoomLabel) {
+				return;
+			}
+			refs.zoomLabel.textContent = `Zoom: ${Math.round(state.view.scale * 100)}%`;
+		}
+
+		function setZoomControlsEnabled(enabled) {
+			refs.zoomOutBtn.disabled = !enabled;
+			refs.zoomInBtn.disabled = !enabled;
+			refs.zoomResetBtn.disabled = !enabled;
+		}
+
+		function clampPanOffsets(scale, offsetX, offsetY) {
+			if (scale <= MIN_ZOOM) {
+				return { offsetX: 0, offsetY: 0 };
+			}
+
+			const stageWidth = refs.stage.clientWidth || 0;
+			const stageHeight = refs.stage.clientHeight || 0;
+			const maxX = (stageWidth * (scale - 1)) / 2 + 36;
+			const maxY = (stageHeight * (scale - 1)) / 2 + 36;
+
+			return {
+				offsetX: Math.max(-maxX, Math.min(maxX, offsetX)),
+				offsetY: Math.max(-maxY, Math.min(maxY, offsetY))
+			};
+		}
+
+		function applyPanZoom() {
+			const element = activeVisualElement();
+			const { scale, offsetX, offsetY } = state.view;
+
+			if (!element) {
+				refs.image.style.transform = 'translate(0px, 0px) scale(1)';
+				refs.video.style.transform = 'translate(0px, 0px) scale(1)';
+				refs.stage.classList.remove('pannable');
+				refs.stage.classList.remove('panning');
+				updateZoomLabel();
+				return;
+			}
+
+			element.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+			refs.stage.classList.toggle('pannable', scale > MIN_ZOOM);
+			refs.stage.classList.toggle('panning', scale > MIN_ZOOM && state.view.dragging);
+			updateZoomLabel();
+		}
+
+		function resetPanZoom() {
+			state.view.scale = 1;
+			state.view.offsetX = 0;
+			state.view.offsetY = 0;
+			state.view.dragging = false;
+			state.view.pointerId = null;
+			applyPanZoom();
+		}
+
+		function setZoom(nextScale, anchorClientX = null, anchorClientY = null) {
+			if (!hasPanZoomSurface()) {
+				return;
+			}
+
+			const clampedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextScale));
+			const previousScale = state.view.scale;
+			if (Math.abs(clampedScale - previousScale) < 0.0001) {
+				return;
+			}
+
+			let offsetX = state.view.offsetX;
+			let offsetY = state.view.offsetY;
+			if (anchorClientX !== null && anchorClientY !== null && refs.stage) {
+				const stageRect = refs.stage.getBoundingClientRect();
+				const ax = anchorClientX - (stageRect.left + stageRect.width / 2);
+				const ay = anchorClientY - (stageRect.top + stageRect.height / 2);
+				const ratio = clampedScale / previousScale;
+				offsetX = ax * (1 - ratio) + offsetX * ratio;
+				offsetY = ay * (1 - ratio) + offsetY * ratio;
+			}
+
+			const clampedOffsets = clampPanOffsets(clampedScale, offsetX, offsetY);
+			state.view.scale = clampedScale;
+			state.view.offsetX = clampedOffsets.offsetX;
+			state.view.offsetY = clampedOffsets.offsetY;
+			applyPanZoom();
+		}
+
+		function adjustZoom(deltaDirection) {
+			const factor = 1 + (ZOOM_STEP * deltaDirection);
+			setZoom(state.view.scale * factor);
+		}
+
+		function startPanning(event) {
+			if (!hasPanZoomSurface()) {
+				return;
+			}
+
+			const element = activeVisualElement();
+			if (!element || event.target !== element) {
+				return;
+			}
+
+			if (state.view.scale <= MIN_ZOOM) {
+				return;
+			}
+
+			state.view.dragging = true;
+			state.view.pointerId = event.pointerId;
+			state.view.startX = event.clientX;
+			state.view.startY = event.clientY;
+			state.view.startOffsetX = state.view.offsetX;
+			state.view.startOffsetY = state.view.offsetY;
+			if (element.setPointerCapture) {
+				element.setPointerCapture(event.pointerId);
+			}
+			applyPanZoom();
+		}
+
+		function movePanning(event) {
+			if (!state.view.dragging || state.view.pointerId !== event.pointerId) {
+				return;
+			}
+
+			const nextOffsetX = state.view.startOffsetX + (event.clientX - state.view.startX);
+			const nextOffsetY = state.view.startOffsetY + (event.clientY - state.view.startY);
+			const clamped = clampPanOffsets(state.view.scale, nextOffsetX, nextOffsetY);
+			state.view.offsetX = clamped.offsetX;
+			state.view.offsetY = clamped.offsetY;
+			applyPanZoom();
+			showVideoControlsTemporarily();
+		}
+
+		function endPanning(event) {
+			if (!state.view.dragging || state.view.pointerId !== event.pointerId) {
+				return;
+			}
+
+			state.view.dragging = false;
+			state.view.pointerId = null;
+			applyPanZoom();
+		}
+
+		function onStageWheel(event) {
+			if (!hasPanZoomSurface()) {
+				return;
+			}
+
+			event.preventDefault();
+			const direction = event.deltaY < 0 ? 1 : -1;
+			const factor = 1 + (ZOOM_STEP * direction);
+			setZoom(state.view.scale * factor, event.clientX, event.clientY);
+			showVideoControlsTemporarily();
+		}
 
 		function getLaunchFilePath() {
 			const byApp = window.__SANCTUM_LAUNCH_CONTEXT_BY_APP || {};
@@ -343,6 +544,8 @@
 			refs.unsupportedState.style.display = 'none';
 			refs.controls.style.display = 'none';
 			refs.photoFullscreenBtn.style.display = 'none';
+			setZoomControlsEnabled(false);
+			resetPanZoom();
 			refs.root.classList.remove('video-playing-controls-hidden');
 			clearHideControlsTimer();
 		}
@@ -512,6 +715,8 @@
 			if (result.media_type === 'image') {
 				refs.image.src = source;
 				refs.image.style.display = 'block';
+				setZoomControlsEnabled(true);
+				resetPanZoom();
 				refs.photoFullscreenBtn.style.display = 'inline-block';
 				refs.emptyState.style.display = 'none';
 				updateTimeUi();
@@ -526,6 +731,8 @@
 				refs.video.loop = state.looping;
 				refs.video.volume = Number(refs.volumeBar.value);
 				refs.video.style.display = 'block';
+				setZoomControlsEnabled(true);
+				resetPanZoom();
 				refs.controls.style.display = 'grid';
 				refs.video.load();
 				updateTimeUi();
@@ -541,6 +748,8 @@
 				refs.audio.loop = state.looping;
 				refs.audio.volume = Number(refs.volumeBar.value);
 				refs.audio.style.display = 'block';
+				setZoomControlsEnabled(false);
+				resetPanZoom();
 				refs.controls.style.display = 'grid';
 				refs.audio.load();
 				updateTimeUi();
@@ -692,6 +901,9 @@
 			refs.openFileBtn.addEventListener('click', openViaPicker);
 			refs.prevBtn.addEventListener('click', () => moveSibling(-1));
 			refs.nextBtn.addEventListener('click', () => moveSibling(1));
+			refs.zoomOutBtn.addEventListener('click', () => adjustZoom(-1));
+			refs.zoomInBtn.addEventListener('click', () => adjustZoom(1));
+			refs.zoomResetBtn.addEventListener('click', resetPanZoom);
 			refs.loopBtn.addEventListener('click', toggleLooping);
 			refs.photoFullscreenBtn.addEventListener('click', handlePhotoFullscreen);
 
@@ -706,6 +918,16 @@
 
 			refs.stage.addEventListener('mousemove', showVideoControlsTemporarily);
 			refs.stage.addEventListener('touchstart', showVideoControlsTemporarily, { passive: true });
+			refs.stage.addEventListener('wheel', onStageWheel, { passive: false });
+			refs.stage.addEventListener('pointerdown', startPanning);
+			window.addEventListener('pointermove', movePanning);
+			window.addEventListener('pointerup', endPanning);
+			window.addEventListener('pointercancel', endPanning);
+			refs.stage.addEventListener('dblclick', () => {
+				if (hasPanZoomSurface()) {
+					resetPanZoom();
+				}
+			});
 			refs.stage.addEventListener('click', () => {
 				if (state.mediaType === 'video') {
 					showVideoControlsTemporarily();
