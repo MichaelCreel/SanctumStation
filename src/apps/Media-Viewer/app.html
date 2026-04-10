@@ -9,7 +9,10 @@
 			<button class="btn" id="zoomOutBtn" type="button" disabled>Zoom -</button>
 			<button class="btn" id="zoomInBtn" type="button" disabled>Zoom +</button>
 			<button class="btn" id="zoomResetBtn" type="button" disabled>Reset View</button>
+			<button class="btn" id="playlistFromFolderBtn" type="button" style="display:none;">Queue Folder</button>
+			<button class="btn" id="clearPlaylistBtn" type="button" style="display:none;">Clear Queue</button>
 			<button class="btn" id="loopBtn" type="button" aria-pressed="false">Loop: Off</button>
+			<button class="btn" id="subtitleToggleBtn" type="button" style="display:none;">Subtitles: On</button>
 			<button class="btn" id="photoFullscreenBtn" type="button" style="display:none;">Photo Fullscreen</button>
 		</div>
 	</div>
@@ -18,6 +21,9 @@
 		<img id="imageView" alt="Media preview" style="display:none;" />
 		<video id="videoView" preload="metadata" style="display:none;"></video>
 		<audio id="audioView" preload="metadata" style="display:none;"></audio>
+		<div class="waveform-wrap" id="waveformWrap" style="display:none;">
+			<canvas id="waveformCanvas" width="1280" height="720"></canvas>
+		</div>
 
 		<div class="empty-state" id="emptyState">
 			<h2>Media Viewer</h2>
@@ -44,6 +50,14 @@
 			<label for="volumeBar">Volume</label>
 			<input id="volumeBar" type="range" min="0" max="1" step="0.01" value="1" />
 		</div>
+		<div class="controls-row" id="subtitleStatusRow" style="display:none;">
+			<span class="type-label" id="subtitleStatus">Subtitle: none</span>
+		</div>
+	</div>
+
+	<div class="playlist-panel" id="playlistPanel" style="display:none;">
+		<div class="playlist-head">Audio Queue</div>
+		<div class="playlist-list" id="playlistList"></div>
 	</div>
 
 	<div class="media-footer" id="mediaFooter">
@@ -51,6 +65,8 @@
 		<div class="type-label" id="typeLabel">Type: none</div>
 		<div class="type-label" id="zoomLabel">Zoom: 100%</div>
 	</div>
+
+	<div class="thumb-strip" id="thumbStrip" style="display:none;"></div>
 </div>
 
 <style>
@@ -143,7 +159,12 @@
 	}
 
 	#audioView {
-		width: min(700px, 94%);
+		display: none !important;
+	}
+
+	.media-stage.audio-mode {
+		align-items: stretch;
+		justify-content: stretch;
 	}
 
 	.empty-state,
@@ -164,6 +185,61 @@
 		display: grid;
 		gap: 0.48rem;
 		transition: opacity 120ms ease;
+	}
+
+	.waveform-wrap {
+		position: absolute;
+		inset: 0;
+		padding: clamp(0.65rem, 1.6vw, 1.1rem);
+		z-index: 1;
+	}
+
+	#waveformCanvas {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: 1px solid var(--panel-soft);
+		border-radius: 0.6rem;
+		background: rgba(0, 0, 0, 0.24);
+		cursor: pointer;
+	}
+
+	.playlist-panel {
+		border-top: 1px solid var(--panel-soft);
+		background: var(--panel);
+		padding: 0.5rem 0.85rem;
+		display: grid;
+		gap: 0.45rem;
+	}
+
+	.playlist-head {
+		font-size: 0.84rem;
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.playlist-list {
+		display: flex;
+		gap: 0.4rem;
+		overflow-x: auto;
+		padding-bottom: 0.15rem;
+	}
+
+	.playlist-item {
+		border: 1px solid var(--panel-soft);
+		background: rgba(0, 0, 0, 0.26);
+		color: var(--text);
+		border-radius: 0.35rem;
+		padding: 0.3rem 0.55rem;
+		font-size: 0.82rem;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+
+	.playlist-item.active {
+		border-color: var(--accent);
+		background: rgba(116, 185, 255, 0.18);
 	}
 
 	.media-viewer.video-playing-controls-hidden .media-controls {
@@ -204,6 +280,52 @@
 		font-size: 0.8rem;
 	}
 
+	.thumb-strip {
+		border-top: 1px solid var(--panel-soft);
+		background: var(--panel);
+		display: flex;
+		gap: 0.45rem;
+		overflow-x: auto;
+		padding: 0.45rem 0.65rem 0.5rem;
+	}
+
+	.thumb-item {
+		width: 120px;
+		height: 78px;
+		border: 1px solid var(--panel-soft);
+		background: rgba(0, 0, 0, 0.24);
+		border-radius: 0.3rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.2rem;
+		color: var(--text);
+		font-size: 0.72rem;
+		cursor: pointer;
+		flex: 0 0 auto;
+		padding: 0.2rem;
+	}
+
+	.thumb-item img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		border-radius: 0.24rem;
+	}
+
+	.thumb-item.active {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 1px var(--accent-soft) inset;
+	}
+
+	.thumb-label {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	@media (max-width: 700px) {
 		.media-toolbar {
 			padding-right: 3.4rem;
@@ -218,12 +340,19 @@
 		const MIN_ZOOM = 1;
 		const MAX_ZOOM = 6;
 		const ZOOM_STEP = 0.2;
+		const WAVEFORM_PADDING = 18;
+		const WAVEFORM_DEFAULT_BINS = 2048;
 
 		const state = {
 			mediaPath: null,
 			mediaType: 'none',
 			siblingFiles: [],
 			siblingIndex: -1,
+			audioQueue: [],
+			audioQueueIndex: -1,
+			subtitleEnabled: true,
+			subtitleTrackAttached: false,
+			thumbRenderToken: 0,
 			looping: false,
 			supports: {
 				image_extensions: [],
@@ -232,6 +361,14 @@
 				subtitle_extensions: []
 			},
 			controlHideTimer: null,
+			waveform: {
+				audioContext: null,
+				frameRequest: null,
+				decodeToken: 0,
+				envelopeBins: 0,
+				envelopeMin: null,
+				envelopeMax: null
+			},
 			view: {
 				scale: 1,
 				offsetX: 0,
@@ -254,7 +391,10 @@
 			zoomOutBtn: document.getElementById('zoomOutBtn'),
 			zoomInBtn: document.getElementById('zoomInBtn'),
 			zoomResetBtn: document.getElementById('zoomResetBtn'),
+			playlistFromFolderBtn: document.getElementById('playlistFromFolderBtn'),
+			clearPlaylistBtn: document.getElementById('clearPlaylistBtn'),
 			loopBtn: document.getElementById('loopBtn'),
+			subtitleToggleBtn: document.getElementById('subtitleToggleBtn'),
 			photoFullscreenBtn: document.getElementById('photoFullscreenBtn'),
 			image: document.getElementById('imageView'),
 			video: document.getElementById('videoView'),
@@ -270,10 +410,393 @@
 			currentTime: document.getElementById('currentTime'),
 			totalTime: document.getElementById('totalTime'),
 			volumeBar: document.getElementById('volumeBar'),
+			subtitleStatusRow: document.getElementById('subtitleStatusRow'),
+			subtitleStatus: document.getElementById('subtitleStatus'),
+			waveformWrap: document.getElementById('waveformWrap'),
+			waveformCanvas: document.getElementById('waveformCanvas'),
+			playlistPanel: document.getElementById('playlistPanel'),
+			playlistList: document.getElementById('playlistList'),
 			pathLabel: document.getElementById('pathLabel'),
 			typeLabel: document.getElementById('typeLabel'),
-			zoomLabel: document.getElementById('zoomLabel')
+			zoomLabel: document.getElementById('zoomLabel'),
+			thumbStrip: document.getElementById('thumbStrip')
 		};
+
+		function isAudioPath(path) {
+			return state.supports.audio_extensions.includes(getExtension(path));
+		}
+
+		function isImagePath(path) {
+			return state.supports.image_extensions.includes(getExtension(path));
+		}
+
+		function isVideoPath(path) {
+			return state.supports.video_extensions.includes(getExtension(path));
+		}
+
+		function clearVideoSubtitles() {
+			const tracks = Array.from(refs.video.querySelectorAll('track[data-generated="true"]'));
+			tracks.forEach((track) => track.remove());
+			state.subtitleTrackAttached = false;
+			refs.subtitleStatus.textContent = 'Subtitle: none';
+			refs.subtitleStatusRow.style.display = 'none';
+			refs.subtitleToggleBtn.style.display = 'none';
+		}
+
+		function updateSubtitleToggleButton() {
+			refs.subtitleToggleBtn.textContent = state.subtitleEnabled ? 'Subtitles: On' : 'Subtitles: Off';
+		}
+
+		function setTrackShowing(enabled) {
+			const track = refs.video.querySelector('track[data-generated="true"]');
+			if (!track || !track.track) {
+				return;
+			}
+			track.track.mode = enabled ? 'showing' : 'hidden';
+		}
+
+		function toggleSubtitles() {
+			if (!state.subtitleTrackAttached) {
+				return;
+			}
+			state.subtitleEnabled = !state.subtitleEnabled;
+			setTrackShowing(state.subtitleEnabled);
+			updateSubtitleToggleButton();
+		}
+
+		async function tryLoadSubtitle(path) {
+			clearVideoSubtitles();
+			try {
+				const result = await window.pywebview.api.call_app_function(APP_ID, 'get_subtitle_track', path, 'en', 'Default');
+				if (!result || !result.success || !result.data_url) {
+					return;
+				}
+
+				const track = document.createElement('track');
+				track.kind = 'subtitles';
+				track.label = result.label || 'Default';
+				track.srclang = result.srclang || 'en';
+				track.src = result.data_url;
+				track.default = true;
+				track.dataset.generated = 'true';
+				refs.video.appendChild(track);
+				state.subtitleTrackAttached = true;
+				refs.subtitleStatus.textContent = `Subtitle: ${getFileName(result.path || '').trim() || 'loaded'}`;
+				refs.subtitleStatusRow.style.display = 'flex';
+				refs.subtitleToggleBtn.style.display = 'inline-block';
+				updateSubtitleToggleButton();
+
+				setTimeout(() => setTrackShowing(state.subtitleEnabled), 0);
+			} catch (error) {
+				console.warn('Subtitle load failed:', error);
+			}
+		}
+
+		function clearAudioQueue() {
+			state.audioQueue = [];
+			state.audioQueueIndex = -1;
+			renderAudioQueue();
+		}
+
+		function setAudioQueueFromSiblingFiles() {
+			state.audioQueue = state.siblingFiles.filter(isAudioPath);
+			state.audioQueueIndex = state.audioQueue.findIndex((path) => normalizePath(path) === normalizePath(state.mediaPath));
+			renderAudioQueue();
+		}
+
+		function renderAudioQueue() {
+			refs.playlistList.innerHTML = '';
+			if (!state.audioQueue.length) {
+				refs.playlistPanel.style.display = 'none';
+				refs.playlistFromFolderBtn.style.display = state.mediaType === 'audio' ? 'inline-block' : 'none';
+				refs.clearPlaylistBtn.style.display = 'none';
+				return;
+			}
+
+			refs.playlistPanel.style.display = 'grid';
+			refs.playlistFromFolderBtn.style.display = 'inline-block';
+			refs.clearPlaylistBtn.style.display = 'inline-block';
+
+			state.audioQueue.forEach((trackPath, index) => {
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.className = `playlist-item ${index === state.audioQueueIndex ? 'active' : ''}`;
+				button.textContent = getFileName(trackPath);
+				button.addEventListener('click', async () => {
+					state.audioQueueIndex = index;
+					await loadMedia(trackPath);
+				});
+				refs.playlistList.appendChild(button);
+			});
+		}
+
+		function stopWaveformLoop() {
+			if (state.waveform.frameRequest) {
+				cancelAnimationFrame(state.waveform.frameRequest);
+				state.waveform.frameRequest = null;
+			}
+		}
+
+		function resetWaveformEnvelope() {
+			state.waveform.decodeToken += 1;
+			state.waveform.envelopeBins = 0;
+			state.waveform.envelopeMin = null;
+			state.waveform.envelopeMax = null;
+		}
+
+		function drawWaveformPlaceholder() {
+			const canvas = refs.waveformCanvas;
+			const ctx = canvas.getContext('2d');
+			const width = Math.max(420, canvas.clientWidth || refs.stage.clientWidth || 0);
+			const height = Math.max(220, canvas.clientHeight || refs.stage.clientHeight || 0);
+			if (!width || !height) {
+				return;
+			}
+			canvas.width = width;
+			canvas.height = height;
+			ctx.fillStyle = 'rgba(8, 10, 18, 0.95)';
+			ctx.fillRect(0, 0, width, height);
+			ctx.strokeStyle = 'rgba(116, 185, 255, 0.68)';
+			ctx.lineWidth = 3;
+			ctx.beginPath();
+			ctx.moveTo(0, height / 2);
+			ctx.lineTo(width, height / 2);
+			ctx.stroke();
+		}
+
+		async function ensureWaveformContext() {
+			if (!state.waveform.audioContext) {
+				state.waveform.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+			}
+			return state.waveform.audioContext;
+		}
+
+		function drawWaveformFrame() {
+			const canvas = refs.waveformCanvas;
+			const ctx = canvas.getContext('2d');
+			const width = Math.max(420, canvas.clientWidth || refs.stage.clientWidth || 0);
+			const height = Math.max(220, canvas.clientHeight || refs.stage.clientHeight || 0);
+			if (!width || !height) {
+				return;
+			}
+
+			if (canvas.width !== width || canvas.height !== height) {
+				canvas.width = width;
+				canvas.height = height;
+			}
+
+			ctx.fillStyle = 'rgba(8, 10, 18, 0.95)';
+			ctx.fillRect(0, 0, width, height);
+			ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(0, height / 2);
+			ctx.lineTo(width, height / 2);
+			ctx.stroke();
+
+			const bins = state.waveform.envelopeBins;
+			const envelopeMin = state.waveform.envelopeMin;
+			const envelopeMax = state.waveform.envelopeMax;
+			if (bins > 0 && envelopeMin && envelopeMax) {
+				const centerY = height / 2;
+				const verticalAmplitude = Math.max(12, centerY - WAVEFORM_PADDING);
+				ctx.strokeStyle = 'rgba(116, 185, 255, 0.9)';
+				ctx.lineWidth = 1;
+				const columns = Math.max(96, Math.min(width, bins));
+
+				for (let column = 0; column < columns; column++) {
+					const ratio = column / Math.max(1, columns - 1);
+					const index = Math.min(bins - 1, Math.floor(ratio * (bins - 1)));
+					const minSample = envelopeMin[index];
+					const maxSample = envelopeMax[index];
+					const x = (ratio * width);
+					const yMin = Math.max(2, Math.min(height - 2, centerY + (minSample * verticalAmplitude)));
+					const yMax = Math.max(2, Math.min(height - 2, centerY + (maxSample * verticalAmplitude)));
+					ctx.beginPath();
+					ctx.moveTo(x, yMin);
+					ctx.lineTo(x, yMax);
+					ctx.stroke();
+				}
+			}
+
+			if (refs.audio.duration > 0) {
+				const progressX = (refs.audio.currentTime / refs.audio.duration) * width;
+				ctx.strokeStyle = 'rgba(246, 185, 59, 0.95)';
+				ctx.lineWidth = 2;
+				ctx.beginPath();
+				ctx.moveTo(progressX, 0);
+				ctx.lineTo(progressX, height);
+				ctx.stroke();
+			}
+		}
+
+		async function prepareStaticWaveform(dataUrl) {
+			if (!dataUrl) {
+				resetWaveformEnvelope();
+				drawWaveformPlaceholder();
+				return;
+			}
+
+			resetWaveformEnvelope();
+			const token = state.waveform.decodeToken;
+			drawWaveformPlaceholder();
+
+			try {
+				const audioContext = await ensureWaveformContext();
+				const response = await fetch(dataUrl);
+				const arrayBuffer = await response.arrayBuffer();
+				const decodedBuffer = await new Promise((resolve, reject) => {
+					audioContext.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
+				});
+
+				if (token !== state.waveform.decodeToken) {
+					return;
+				}
+
+				const length = decodedBuffer.length;
+				const channelCount = Math.max(1, decodedBuffer.numberOfChannels);
+				const channelData = [];
+				for (let channel = 0; channel < channelCount; channel++) {
+					channelData.push(decodedBuffer.getChannelData(channel));
+				}
+
+				const bins = Math.max(512, Math.min(WAVEFORM_DEFAULT_BINS, Math.floor(length / 32) || WAVEFORM_DEFAULT_BINS));
+				const envelopeMin = new Float32Array(bins);
+				const envelopeMax = new Float32Array(bins);
+				let globalPeak = 0.001;
+
+				for (let bin = 0; bin < bins; bin++) {
+					const start = Math.floor((bin / bins) * length);
+					const end = Math.max(start + 1, Math.floor(((bin + 1) / bins) * length));
+					const stride = Math.max(1, Math.floor((end - start) / 180));
+					let minValue = 1;
+					let maxValue = -1;
+
+					for (let i = start; i < end && i < length; i += stride) {
+						let mixed = 0;
+						for (let channel = 0; channel < channelCount; channel++) {
+							mixed += channelData[channel][i] || 0;
+						}
+						mixed /= channelCount;
+						if (mixed < minValue) {
+							minValue = mixed;
+						}
+						if (mixed > maxValue) {
+							maxValue = mixed;
+						}
+					}
+
+					envelopeMin[bin] = minValue;
+					envelopeMax[bin] = maxValue;
+					globalPeak = Math.max(globalPeak, Math.abs(minValue), Math.abs(maxValue));
+				}
+
+				const normalization = Math.max(0.015, globalPeak);
+				for (let bin = 0; bin < bins; bin++) {
+					envelopeMin[bin] = Math.max(-1, Math.min(1, envelopeMin[bin] / normalization));
+					envelopeMax[bin] = Math.max(-1, Math.min(1, envelopeMax[bin] / normalization));
+				}
+
+				if (token !== state.waveform.decodeToken) {
+					return;
+				}
+
+				state.waveform.envelopeBins = bins;
+				state.waveform.envelopeMin = envelopeMin;
+				state.waveform.envelopeMax = envelopeMax;
+				drawWaveformFrame();
+			} catch (error) {
+				if (token !== state.waveform.decodeToken) {
+					return;
+				}
+				console.warn('Waveform decode failed:', error);
+				drawWaveformPlaceholder();
+			}
+		}
+
+		function startWaveformLoop() {
+			stopWaveformLoop();
+
+			const render = () => {
+				drawWaveformFrame();
+				if (state.mediaType === 'audio' && !refs.audio.paused && refs.waveformWrap.style.display !== 'none') {
+					state.waveform.frameRequest = requestAnimationFrame(render);
+					return;
+				}
+				state.waveform.frameRequest = null;
+			};
+
+			render();
+		}
+
+		function seekFromWaveform(event) {
+			if (state.mediaType !== 'audio') {
+				return;
+			}
+			if (!Number.isFinite(refs.audio.duration) || refs.audio.duration <= 0) {
+				return;
+			}
+
+			const rect = refs.waveformCanvas.getBoundingClientRect();
+			const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)));
+			refs.audio.currentTime = ratio * refs.audio.duration;
+			updateTimeUi();
+			drawWaveformFrame();
+		}
+
+		function renderThumbnails() {
+			const token = ++state.thumbRenderToken;
+			refs.thumbStrip.innerHTML = '';
+			const files = state.siblingFiles.slice(0, 40);
+			if (!files.length) {
+				refs.thumbStrip.style.display = 'none';
+				return;
+			}
+
+			refs.thumbStrip.style.display = 'flex';
+
+			files.forEach((path, index) => {
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.className = `thumb-item ${index === state.siblingIndex ? 'active' : ''}`;
+				button.addEventListener('click', async () => {
+					await loadMedia(path);
+				});
+
+				if (isImagePath(path)) {
+					const image = document.createElement('img');
+					image.alt = getFileName(path);
+					button.appendChild(image);
+
+					window.pywebview.api.get_file_data_url(path, 4 * 1024 * 1024, 'image/png')
+						.then((result) => {
+							if (token !== state.thumbRenderToken) {
+								return;
+							}
+							if (result && result.success && result.data_url) {
+								image.src = result.data_url;
+							}
+						})
+						.catch(() => {
+							image.remove();
+							const label = document.createElement('span');
+							label.className = 'thumb-label';
+							label.textContent = getFileName(path);
+							button.appendChild(label);
+						});
+				} else {
+					const icon = document.createElement('div');
+					icon.textContent = isVideoPath(path) ? 'VIDEO' : (isAudioPath(path) ? 'AUDIO' : 'FILE');
+					const label = document.createElement('span');
+					label.className = 'thumb-label';
+					label.textContent = getFileName(path);
+					button.appendChild(icon);
+					button.appendChild(label);
+				}
+
+				refs.thumbStrip.appendChild(button);
+			});
+		}
 
 		function activeVisualElement() {
 			if (state.mediaType === 'image') {
@@ -543,6 +1066,17 @@
 			refs.emptyState.style.display = 'none';
 			refs.unsupportedState.style.display = 'none';
 			refs.controls.style.display = 'none';
+			refs.waveformWrap.style.display = 'none';
+			refs.stage.classList.remove('audio-mode');
+			refs.playlistPanel.style.display = 'none';
+			refs.playlistFromFolderBtn.style.display = 'none';
+			refs.clearPlaylistBtn.style.display = 'none';
+			refs.subtitleToggleBtn.style.display = 'none';
+			refs.subtitleStatusRow.style.display = 'none';
+			refs.thumbStrip.style.display = 'none';
+			clearVideoSubtitles();
+			stopWaveformLoop();
+			resetWaveformEnvelope();
 			refs.photoFullscreenBtn.style.display = 'none';
 			setZoomControlsEnabled(false);
 			resetPanZoom();
@@ -711,6 +1245,7 @@
 			state.mediaType = result.media_type;
 			setStatus(path, `Type: ${result.media_type}`);
 			await refreshSiblingFiles(path);
+			renderThumbnails();
 
 			if (result.media_type === 'image') {
 				refs.image.src = source;
@@ -734,6 +1269,7 @@
 				setZoomControlsEnabled(true);
 				resetPanZoom();
 				refs.controls.style.display = 'grid';
+				await tryLoadSubtitle(path);
 				refs.video.load();
 				updateTimeUi();
 				updatePlayButton();
@@ -747,10 +1283,14 @@
 				refs.audio.currentTime = 0;
 				refs.audio.loop = state.looping;
 				refs.audio.volume = Number(refs.volumeBar.value);
-				refs.audio.style.display = 'block';
+				refs.stage.classList.add('audio-mode');
 				setZoomControlsEnabled(false);
 				resetPanZoom();
 				refs.controls.style.display = 'grid';
+				refs.waveformWrap.style.display = 'block';
+				setAudioQueueFromSiblingFiles();
+				drawWaveformPlaceholder();
+				prepareStaticWaveform(source);
 				refs.audio.load();
 				updateTimeUi();
 				updatePlayButton();
@@ -875,25 +1415,49 @@
 		function bindPlayerEvents(player) {
 			player.addEventListener('timeupdate', () => {
 				updateTimeUi();
+				if (player === refs.audio && refs.waveformWrap.style.display !== 'none') {
+					drawWaveformFrame();
+				}
 			});
 
 			player.addEventListener('loadedmetadata', () => {
 				updateTimeUi();
+				if (player === refs.audio && refs.waveformWrap.style.display !== 'none') {
+					drawWaveformFrame();
+				}
 			});
 
 			player.addEventListener('play', () => {
 				updatePlayButton();
+				if (player === refs.audio && refs.waveformWrap.style.display !== 'none') {
+					startWaveformLoop();
+				}
 				showVideoControlsTemporarily();
 			});
 
 			player.addEventListener('pause', () => {
 				updatePlayButton();
+				if (player === refs.audio) {
+					stopWaveformLoop();
+					drawWaveformFrame();
+				}
 				refs.root.classList.remove('video-playing-controls-hidden');
 				clearHideControlsTimer();
 			});
 
 			player.addEventListener('ended', () => {
 				updatePlayButton();
+				if (player === refs.audio) {
+					stopWaveformLoop();
+					drawWaveformFrame();
+				}
+				if (player === refs.audio && !state.looping && state.audioQueue.length) {
+					const nextIndex = state.audioQueueIndex + 1;
+					if (nextIndex >= 0 && nextIndex < state.audioQueue.length) {
+						state.audioQueueIndex = nextIndex;
+						loadMedia(state.audioQueue[nextIndex]);
+					}
+				}
 			});
 		}
 
@@ -904,7 +1468,10 @@
 			refs.zoomOutBtn.addEventListener('click', () => adjustZoom(-1));
 			refs.zoomInBtn.addEventListener('click', () => adjustZoom(1));
 			refs.zoomResetBtn.addEventListener('click', resetPanZoom);
+			refs.playlistFromFolderBtn.addEventListener('click', setAudioQueueFromSiblingFiles);
+			refs.clearPlaylistBtn.addEventListener('click', clearAudioQueue);
 			refs.loopBtn.addEventListener('click', toggleLooping);
+			refs.subtitleToggleBtn.addEventListener('click', toggleSubtitles);
 			refs.photoFullscreenBtn.addEventListener('click', handlePhotoFullscreen);
 
 			refs.playPauseBtn.addEventListener('click', togglePlayPause);
@@ -931,6 +1498,13 @@
 			refs.stage.addEventListener('click', () => {
 				if (state.mediaType === 'video') {
 					showVideoControlsTemporarily();
+				}
+			});
+
+			refs.waveformCanvas.addEventListener('click', seekFromWaveform);
+			window.addEventListener('resize', () => {
+				if (state.mediaType === 'audio') {
+					drawWaveformFrame();
 				}
 			});
 		}

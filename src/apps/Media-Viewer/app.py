@@ -4,6 +4,8 @@
 
 import mimetypes
 import os
+import base64
+import re
 
 from backend import FileManagerAPI
 
@@ -113,6 +115,25 @@ def _default_mime_for_type(media_type):
     return "application/octet-stream"
 
 
+def _text_to_data_url(text_content, mime_type="text/plain"):
+    encoded = base64.b64encode(str(text_content or "").encode("utf-8")).decode("utf-8")
+    return f"data:{mime_type};base64,{encoded}"
+
+
+def _ensure_vtt_header(vtt_content):
+    text = str(vtt_content or "").lstrip("\ufeff").strip()
+    if text.startswith("WEBVTT"):
+        return text
+    return f"WEBVTT\n\n{text}" if text else "WEBVTT\n"
+
+
+def _srt_to_vtt(srt_content):
+    text = str(srt_content or "").lstrip("\ufeff")
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    normalized = re.sub(r"(?P<a>\d{2}:\d{2}:\d{2}),(?P<b>\d{3})", r"\g<a>.\g<b>", normalized)
+    return _ensure_vtt_header(normalized)
+
+
 def get_media_data_url(path):
     info = inspect_media_path(path)
     if not info.get("success"):
@@ -145,6 +166,55 @@ def get_media_data_url(path):
 
     result["media_type"] = media_type
     return result
+
+
+def get_subtitle_track(path, preferred_lang="en", preferred_label="Default"):
+    info = inspect_media_path(path)
+    if not info.get("success"):
+        return info
+
+    if info.get("media_type") != "video":
+        return {
+            "success": False,
+            "error": "Subtitle tracks are only available for video files.",
+            "path": path,
+            "media_type": info.get("media_type")
+        }
+
+    base_path = os.path.splitext(str(path))[0]
+    candidate_paths = [f"{base_path}.vtt", f"{base_path}.srt"]
+
+    for subtitle_path in candidate_paths:
+        if not FILE_MANAGER.exists(subtitle_path):
+            continue
+
+        subtitle_text = FILE_MANAGER.read_file(subtitle_path)
+        if not subtitle_text:
+            continue
+
+        extension = _extension_for_path(subtitle_path)
+        if extension == ".srt":
+            vtt_text = _srt_to_vtt(subtitle_text)
+            source_format = "srt-converted"
+        else:
+            vtt_text = _ensure_vtt_header(subtitle_text)
+            source_format = "vtt"
+
+        return {
+            "success": True,
+            "path": subtitle_path,
+            "source_format": source_format,
+            "srclang": str(preferred_lang or "en"),
+            "label": str(preferred_label or "Default"),
+            "data_url": _text_to_data_url(vtt_text, "text/vtt")
+        }
+
+    return {
+        "success": False,
+        "error": "No sidecar subtitle file found.",
+        "path": path,
+        "checked": candidate_paths
+    }
 
 
 def open_file(path):
