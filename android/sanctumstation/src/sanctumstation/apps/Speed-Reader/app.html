@@ -1,0 +1,690 @@
+<div class="sr-root" id="srRoot">
+    <div class="sr-setting sr-top-left" id="lengthenSetting">
+        <label for="lengthenToggle">Lengthen Long Words</label>
+        <input id="lengthenToggle" type="checkbox" checked />
+    </div>
+
+    <div class="sr-setting sr-top-center" id="wpmSetting">
+        <button class="sr-btn" id="wpmDownBtn" type="button">-</button>
+        <input id="wpmInput" class="sr-wpm-input" type="text" inputmode="numeric" value="350" />
+        <button class="sr-btn" id="wpmUpBtn" type="button">+</button>
+        <span class="sr-small" id="wpmRangeLabel">20 - 3600</span>
+    </div>
+
+    <div class="sr-setting sr-top-right" id="colorSetting">
+        <label for="centerColorInput">Center Color</label>
+        <input id="centerColorInput" type="color" value="#7300FF" />
+    </div>
+
+    <div class="sr-stage" id="readerStage">
+        <textarea id="textInput" class="sr-text-input" placeholder="Paste text here..."></textarea>
+
+        <div class="sr-reader" id="readerView" style="display:none;">
+            <div class="sr-word" id="wordDisplay">Paste text and press Play</div>
+        </div>
+    </div>
+
+    <div class="sr-bottom-controls" id="bottomControls">
+        <button class="sr-btn sr-primary" id="playPauseBtn" type="button">Play</button>
+        <div class="sr-bottom-meta">
+            <span id="sessionLabel">Ready</span>
+            <span id="progressLabel">0 / 0</span>
+        </div>
+    </div>
+</div>
+
+<style>
+    .sr-root {
+        --sr-bg: #1e1e2e;
+        --sr-panel: rgba(0, 0, 0, 0.3);
+        --sr-border: rgba(255, 255, 255, 0.1);
+        --sr-text: #ffffff;
+        --sr-muted: rgba(255, 255, 255, 0.6);
+        --sr-accent: #6366f1;
+        --sr-center-color: #7300FF;
+        position: fixed;
+        inset: 0;
+        color: var(--sr-text);
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #1e1e2e;
+        overflow: hidden;
+    }
+
+    .sr-setting {
+        position: fixed;
+        z-index: 12;
+        background: var(--sr-panel);
+        border: 1px solid var(--sr-border);
+        border-radius: 10px;
+        padding: 0.55rem 0.65rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.25);
+    }
+
+    .sr-top-left {
+        top: 0.8rem;
+        left: 0.8rem;
+    }
+
+    .sr-top-center {
+        top: 0.8rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: grid;
+        grid-template-columns: auto 84px auto;
+        align-items: center;
+        column-gap: 0.45rem;
+        row-gap: 0.25rem;
+    }
+
+    .sr-top-center .sr-small {
+        grid-column: 1 / 4;
+        text-align: center;
+    }
+
+    .sr-top-right {
+        top: 0.8rem;
+        right: 0.8rem;
+    }
+
+    .sr-stage {
+        position: absolute;
+        inset: 0;
+        padding: 5.1rem 1.2rem 7.2rem;
+        display: grid;
+        place-items: center;
+    }
+
+    .sr-text-input {
+        width: min(1000px, 86vw);
+        height: min(58vh, 560px);
+        border: 1px solid var(--sr-border);
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.3);
+        color: var(--sr-text);
+        padding: 0.95rem 1rem;
+        line-height: 1.5;
+        font-size: 1.02rem;
+        resize: none;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .sr-text-input:focus {
+        outline: none;
+        border-color: color-mix(in srgb, var(--sr-accent) 65%, white 20%);
+    }
+
+    .sr-reader {
+        width: min(1000px, 90vw);
+        min-height: min(58vh, 560px);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        border: 1px solid var(--sr-border);
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 1.3rem;
+    }
+
+    .sr-word {
+        font-size: clamp(2.3rem, 8vw, 7.3rem);
+        font-weight: 700;
+        line-height: 1.06;
+        letter-spacing: 0.02em;
+        word-break: break-word;
+        max-width: 100%;
+    }
+
+    .sr-center {
+        color: var(--sr-center-color);
+        text-shadow: 0 0 12px color-mix(in srgb, var(--sr-center-color) 55%, transparent);
+    }
+
+    .sr-bottom-controls {
+        position: fixed;
+        left: 50%;
+        bottom: 0.95rem;
+        transform: translateX(-50%);
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        gap: 0.3rem;
+    }
+
+    .sr-bottom-meta {
+        display: flex;
+        gap: 0.7rem;
+        font-size: 0.83rem;
+        color: var(--sr-muted);
+    }
+
+    .sr-btn {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--sr-text);
+        border-radius: 8px;
+        padding: 0.45rem 0.72rem;
+        cursor: pointer;
+        min-width: 40px;
+        transition: transform 0.12s ease, background 0.12s ease;
+    }
+
+    .sr-btn:hover {
+        transform: translateY(-1px);
+        background: rgba(99, 102, 241, 0.28);
+    }
+
+    .sr-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .sr-primary {
+        padding: 0.55rem 1rem;
+        font-weight: 600;
+        background: rgba(99, 102, 241, 0.33);
+    }
+
+    .sr-wpm-input {
+        width: 84px;
+        text-align: center;
+        border: 1px solid var(--sr-border);
+        border-radius: 8px;
+        padding: 0.4rem 0.45rem;
+        background: rgba(0, 0, 0, 0.28);
+        color: var(--sr-text);
+    }
+
+    .sr-wpm-input:focus {
+        outline: none;
+        border-color: color-mix(in srgb, var(--sr-accent) 60%, white 20%);
+    }
+
+    .sr-small {
+        font-size: 0.74rem;
+        color: var(--sr-muted);
+    }
+
+    .sr-root.playing .sr-setting {
+        display: none;
+    }
+
+    .sr-root.playing .sr-text-input {
+        display: none;
+    }
+
+    .sr-root.playing .sr-reader {
+        display: flex;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    @media (max-width: 900px) {
+        .sr-stage {
+            padding-top: 8.4rem;
+        }
+
+        .sr-top-center {
+            top: 3.9rem;
+        }
+
+        .sr-text-input,
+        .sr-reader {
+            width: min(95vw, 980px);
+        }
+    }
+
+    @media (max-width: 620px) {
+        .sr-setting {
+            padding: 0.45rem 0.5rem;
+            gap: 0.45rem;
+        }
+
+        .sr-top-left {
+            left: 0.45rem;
+            top: 0.45rem;
+        }
+
+        .sr-top-right {
+            right: 0.45rem;
+            top: 0.45rem;
+        }
+
+        .sr-top-center {
+            top: 3.55rem;
+        }
+
+        .sr-stage {
+            padding: 7.9rem 0.6rem 6.8rem;
+        }
+
+        .sr-bottom-controls {
+            bottom: 0.6rem;
+        }
+    }
+</style>
+
+<script>
+    (function () {
+        const APP_ID = 'Speed-Reader';
+
+        const refs = {
+            root: document.getElementById('srRoot'),
+            playPauseBtn: document.getElementById('playPauseBtn'),
+            sessionLabel: document.getElementById('sessionLabel'),
+            progressLabel: document.getElementById('progressLabel'),
+            textInput: document.getElementById('textInput'),
+            readerView: document.getElementById('readerView'),
+            wpmInput: document.getElementById('wpmInput'),
+            wpmDownBtn: document.getElementById('wpmDownBtn'),
+            wpmUpBtn: document.getElementById('wpmUpBtn'),
+            wpmRangeLabel: document.getElementById('wpmRangeLabel'),
+            lengthenToggle: document.getElementById('lengthenToggle'),
+            centerColorInput: document.getElementById('centerColorInput'),
+            wordDisplay: document.getElementById('wordDisplay')
+        };
+
+        const state = {
+            limits: {
+                min_wpm: 20,
+                max_wpm: 3600,
+                wpm_step: 10
+            },
+            settings: {
+                wpm: 350,
+                lengthen_long_words: true,
+                center_letter_color: '#7300FF'
+            },
+            session: {
+                words: [],
+                timings_ms: []
+            },
+            playback: {
+                index: 0,
+                elapsedInWordMs: 0,
+                playing: false,
+                rafId: null,
+                lastTick: 0
+            },
+            textDirty: true,
+            settingsDirty: false,
+            preparedForText: ''
+        };
+
+        function normalizeWpm(value) {
+            const parsed = Number.parseInt(String(value || ''), 10);
+            const fallback = state.settings.wpm;
+            const raw = Number.isFinite(parsed) ? parsed : fallback;
+            return Math.max(state.limits.min_wpm, Math.min(state.limits.max_wpm, raw));
+        }
+
+        function clampProgress() {
+            const count = state.session.words.length;
+            if (!count) {
+                state.playback.index = 0;
+                state.playback.elapsedInWordMs = 0;
+                return;
+            }
+            if (state.playback.index < 0) {
+                state.playback.index = 0;
+            }
+            if (state.playback.index >= count) {
+                state.playback.index = count - 1;
+                state.playback.elapsedInWordMs = 0;
+            }
+        }
+
+        function setPlayingUi(playing) {
+            refs.root.classList.toggle('playing', playing);
+            refs.playPauseBtn.textContent = playing ? 'Pause' : 'Play';
+            refs.sessionLabel.textContent = playing ? 'Playing' : 'Ready';
+
+            if (playing) {
+                refs.readerView.style.display = 'flex';
+                refs.textInput.style.display = 'none';
+            } else {
+                refs.readerView.style.display = 'none';
+                refs.textInput.style.display = 'block';
+            }
+        }
+
+        function updateProgressLabel() {
+            const total = state.session.words.length;
+            const current = total ? Math.min(total, state.playback.index + 1) : 0;
+            refs.progressLabel.textContent = `${current} / ${total}`;
+        }
+
+        function clearWordDisplay(message) {
+            refs.wordDisplay.textContent = message;
+            updateProgressLabel();
+        }
+
+        function renderWord(word) {
+            refs.wordDisplay.innerHTML = '';
+            const text = String(word || '');
+            if (!text) {
+                refs.wordDisplay.textContent = '';
+                return;
+            }
+
+            const centerIndex = Math.floor(text.length / 2);
+            const left = text.slice(0, centerIndex);
+            const center = text.slice(centerIndex, centerIndex + 1);
+            const right = text.slice(centerIndex + 1);
+
+            const leftSpan = document.createElement('span');
+            leftSpan.textContent = left;
+            const centerSpan = document.createElement('span');
+            centerSpan.className = 'sr-center';
+            centerSpan.textContent = center;
+            const rightSpan = document.createElement('span');
+            rightSpan.textContent = right;
+
+            refs.wordDisplay.appendChild(leftSpan);
+            refs.wordDisplay.appendChild(centerSpan);
+            refs.wordDisplay.appendChild(rightSpan);
+        }
+
+        function applyCenterColor(colorHex) {
+            const color = String(colorHex || '#7300FF');
+            refs.root.style.setProperty('--sr-center-color', color);
+            refs.centerColorInput.value = color;
+        }
+
+        async function callBackend(functionName, ...args) {
+            return window.pywebview.api.call_app_function(APP_ID, functionName, ...args);
+        }
+
+        async function loadSettingsFromBackend() {
+            try {
+                const result = await callBackend('get_settings');
+                if (!result || !result.success) {
+                    return;
+                }
+
+                if (result.limits) {
+                    state.limits.min_wpm = Number(result.limits.min_wpm || 20);
+                    state.limits.max_wpm = Number(result.limits.max_wpm || 3600);
+                    state.limits.wpm_step = Number(result.limits.wpm_step || 10);
+                }
+
+                if (result.settings) {
+                    state.settings.wpm = normalizeWpm(result.settings.wpm);
+                    state.settings.lengthen_long_words = !!result.settings.lengthen_long_words;
+                    state.settings.center_letter_color = String(result.settings.center_letter_color || '#7300FF');
+                }
+            } catch (error) {
+                console.warn('Speed Reader settings load failed:', error);
+            }
+
+            refs.wpmInput.value = String(state.settings.wpm);
+            refs.lengthenToggle.checked = !!state.settings.lengthen_long_words;
+            applyCenterColor(state.settings.center_letter_color);
+            refs.wpmRangeLabel.textContent = `${state.limits.min_wpm} - ${state.limits.max_wpm}`;
+        }
+
+        let settingsSaveTimer = null;
+        function queueSettingsSave() {
+            if (settingsSaveTimer) {
+                clearTimeout(settingsSaveTimer);
+            }
+            settingsSaveTimer = setTimeout(async () => {
+                settingsSaveTimer = null;
+                try {
+                    await callBackend(
+                        'update_settings',
+                        state.settings.wpm,
+                        state.settings.lengthen_long_words,
+                        state.settings.center_letter_color
+                    );
+                } catch (error) {
+                    console.warn('Speed Reader settings save failed:', error);
+                }
+            }, 120);
+        }
+
+        async function prepareSession(forceReset = false) {
+            const text = String(refs.textInput.value || '');
+            if (!text.trim()) {
+                state.session.words = [];
+                state.session.timings_ms = [];
+                state.playback.index = 0;
+                state.playback.elapsedInWordMs = 0;
+                state.preparedForText = '';
+                clearWordDisplay('Paste text and press Play');
+                refs.sessionLabel.textContent = 'Ready';
+                return false;
+            }
+
+            const mustPrepare = forceReset || state.textDirty || state.settingsDirty || state.preparedForText !== text;
+            if (!mustPrepare) {
+                return state.session.words.length > 0;
+            }
+
+            try {
+                const result = await callBackend(
+                    'prepare_session',
+                    text,
+                    state.settings.wpm,
+                    state.settings.lengthen_long_words
+                );
+
+                if (!result || !result.success) {
+                    clearWordDisplay('Could not prepare session');
+                    refs.sessionLabel.textContent = 'Backend Error';
+                    return false;
+                }
+
+                state.session.words = Array.isArray(result.words) ? result.words : [];
+                state.session.timings_ms = Array.isArray(result.timings_ms) ? result.timings_ms : [];
+                state.preparedForText = text;
+                state.textDirty = false;
+                state.settingsDirty = false;
+
+                if (forceReset || state.playback.index >= state.session.words.length) {
+                    state.playback.index = 0;
+                    state.playback.elapsedInWordMs = 0;
+                }
+
+                clampProgress();
+                if (state.session.words.length > 0) {
+                    renderWord(state.session.words[state.playback.index]);
+                    updateProgressLabel();
+                    refs.sessionLabel.textContent = 'Ready';
+                    return true;
+                }
+
+                clearWordDisplay('No readable words found');
+                refs.sessionLabel.textContent = 'No Words';
+                return false;
+            } catch (error) {
+                console.error('Speed Reader prepare_session failed:', error);
+                clearWordDisplay('Backend error while preparing text');
+                refs.sessionLabel.textContent = 'Backend Error';
+                return false;
+            }
+        }
+
+        function stopPlayback() {
+            state.playback.playing = false;
+            if (state.playback.rafId) {
+                cancelAnimationFrame(state.playback.rafId);
+                state.playback.rafId = null;
+            }
+            setPlayingUi(false);
+        }
+
+        function finishPlayback() {
+            stopPlayback();
+            state.playback.index = 0;
+            state.playback.elapsedInWordMs = 0;
+            if (state.session.words.length > 0) {
+                renderWord(state.session.words[0]);
+            }
+            updateProgressLabel();
+            refs.sessionLabel.textContent = 'Finished';
+        }
+
+        function playbackTick(now) {
+            if (!state.playback.playing) {
+                return;
+            }
+
+            const totalWords = state.session.words.length;
+            if (!totalWords) {
+                stopPlayback();
+                return;
+            }
+
+            const delta = Math.max(0, now - state.playback.lastTick);
+            state.playback.lastTick = now;
+            state.playback.elapsedInWordMs += delta;
+
+            let currentDuration = Number(state.session.timings_ms[state.playback.index] || (60000 / state.settings.wpm));
+            currentDuration = Math.max(1, currentDuration);
+
+            while (state.playback.elapsedInWordMs >= currentDuration) {
+                state.playback.elapsedInWordMs -= currentDuration;
+                state.playback.index += 1;
+
+                if (state.playback.index >= totalWords) {
+                    finishPlayback();
+                    return;
+                }
+
+                renderWord(state.session.words[state.playback.index]);
+                updateProgressLabel();
+                currentDuration = Number(state.session.timings_ms[state.playback.index] || (60000 / state.settings.wpm));
+                currentDuration = Math.max(1, currentDuration);
+            }
+
+            state.playback.rafId = requestAnimationFrame(playbackTick);
+        }
+
+        async function togglePlayPause() {
+            if (state.playback.playing) {
+                stopPlayback();
+                return;
+            }
+
+            const prepared = await prepareSession(false);
+            if (!prepared) {
+                return;
+            }
+
+            if (state.playback.index >= state.session.words.length) {
+                state.playback.index = 0;
+                state.playback.elapsedInWordMs = 0;
+            }
+
+            renderWord(state.session.words[state.playback.index]);
+            updateProgressLabel();
+            state.playback.playing = true;
+            state.playback.lastTick = performance.now();
+            setPlayingUi(true);
+            state.playback.rafId = requestAnimationFrame(playbackTick);
+        }
+
+        function handleWpmInputCommit() {
+            const next = normalizeWpm(refs.wpmInput.value);
+            state.settings.wpm = next;
+            refs.wpmInput.value = String(next);
+            state.settingsDirty = true;
+            queueSettingsSave();
+        }
+
+        function changeWpmBy(step) {
+            const next = normalizeWpm(state.settings.wpm + step);
+            state.settings.wpm = next;
+            refs.wpmInput.value = String(next);
+            state.settingsDirty = true;
+            queueSettingsSave();
+        }
+
+        function bindEvents() {
+            refs.playPauseBtn.addEventListener('click', () => {
+                togglePlayPause();
+            });
+
+            refs.wpmDownBtn.addEventListener('click', () => {
+                changeWpmBy(-(state.limits.wpm_step || 10));
+            });
+
+            refs.wpmUpBtn.addEventListener('click', () => {
+                changeWpmBy(state.limits.wpm_step || 10);
+            });
+
+            refs.wpmInput.addEventListener('change', handleWpmInputCommit);
+            refs.wpmInput.addEventListener('blur', handleWpmInputCommit);
+            refs.wpmInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleWpmInputCommit();
+                }
+            });
+
+            refs.lengthenToggle.addEventListener('change', () => {
+                state.settings.lengthen_long_words = !!refs.lengthenToggle.checked;
+                state.settingsDirty = true;
+                queueSettingsSave();
+            });
+
+            refs.centerColorInput.addEventListener('input', () => {
+                state.settings.center_letter_color = refs.centerColorInput.value;
+                applyCenterColor(state.settings.center_letter_color);
+                queueSettingsSave();
+            });
+
+            refs.textInput.addEventListener('input', () => {
+                state.textDirty = true;
+                if (!state.playback.playing) {
+                    refs.sessionLabel.textContent = 'Ready';
+                }
+            });
+
+            window.addEventListener('keydown', (event) => {
+                if (event.code !== 'Space' || event.repeat) {
+                    return;
+                }
+
+                const target = event.target;
+                const isTyping = target && (
+                    target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.isContentEditable
+                );
+
+                if (isTyping) {
+                    return;
+                }
+
+                event.preventDefault();
+                togglePlayPause();
+            });
+        }
+
+        async function initialize() {
+            bindEvents();
+            await loadSettingsFromBackend();
+            setPlayingUi(false);
+            clearWordDisplay('Paste text and press Play');
+        }
+
+        setTimeout(() => {
+            initialize().catch((error) => {
+                console.error('Speed Reader init failed:', error);
+                clearWordDisplay('Initialization failed');
+                refs.sessionLabel.textContent = 'Init Error';
+            });
+        }, 50);
+    })();
+</script>
