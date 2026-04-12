@@ -1821,6 +1821,29 @@ function dismissUpdate() {
     updateOverlay.style.display = 'none';
 }
 
+// Open update link in the system browser via backend bridge
+async function openUpdateDownload() {
+    const url = String(window.updateUrl || '').trim();
+    if (!url) {
+        alert('No download URL available.');
+        return;
+    }
+
+    try {
+        if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.open_external_url === 'function') {
+            const opened = await window.pywebview.api.open_external_url(url);
+            if (opened) {
+                return;
+            }
+        }
+    } catch (error) {
+        console.error('Error opening update URL externally:', error);
+    }
+
+    // Fallback for environments where external opener is unavailable.
+    window.open(url, '_blank');
+}
+
 // Display an error popup
 async function displayError(errorCode) {
     try {

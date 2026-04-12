@@ -13,6 +13,7 @@ import shutil
 import asyncio
 import requests
 import zipfile
+import webbrowser
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -36,6 +37,39 @@ error_manager = backend.ErrorManagerAPI()
 # Global variable to hold writable apps directory path (set during setup)
 writable_apps_dir_global = None
 writable_web_dir_global = None
+
+
+def open_external_url(url):
+    target_url = str(url or "").strip()
+    if not target_url:
+        return False
+
+    parsed = urlparse(target_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return False
+
+    # Prefer Android intent so links open in the external browser app.
+    if hasattr(sys, 'getandroidapilevel'):
+        try:
+            from java import jclass
+            Intent = jclass('android.content.Intent')
+            Uri = jclass('android.net.Uri')
+            MainActivity = jclass('org.beeware.android.MainActivity')
+
+            activity = MainActivity.singletonThis
+            intent = Intent(Intent.ACTION_VIEW, Uri.parse(target_url))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            activity.startActivity(intent)
+            return True
+        except Exception as e:
+            print(f"OEU-E2: Android intent open failed (Chaquopy): {e}")
+
+    try:
+        opened = webbrowser.open(target_url, new=2)
+        return bool(opened)
+    except Exception as e:
+        print(f"OEU-E3: Fallback browser open failed: {e}")
+        return False
 
 # Paste your startup ASCII art directly into this string.
 # If non-empty, it will be used for the splash screen before file/fallback lookup.
@@ -168,6 +202,8 @@ class APIHandler(SimpleHTTPRequestHandler):
             return backend.fuzzy_search_apps(*args)
         elif method == 'get_available_update':
             return backend.available_update
+        elif method == 'open_external_url':
+            return open_external_url(*args)
         elif method == 'send_notification':
             return notification_manager.send_notification(*args)
         elif method == 'delete_notification':
@@ -749,7 +785,7 @@ class SanctumStation(toga.App):
                 'get_fonts', 'get_version', 'get_wallpaper', 'get_wallpaper_data',
                 'get_day_gradient', 'get_fullscreen',
                 'get_settings', 'set_wallpaper', 'set_day_gradient', 'set_fullscreen',
-                'set_font', 'set_updates', 'set_notification_bind', 'set_command_palette_bind', 'set_apps_per_ring', 'set_reduce_graphics', 'set_color_theme', 'get_available_update', 'get_file_processor_support',
+                'set_font', 'set_updates', 'set_notification_bind', 'set_command_palette_bind', 'set_apps_per_ring', 'set_reduce_graphics', 'set_color_theme', 'get_available_update', 'open_external_url', 'get_file_processor_support',
                 'fuzzy_search_apps', 'call_app_function'
             ];
             
@@ -856,6 +892,8 @@ class SanctumStation(toga.App):
                 result = settings_manager.set_color_theme(*args)
             elif method == 'get_available_update':
                 result = backend.available_update
+            elif method == 'open_external_url':
+                result = open_external_url(*args)
             elif method == 'fuzzy_search_apps':
                 result = backend.fuzzy_search_apps(*args)
             elif method == 'call_app_function':

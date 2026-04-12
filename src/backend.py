@@ -15,6 +15,8 @@ import concurrent.futures
 import mimetypes
 import uuid
 import queue
+import webbrowser
+from urllib.parse import urlparse
 from fuzzywuzzy import process as fuzzy_process
 
 sys.modules.setdefault("backend", sys.modules[__name__])
@@ -95,6 +97,25 @@ SUPPORTED_FONT_KEYS = {
     "black_font", "extra_bold_font", "bold_font", "semi_bold_font",
     "medium_font", "regular_font", "light_font", "extra_light_font", "thin_font"
 }
+
+
+def open_external_url(url):
+    target_url = str(url or "").strip()
+    if not target_url:
+        return False
+
+    parsed = urlparse(target_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return False
+
+    try:
+        opened = webbrowser.open(target_url, new=2)
+        return bool(opened)
+    except Exception as e:
+        print(f"OEU-E1: Error opening external URL: {e}")
+        if webview_window and not IS_MOBILE:
+            webview_window.evaluate_js('displayError("OEU-E1")')
+        return False
 
 
 def _resolve_configured_path(path_value):
@@ -767,6 +788,9 @@ def init_webview():
             def get_available_update(self):
                 global available_update
                 return available_update
+
+            def open_external_url(self, url):
+                return open_external_url(url)
 
             def js_log(self, level, message):
                 print(f"[JS/{level}] {message}")
@@ -1820,11 +1844,24 @@ def check_for_updates():
             if response.status_code == 200:
                 releases = response.json()
                 latest_release = releases[0]
-                latest_version = "v" + latest_release["tag_name"]
+                tag_name = str(latest_release.get("tag_name", "")).strip()
+                latest_version = "v" + tag_name.lstrip("v")
                 is_prerelease = latest_release["prerelease"]
                 release_type = "Pre-release" if is_prerelease else "Stable Release"
-                download_url = latest_release["html_url"]
+                fallback_url = latest_release.get("html_url", "")
                 description = latest_release.get("body", "No description available.")
+
+                asset_version = tag_name.lstrip("v")
+                expected_prefix = "MOBILE_" if IS_MOBILE else "DESKTOP_"
+                expected_name = f"{expected_prefix}SanctumStation_v{asset_version}.zip"
+                download_url = fallback_url
+                for asset in latest_release.get("assets", []):
+                    asset_name = str(asset.get("name", ""))
+                    if asset_name == expected_name:
+                        direct_url = str(asset.get("browser_download_url", "")).strip()
+                        if direct_url:
+                            download_url = direct_url
+                        break
 
                 print(f"Latest Version: {latest_version} ({release_type}) - {download_url}")
 
