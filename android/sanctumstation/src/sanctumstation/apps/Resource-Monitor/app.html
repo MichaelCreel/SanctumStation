@@ -1,0 +1,362 @@
+<div class="rm-root" id="rmRoot">
+	<section class="rm-cpu" aria-label="CPU usage section">
+		<div class="rm-title">CPU</div>
+		<div class="rm-cpu-overall-wrap">
+			<div class="rm-cpu-overall-track">
+				<div class="rm-cpu-overall-fill" id="cpuOverallFill"></div>
+			</div>
+			<div class="rm-cpu-overall-label" id="cpuOverallLabel">0.0%</div>
+		</div>
+		<div class="rm-core-grid" id="coreGrid"></div>
+	</section>
+
+	<section class="rm-memory" aria-label="Memory usage section">
+		<div class="rm-title">Memory Usage</div>
+		<div class="rm-circle rm-circle-memory" id="memoryCircle"></div>
+		<div class="rm-usage-text" id="memoryText">Used: 0.00 GB<br>Total: 0.00 GB</div>
+	</section>
+
+	<section class="rm-storage" aria-label="Storage usage section">
+		<div class="rm-title">Storage Usage</div>
+		<div class="rm-circle rm-circle-storage" id="storageCircle">
+			<div class="rm-storage-hole"></div>
+		</div>
+		<div class="rm-usage-text" id="storageText">Used: 0.00 GB<br>Total: 0.00 GB</div>
+	</section>
+</div>
+
+<style>
+	* {
+		box-sizing: border-box;
+		margin: 0;
+		padding: 0;
+	}
+
+	.rm-root {
+		--rm-bg: #1e1e2e;
+		--rm-panel: rgba(0, 0, 0, 0.3);
+		--rm-border: rgba(255, 255, 255, 0.1);
+		--rm-text: #ffffff;
+		--rm-muted: rgba(255, 255, 255, 0.7);
+		--rm-cpu-fill: #39d353;
+		--rm-cpu-empty: rgba(255, 255, 255, 0.95);
+		--rm-memory-fill: #3a8dff;
+		--rm-memory-empty: rgba(233, 236, 242, 0.7);
+		--rm-storage-fill: #8b2b3f;
+		--rm-storage-empty: rgba(224, 224, 224, 0.75);
+		position: fixed;
+		inset: 0;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		grid-template-rows: 1.1fr 1fr;
+		grid-template-areas:
+			"cpu cpu"
+			"memory storage";
+		background: var(--rm-bg);
+		color: var(--rm-text);
+		font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+		overflow: hidden;
+		padding: 0.9rem;
+		gap: 0.9rem;
+	}
+
+	.rm-cpu,
+	.rm-memory,
+	.rm-storage {
+		background: var(--rm-panel);
+		border: 1px solid var(--rm-border);
+		border-radius: 10px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.rm-cpu {
+		grid-area: cpu;
+		flex-direction: column;
+		padding: 1rem;
+		gap: 0.8rem;
+	}
+
+	.rm-memory {
+		grid-area: memory;
+		flex-direction: column;
+		gap: 0.7rem;
+		padding: 0.8rem;
+	}
+
+	.rm-storage {
+		grid-area: storage;
+		flex-direction: column;
+		gap: 0.7rem;
+		padding: 0.8rem;
+	}
+
+	.rm-title {
+		font-size: 0.95rem;
+		font-weight: 600;
+		color: var(--rm-muted);
+		letter-spacing: 0.03em;
+		text-transform: uppercase;
+	}
+
+	.rm-cpu-overall-wrap {
+		width: min(1000px, 90vw);
+		display: grid;
+		grid-template-columns: 1fr auto;
+		align-items: center;
+		gap: 0.6rem;
+	}
+
+	.rm-cpu-overall-track {
+		width: 100%;
+		height: 30px;
+		border: 1px solid var(--rm-border);
+		border-radius: 8px;
+		background: var(--rm-cpu-empty);
+		overflow: hidden;
+	}
+
+	.rm-cpu-overall-fill {
+		height: 100%;
+		width: 0%;
+		background: var(--rm-cpu-fill);
+		transition: width 0.35s ease;
+	}
+
+	.rm-cpu-overall-label {
+		font-size: 0.95rem;
+		min-width: 4.3rem;
+		text-align: right;
+	}
+
+	.rm-core-grid {
+		width: min(1020px, 92vw);
+		display: grid;
+		grid-template-columns: repeat(10, minmax(34px, 1fr));
+		gap: 0.45rem;
+		justify-items: stretch;
+		align-items: stretch;
+	}
+
+	.rm-core-box {
+		position: relative;
+		height: 68px;
+		border: 1px solid var(--rm-border);
+		border-radius: 6px;
+		background: var(--rm-cpu-empty);
+		overflow: hidden;
+	}
+
+	.rm-core-fill {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 0%;
+		background: var(--rm-cpu-fill);
+		transition: height 0.35s ease;
+	}
+
+	.rm-circle {
+		--fill-angle: 0deg;
+		position: relative;
+		border-radius: 50%;
+		transform: scaleX(-1);
+	}
+
+	.rm-circle-memory {
+		width: min(46vw, 210px);
+		height: min(46vw, 210px);
+		background: conic-gradient(from -90deg, var(--rm-memory-fill) 0deg var(--fill-angle), var(--rm-memory-empty) var(--fill-angle) 360deg);
+	}
+
+	.rm-circle-storage {
+		width: min(52vw, 245px);
+		height: min(52vw, 245px);
+		background: conic-gradient(from -90deg, var(--rm-storage-fill) 0deg var(--fill-angle), var(--rm-storage-empty) var(--fill-angle) 360deg);
+		display: grid;
+		place-items: center;
+	}
+
+	.rm-storage-hole {
+		width: 56%;
+		height: 56%;
+		border-radius: 50%;
+		background: var(--rm-bg);
+		border: 1px solid var(--rm-border);
+	}
+
+	.rm-usage-text {
+		text-align: center;
+		line-height: 1.45;
+		font-size: 0.92rem;
+		color: var(--rm-text);
+	}
+
+	@media (max-width: 980px) {
+		.rm-root {
+			gap: 0.65rem;
+			padding: 0.65rem;
+		}
+
+		.rm-core-grid {
+			grid-template-columns: repeat(8, minmax(34px, 1fr));
+		}
+	}
+
+	@media (max-width: 720px) {
+		.rm-root {
+			grid-template-columns: 1fr;
+			grid-template-rows: auto auto auto;
+			grid-template-areas:
+				"cpu"
+				"memory"
+				"storage";
+			overflow-y: auto;
+		}
+
+		.rm-core-grid {
+			grid-template-columns: repeat(6, minmax(34px, 1fr));
+		}
+
+		.rm-cpu-overall-wrap {
+			width: 100%;
+		}
+	}
+</style>
+
+<script>
+	(function () {
+		const APP_ID = 'Resource-Monitor';
+		const REFRESH_MS = 2000;
+
+		const refs = {
+			cpuOverallFill: document.getElementById('cpuOverallFill'),
+			cpuOverallLabel: document.getElementById('cpuOverallLabel'),
+			coreGrid: document.getElementById('coreGrid'),
+			memoryCircle: document.getElementById('memoryCircle'),
+			memoryText: document.getElementById('memoryText'),
+			storageCircle: document.getElementById('storageCircle'),
+			storageText: document.getElementById('storageText')
+		};
+
+		const state = {
+			coreFillEls: []
+		};
+
+		async function callBackend(functionName, ...args) {
+			return window.pywebview.api.call_app_function(APP_ID, functionName, ...args);
+		}
+
+		function clampPercent(value) {
+			const numeric = Number(value);
+			if (!Number.isFinite(numeric)) {
+				return 0;
+			}
+			return Math.max(0, Math.min(100, numeric));
+		}
+
+		function formatGb(value) {
+			const numeric = Number(value);
+			if (!Number.isFinite(numeric)) {
+				return '0.00';
+			}
+			return numeric.toFixed(2);
+		}
+
+		function ensureCoreGrid(coreCount) {
+			if (state.coreFillEls.length === coreCount) {
+				return;
+			}
+
+			refs.coreGrid.innerHTML = '';
+			state.coreFillEls = [];
+
+			for (let i = 0; i < coreCount; i += 1) {
+				const box = document.createElement('div');
+				box.className = 'rm-core-box';
+				box.title = `Core ${i + 1}`;
+
+				const fill = document.createElement('div');
+				fill.className = 'rm-core-fill';
+				box.appendChild(fill);
+
+				refs.coreGrid.appendChild(box);
+				state.coreFillEls.push(fill);
+			}
+		}
+
+		function renderCpu(cpuData) {
+			const overall = clampPercent(cpuData && cpuData.overall);
+			refs.cpuOverallFill.style.width = `${overall}%`;
+			refs.cpuOverallLabel.textContent = `${overall.toFixed(1)}%`;
+
+			const cores = Array.isArray(cpuData && cpuData.cores) ? cpuData.cores : [];
+			const coreCountFromData = Number(cpuData && cpuData.count);
+			const coreCount = Number.isFinite(coreCountFromData) && coreCountFromData > 0
+				? coreCountFromData
+				: cores.length;
+
+			ensureCoreGrid(coreCount);
+			for (let i = 0; i < state.coreFillEls.length; i += 1) {
+				const value = clampPercent(cores[i]);
+				state.coreFillEls[i].style.height = `${value}%`;
+			}
+		}
+
+		function renderCircle(el, percent) {
+			const normalized = clampPercent(percent);
+			const angle = (normalized / 100) * 360;
+			el.style.setProperty('--fill-angle', `${angle}deg`);
+		}
+
+		function renderMemory(memoryData) {
+			renderCircle(refs.memoryCircle, memoryData && memoryData.percent);
+			const used = formatGb(memoryData && memoryData.used);
+			const total = formatGb(memoryData && memoryData.total);
+			refs.memoryText.innerHTML = `Used: ${used} GB<br>Total: ${total} GB`;
+		}
+
+		function renderStorage(storageData) {
+			renderCircle(refs.storageCircle, storageData && storageData.percent);
+			const used = formatGb(storageData && storageData.used);
+			const total = formatGb(storageData && storageData.total);
+			refs.storageText.innerHTML = `Used: ${used} GB<br>Total: ${total} GB`;
+		}
+
+		function renderSnapshot(snapshot) {
+			renderCpu(snapshot && snapshot.cpu ? snapshot.cpu : {});
+			renderMemory(snapshot && snapshot.memory ? snapshot.memory : {});
+			renderStorage(snapshot && snapshot.storage ? snapshot.storage : {});
+		}
+
+		async function refreshUsage() {
+			try {
+				let snapshot = await callBackend('get_usage_snapshot');
+
+				if (snapshot && snapshot.success === false) {
+					console.error('Resource Monitor app bridge error:', snapshot.message || snapshot.error || snapshot);
+					return;
+				}
+
+				if (snapshot && snapshot.success === true && snapshot.data && typeof snapshot.data === 'object') {
+					snapshot = snapshot.data;
+				}
+
+				if (snapshot && typeof snapshot === 'object') {
+					renderSnapshot(snapshot);
+				}
+			} catch (error) {
+				console.error('Resource Monitor refresh failed:', error);
+			}
+		}
+
+		function startPolling() {
+			refreshUsage();
+			setInterval(refreshUsage, REFRESH_MS);
+		}
+
+		setTimeout(startPolling, 50);
+	})();
+</script>

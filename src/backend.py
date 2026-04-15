@@ -16,7 +16,6 @@ import mimetypes
 import uuid
 import queue
 import webbrowser
-import psutil
 from urllib.parse import urlparse
 from fuzzywuzzy import process as fuzzy_process
 
@@ -45,6 +44,9 @@ else:
     except ImportError:
         from yaml import SafeLoader as yaml_loader
         print("Using pure Python YAML loader")
+    
+    # Import psutil
+    import psutil
 
 # Import requests (needed for update checking)
 try:
