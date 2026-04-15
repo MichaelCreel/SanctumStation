@@ -16,6 +16,7 @@ import mimetypes
 import uuid
 import queue
 import webbrowser
+import psutil
 from urllib.parse import urlparse
 from fuzzywuzzy import process as fuzzy_process
 
@@ -638,6 +639,7 @@ def init_webview():
         settings_manager = SettingsManagerAPI()
         notification_manager = NotificationManagerAPI()
         error_manager = ErrorManagerAPI()
+        usage_monitor = UsageMonitorAPI()
         
         class API:
             def launch_app(self, app_name, file_path=None):
@@ -785,6 +787,32 @@ def init_webview():
             def set_color_theme(self, theme):
                 return settings_manager.set_color_theme(theme)
 
+            # Usage Monitor - Delegate to UsageMonitorAPI
+            def get_processor_usage(self):
+                return usage_monitor.get_processor_usage()
+            
+            def get_processor_cores_usage(self):
+                return usage_monitor.get_processor_cores_usage()
+            
+            def get_processor_cores(self):
+                return usage_monitor.get_processor_cores()
+
+            def get_processor_max_frequency(self):
+                return usage_monitor.get_processor_max_frequency()
+            
+            def get_processor_current_frequency(self):
+                return usage_monitor.get_processor_current_frequency()
+
+            def get_memory_usage(self):
+                return usage_monitor.get_memory_usage()
+
+            def get_swap_memory_usage(self):
+                return usage_monitor.get_swap_memory_usage()
+
+            def get_storage_info(self):
+                return usage_monitor.get_storage_info()
+
+            # Other
             def get_available_update(self):
                 global available_update
                 return available_update
@@ -1820,6 +1848,63 @@ class SettingsManagerAPI:
                 webview_window.evaluate_js('displayError("SMA-E13")')
             return False
         return True
+
+class UsageMonitorAPI:
+    # PROCESSOR INFORMATION
+    # Returns overall CPU usage percentage
+    def get_processor_usage(self):
+        return psutil.cpu_percent(interval = 0.1)
+    
+    # Returns a list of CPU usage percentages for each core
+    def get_processor_cores_usage(self):
+        return psutil.cpu_percent(interval = 0.1, percpu=True)
+    
+    # Returns the number of physical CPU cores
+    def get_processor_cores(self):
+        return psutil.cpu_count(logical=False)
+    
+    # Returns the maximum frequency of the CPU
+    def get_processor_max_frequency(self):
+        return psutil.cpu_freq().max
+    
+    # Returns the current frequency of the CPU
+    def get_processor_current_frequency(self):
+        return psutil.cpu_freq().current
+
+    # MEMORY INFORMATION
+    # Returns total, available, used, free memory, and percentage used
+    def get_memory_usage(self):
+        mem = psutil.virtual_memory()
+        return {
+            "total": mem.total,
+            "available": mem.available,
+            "used": mem.used,
+            "free": mem.free,
+            "percent": mem.percent
+        }
+    
+    # Returns total, used, free swap memory, percentage used, and swap in/out
+    def get_swap_memory_usage(self):
+        swap = psutil.swap_memory()
+        return {
+            "total": swap.total,
+            "used": swap.used,
+            "free": swap.free,
+            "percent": swap.percent,
+            "sin": swap.sin,
+            "sout": swap.sout
+        }
+
+    # STORAGE INFORMATION
+    # Returns total, used, free storage in the data directory, and percentage used
+    def get_storage_info(self):
+        usage = psutil.disk_usage("/")
+        return {
+            "total": usage.total,
+            "used": usage.used,
+            "free": usage.free,
+            "percent": usage.percent
+        }
 
 # Checks if the installed version is older than the latest version
 def is_newer_version(installed, latest):
