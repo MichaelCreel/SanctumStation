@@ -44,6 +44,9 @@ else:
     except ImportError:
         from yaml import SafeLoader as yaml_loader
         print("Using pure Python YAML loader")
+    
+    # Import psutil
+    import psutil
 
 # Import requests (needed for update checking)
 try:
@@ -638,6 +641,7 @@ def init_webview():
         settings_manager = SettingsManagerAPI()
         notification_manager = NotificationManagerAPI()
         error_manager = ErrorManagerAPI()
+        usage_monitor = UsageMonitorAPI()
         
         class API:
             def launch_app(self, app_name, file_path=None):
@@ -785,6 +789,32 @@ def init_webview():
             def set_color_theme(self, theme):
                 return settings_manager.set_color_theme(theme)
 
+            # Usage Monitor - Delegate to UsageMonitorAPI
+            def get_processor_usage(self):
+                return usage_monitor.get_processor_usage()
+            
+            def get_processor_cores_usage(self):
+                return usage_monitor.get_processor_cores_usage()
+            
+            def get_processor_cores(self):
+                return usage_monitor.get_processor_cores()
+
+            def get_processor_max_frequency(self):
+                return usage_monitor.get_processor_max_frequency()
+            
+            def get_processor_current_frequency(self):
+                return usage_monitor.get_processor_current_frequency()
+
+            def get_memory_usage(self):
+                return usage_monitor.get_memory_usage()
+
+            def get_swap_memory_usage(self):
+                return usage_monitor.get_swap_memory_usage()
+
+            def get_storage_info(self):
+                return usage_monitor.get_storage_info()
+
+            # Other
             def get_available_update(self):
                 global available_update
                 return available_update
@@ -1820,6 +1850,289 @@ class SettingsManagerAPI:
                 webview_window.evaluate_js('displayError("SMA-E13")')
             return False
         return True
+
+class UsageMonitorAPI:
+    def __init__(self):
+        self._cpu_prev_snapshot = None
+        self._cpu_cache_timestamp = 0.0
+        self._cpu_cache_overall = 0.0
+        self._cpu_cache_cores = []
+        self._cpu_permission_denied_logged = False
+        self._zram_missing_logged = False
+
+    def _read_cpu_snapshot_mobile(self):
+        snapshot = {}
+        with open("/proc/stat", "r") as f:
+            for line in f:
+                if not line.startswith("cpu"):
+                    break
+                parts = line.split()
+                label = parts[0]
+                values = [int(v) for v in parts[1:]]
+                if not values:
+                    continue
+                total = float(sum(values))
+                idle = float(values[3] + (values[4] if len(values) > 4 else 0))
+                snapshot[label] = (total, idle)
+        return snapshot
+
+    def _estimate_cpu_from_loadavg_mobile(self):
+        try:
+            load_1m = float(os.getloadavg()[0])
+            core_count = self.get_processor_cores() or os.cpu_count() or 1
+            overall = max(0.0, min(100.0, (load_1m / core_count) * 100.0))
+            return overall, [overall for _ in range(core_count)]
+        except Exception:
+            return 0.0, []
+
+    def _compute_cpu_usage_mobile(self):
+        now = time.monotonic()
+        if now - self._cpu_cache_timestamp < 0.2:
+            return self._cpu_cache_overall, list(self._cpu_cache_cores)
+
+        current = self._read_cpu_snapshot_mobile()
+        if not current:
+            self._cpu_cache_timestamp = now
+            self._cpu_cache_overall = 0.0
+            self._cpu_cache_cores = []
+            return 0.0, []
+
+        if self._cpu_prev_snapshot is None:
+            self._cpu_prev_snapshot = current
+            self._cpu_cache_timestamp = now
+            self._cpu_cache_overall = 0.0
+            self._cpu_cache_cores = [0.0 for label in current.keys() if label.startswith("cpu") and label != "cpu"]
+            return self._cpu_cache_overall, list(self._cpu_cache_cores)
+
+        def pct(label):
+            prev = self._cpu_prev_snapshot.get(label)
+            curr = current.get(label)
+            if not prev or not curr:
+                return 0.0
+            total_delta = curr[0] - prev[0]
+            idle_delta = curr[1] - prev[1]
+            if total_delta <= 0:
+                return 0.0
+            return max(0.0, min(100.0, ((total_delta - idle_delta) / total_delta) * 100.0))
+
+        overall = pct("cpu")
+        core_labels = sorted(
+            [label for label in current.keys() if label.startswith("cpu") and label != "cpu"],
+            key=lambda label: int(label[3:]) if label[3:].isdigit() else 9999,
+        )
+        cores = [pct(label) for label in core_labels]
+
+        self._cpu_prev_snapshot = current
+        self._cpu_cache_timestamp = now
+        self._cpu_cache_overall = overall
+        self._cpu_cache_cores = cores
+        return overall, list(cores)
+
+    # PROCESSOR INFORMATION
+    # Returns overall CPU usage percentage
+    def get_processor_usage(self):
+        if IS_MOBILE:
+            try:
+                overall, _ = self._compute_cpu_usage_mobile()
+                return overall
+            except PermissionError as e:
+                if not self._cpu_permission_denied_logged:
+                    print(f"UMA-E1: /proc/stat permission denied, falling back to load average: {e}")
+                    self._cpu_permission_denied_logged = True
+                overall, _ = self._estimate_cpu_from_loadavg_mobile()
+                return overall
+            except Exception as e:
+                print(f"UMA-E1: Error reading /proc/stat for CPU usage: {e}")
+                if webview_window and not IS_MOBILE:
+                    webview_window.evaluate_js('displayError("UMA-E1")')
+                return 0.0
+        return psutil.cpu_percent(interval = 0.1)
+    
+    # Returns a list of CPU usage percentages for each core
+    def get_processor_cores_usage(self):
+        if IS_MOBILE:
+            try:
+                _, cores = self._compute_cpu_usage_mobile()
+                return cores
+            except PermissionError as e:
+                if not self._cpu_permission_denied_logged:
+                    print(f"UMA-E2: /proc/stat permission denied, falling back to load average: {e}")
+                    self._cpu_permission_denied_logged = True
+                _, cores = self._estimate_cpu_from_loadavg_mobile()
+                return cores
+            except Exception as e:
+                print(f"UMA-E2: Error reading /proc/stat for per-core CPU usage: {e}")
+                if webview_window and not IS_MOBILE:
+                    webview_window.evaluate_js('displayError("UMA-E2")')
+                return []
+        return psutil.cpu_percent(interval = 0.1, percpu=True)
+    
+    # Returns the number of physical CPU cores
+    def get_processor_cores(self):
+        if IS_MOBILE:
+            try:
+                with open("/proc/cpuinfo", "r") as f:
+                    processor_lines = [line for line in f if line.lower().startswith("processor")]
+                    if processor_lines:
+                        return len(processor_lines)
+                return os.cpu_count() or 1
+            except Exception as e:
+                print(f"UMA-E3: Error reading /proc/cpuinfo for physical cores: {e}")
+                if webview_window and not IS_MOBILE:
+                    webview_window.evaluate_js('displayError("UMA-E3")')
+                return os.cpu_count() or 1
+        return psutil.cpu_count(logical=True)
+    
+    # Returns the maximum frequency of the CPU
+    def get_processor_max_frequency(self):
+        if IS_MOBILE:
+            try:
+                with open("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq", "r") as f:
+                    max_freq_khz = int(f.read().strip())
+                    return max_freq_khz / 1000.0
+            except Exception as e:
+                print(f"UMA-E4: Error reading max CPU frequency: {e}")
+                if webview_window and not IS_MOBILE:
+                    webview_window.evaluate_js('displayError("UMA-E4")')
+                return 0.0
+        return psutil.cpu_freq().max
+    
+    # Returns the current frequency of the CPU
+    def get_processor_current_frequency(self):
+        if IS_MOBILE:
+            try:
+                with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq", "r") as f:
+                    cur_freq_khz = int(f.read().strip())
+                    return cur_freq_khz / 1000.0
+            except Exception as e:
+                print(f"UMA-E5: Error reading current CPU frequency: {e}")
+                if webview_window and not IS_MOBILE:
+                    webview_window.evaluate_js('displayError("UMA-E5")')
+                return 0.0
+        return psutil.cpu_freq().current
+
+    # MEMORY INFORMATION
+    # Returns total, available, used, free memory, and percentage used
+    def get_memory_usage(self):
+        if IS_MOBILE:
+            try:
+                with open("/proc/meminfo", "r") as f:
+                    meminfo = {}
+                    for line in f:
+                        parts = line.split(":")
+                        if len(parts) == 2:
+                            key = parts[0].strip()
+                            value = int(parts[1].strip().split()[0]) * 1024
+                            meminfo[key] = value
+                    total = meminfo.get("MemTotal", 0)
+                    free = meminfo.get("MemFree", 0)
+                    available = meminfo.get("MemAvailable", free)
+                    used = total - free
+                    percent = (used / total) * 100 if total > 0 else 0
+                    return {
+                        "total": total,
+                        "available": available,
+                        "used": used,
+                        "free": free,
+                        "percent": percent
+                    }
+            except Exception as e:
+                print(f"UMA-E6: Error reading /proc/meminfo for memory usage: {e}")
+                if webview_window and not IS_MOBILE:
+                    webview_window.evaluate_js('displayError("UMA-E6")')
+                return {
+                    "total": 0,
+                    "available": 0,
+                    "used": 0,
+                    "free": 0,
+                    "percent": 0
+                }
+        mem = psutil.virtual_memory()
+        return {
+            "total": mem.total,
+            "available": mem.available,
+            "used": mem.used,
+            "free": mem.free,
+            "percent": mem.percent
+        }
+    
+    # Returns total, used, free swap memory, percentage used, and swap in/out
+    def get_swap_memory_usage(self):
+        if IS_MOBILE:
+            total = 0
+            used = 0
+            free = 0
+            percent = 0
+            try:
+                with open("/sys/block/zram0/disksize", "r") as f:
+                    total = int(f.read().strip())
+            except FileNotFoundError:
+                if not self._zram_missing_logged:
+                    print("UMA: zram metrics unavailable on this device; swap values will remain 0")
+                    self._zram_missing_logged = True
+            except Exception as e:
+                print(f"UMA-E7: Error reading zram disk size: {e}")
+            try:
+                with open("/sys/block/zram0/mem_used_total", "r") as f:
+                    used = int(f.read().strip())
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                print(f"UMA-E8: Error reading zram used memory: {e}")
+            free = total - used
+            percent = (used / total) * 100 if total > 0 else 0
+            return {
+                "total": total,
+                "used": used,
+                "free": free,
+                "percent": percent,
+                "sin": 0,
+                "sout": 0
+            }
+                
+        swap = psutil.swap_memory()
+        return {
+            "total": swap.total,
+            "used": swap.used,
+            "free": swap.free,
+            "percent": swap.percent,
+            "sin": swap.sin,
+            "sout": swap.sout
+        }
+
+    # STORAGE INFORMATION
+    # Returns total, used, free storage in the data directory, and percentage used
+    def get_storage_info(self):
+        if IS_MOBILE:
+            try:
+                statvfs = os.statvfs("/storage/emulated/0")
+                total = statvfs.f_frsize * statvfs.f_blocks
+                free = statvfs.f_frsize * statvfs.f_bfree
+                used = total - free
+                percent = (used / total) * 100 if total > 0 else 0
+                return {
+                    "total": total,
+                    "used": used,
+                    "free": free,
+                    "percent": percent
+                }
+            except Exception as e:
+                print(f"UMA-E9: Error getting storage info using os.statvfs: {e}")
+                if webview_window and not IS_MOBILE:
+                    webview_window.evaluate_js('displayError("UMA-E9")')
+                return {
+                    "total": 0,
+                    "used": 0,
+                    "free": 0,
+                    "percent": 0
+                }
+        usage = psutil.disk_usage("/")
+        return {
+            "total": usage.total,
+            "used": usage.used,
+            "free": usage.free,
+            "percent": usage.percent
+        }
 
 # Checks if the installed version is older than the latest version
 def is_newer_version(installed, latest):

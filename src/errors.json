@@ -187,5 +187,68 @@
     "issue": "Error checking for updates.",
     "effects": "The environment may not be able to check for updates.",
     "fix": "Ensure that the environment has internet access and try again."
+},
+"UMA-E1": {
+    "code": "UMA-E1",
+    "source": "Usage Monitor API",
+    "issue": "Error reading /proc/stat.",
+    "effects": "CPU usage may not be retrieved properly.",
+    "fix": "Ensure that the environment has access to /proc/stat and has the proper permissions."
+},
+"UMA-E2": {
+    "code": "UMA-E2",
+    "source": "Usage Monitor API",
+    "issue": "Error reading /proc/stat.",
+    "effects": "Per-core CPU usage may not be retrieved properly.",
+    "fix": "Ensure that the environment has access to /proc/stat and has the proper permissions."
+},
+"UMA-E3": {
+    "code": "UMA-E3",
+    "source": "Usage Monitor API",
+    "issue": "Error reading /proc/stat.",
+    "effects": "Number of physical CPU cores may not be retrieved properly.",
+    "fix": "Ensure that the environment has access to /proc/stat and has the proper permissions."
+},
+"UMA-E4": {
+    "code": "UMA-E4",
+    "source": "Usage Monitor API",
+    "issue": "Error reading max CPU frequency.",
+    "effects": "Max CPU frequency may not be retrieved properly.",
+    "fix": "Ensure that the environment has access to /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq and has the proper permissions."
+},
+"UMA-E5": {
+    "code": "UMA-E5",
+    "source": "Usage Monitor API",
+    "issue": "Error reading current CPU frequency.",
+    "effects": "Current CPU frequency may not be retrieved properly.",
+    "fix": "Ensure that the environment has access to /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq and has the proper permissions."
+},
+"UMA-E6": {
+    "code": "UMA-E6",
+    "source": "Usage Monitor API",
+    "issue": "Error reading memory information.",
+    "effects": "Memory information may not be retrieved properly.",
+    "fix": "Ensure that the environment has access to /proc/meminfo and has the proper permissions."
+},
+"UMA-E7": {
+    "code": "UMA-E7",
+    "source": "Usage Monitor API",
+    "issue": "Error reading zram disk size.",
+    "effects": "Zram disk size may not be retrieved properly.",
+    "fix": "Ensure that the environment has access to /sys/block/zram0/disk_size and has the proper permissions."
+},
+"UMA-E8": {
+    "code": "UMA-E8",
+    "source": "Usage Monitor API",
+    "issue": "Error reading zram used memory.",
+    "effects": "Zram used memory may not be retrieved properly.",
+    "fix": "Ensure that the environment has access to /sys/block/zram0/mem_used_total and has the proper permissions."
+},
+"UMA-E9": {
+    "code": "UMA-E9",
+    "source": "Usage Monitor API",
+    "issue": "Error getting storage information using os.statvfs.",
+    "effects": "Storage information may not be retrieved properly.",
+    "fix": "Ensure that the environment has access to the filesystem and has the proper permissions."
 }
 }
