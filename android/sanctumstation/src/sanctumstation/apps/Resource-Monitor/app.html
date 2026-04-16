@@ -12,13 +12,16 @@
 
 	<section class="rm-memory" aria-label="Memory usage section">
 		<div class="rm-title">Memory Usage</div>
-		<div class="rm-circle rm-circle-memory" id="memoryCircle"></div>
+		<div class="rm-circle rm-circle-memory" id="memoryCircle">
+			<canvas id="memoryCanvas" class="rm-gauge-canvas"></canvas>
+		</div>
 		<div class="rm-usage-text" id="memoryText">Used: 0.00 GB<br>Total: 0.00 GB</div>
 	</section>
 
 	<section class="rm-storage" aria-label="Storage usage section">
 		<div class="rm-title">Storage Usage</div>
 		<div class="rm-circle rm-circle-storage" id="storageCircle">
+			<canvas id="storageCanvas" class="rm-gauge-canvas"></canvas>
 			<div class="rm-storage-hole"></div>
 		</div>
 		<div class="rm-usage-text" id="storageText">Used: 0.00 GB<br>Total: 0.00 GB</div>
@@ -55,7 +58,8 @@
 		background: var(--rm-bg);
 		color: var(--rm-text);
 		font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-		overflow: hidden;
+		overflow: auto;
+		-webkit-overflow-scrolling: touch;
 		padding: 0.9rem;
 		gap: 0.9rem;
 	}
@@ -159,22 +163,29 @@
 	}
 
 	.rm-circle {
-		--fill-angle: 0deg;
 		position: relative;
 		border-radius: 50%;
-		transform: scaleX(-1);
+		overflow: hidden;
+	}
+
+	.rm-gauge-canvas {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		display: block;
 	}
 
 	.rm-circle-memory {
 		width: min(46vw, 210px);
 		height: min(46vw, 210px);
-		background: conic-gradient(from -90deg, var(--rm-memory-fill) 0deg var(--fill-angle), var(--rm-memory-empty) var(--fill-angle) 360deg);
+		background-color: var(--rm-memory-empty);
 	}
 
 	.rm-circle-storage {
 		width: min(52vw, 245px);
 		height: min(52vw, 245px);
-		background: conic-gradient(from -90deg, var(--rm-storage-fill) 0deg var(--fill-angle), var(--rm-storage-empty) var(--fill-angle) 360deg);
+		background-color: var(--rm-storage-empty);
 		display: grid;
 		place-items: center;
 	}
@@ -207,13 +218,11 @@
 
 	@media (max-width: 720px) {
 		.rm-root {
-			grid-template-columns: 1fr;
-			grid-template-rows: auto auto auto;
+			grid-template-columns: 1fr 1fr;
+			grid-template-rows: auto auto;
 			grid-template-areas:
-				"cpu"
-				"memory"
-				"storage";
-			overflow-y: auto;
+				"cpu cpu"
+				"memory storage";
 		}
 
 		.rm-core-grid {
@@ -222,6 +231,40 @@
 
 		.rm-cpu-overall-wrap {
 			width: 100%;
+		}
+
+		.rm-circle-memory {
+			width: min(38vw, 155px);
+			height: min(38vw, 155px);
+		}
+
+		.rm-circle-storage {
+			width: min(44vw, 180px);
+			height: min(44vw, 180px);
+		}
+	}
+
+	@media (max-height: 820px) {
+		.rm-root {
+			grid-template-columns: 1fr 1fr;
+			grid-template-rows: auto auto;
+			grid-template-areas:
+				"cpu cpu"
+				"memory storage";
+		}
+
+		.rm-core-grid {
+			grid-template-columns: repeat(6, minmax(30px, 1fr));
+		}
+
+		.rm-circle-memory {
+			width: min(56vw, 165px);
+			height: min(56vw, 165px);
+		}
+
+		.rm-circle-storage {
+			width: min(64vw, 185px);
+			height: min(64vw, 185px);
 		}
 	}
 </style>
@@ -236,13 +279,17 @@
 			cpuOverallLabel: document.getElementById('cpuOverallLabel'),
 			coreGrid: document.getElementById('coreGrid'),
 			memoryCircle: document.getElementById('memoryCircle'),
+			memoryCanvas: document.getElementById('memoryCanvas'),
 			memoryText: document.getElementById('memoryText'),
 			storageCircle: document.getElementById('storageCircle'),
+			storageCanvas: document.getElementById('storageCanvas'),
 			storageText: document.getElementById('storageText')
 		};
 
 		const state = {
-			coreFillEls: []
+			coreFillEls: [],
+			lastMemoryPercent: 0,
+			lastStoragePercent: 0
 		};
 
 		async function callBackend(functionName, ...args) {
@@ -305,21 +352,99 @@
 			}
 		}
 
-		function renderCircle(el, percent) {
-			const normalized = clampPercent(percent);
-			const angle = (normalized / 100) * 360;
-			el.style.setProperty('--fill-angle', `${angle}deg`);
+		function prepareCanvasContext(canvas) {
+			const rect = canvas.getBoundingClientRect();
+			const width = Math.max(1, rect.width);
+			const height = Math.max(1, rect.height);
+			const dpr = window.devicePixelRatio || 1;
+
+			const targetWidth = Math.round(width * dpr);
+			const targetHeight = Math.round(height * dpr);
+			if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+				canvas.width = targetWidth;
+				canvas.height = targetHeight;
+			}
+
+			const ctx = canvas.getContext('2d');
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+			ctx.clearRect(0, 0, width, height);
+			return { ctx, width, height };
+		}
+
+		function drawMemoryGauge(percent) {
+			const { ctx, width, height } = prepareCanvasContext(refs.memoryCanvas);
+			const styles = getComputedStyle(refs.memoryCircle);
+			const fillColor = styles.getPropertyValue('--rm-memory-fill').trim();
+			const emptyColor = styles.getPropertyValue('--rm-memory-empty').trim();
+
+			const cx = width / 2;
+			const cy = height / 2;
+			const radius = Math.max(0, Math.min(width, height) / 2 - 2);
+			const normalized = clampPercent(percent) / 100;
+			const start = -Math.PI / 2;
+
+			ctx.beginPath();
+			ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+			ctx.fillStyle = emptyColor;
+			ctx.fill();
+
+			ctx.beginPath();
+			if (normalized >= 0.9999) {
+				ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+			} else if (normalized > 0) {
+				const end = start - normalized * Math.PI * 2;
+				ctx.moveTo(cx, cy);
+				ctx.arc(cx, cy, radius, start, end, true);
+				ctx.closePath();
+			}
+			ctx.fillStyle = fillColor;
+			ctx.fill();
+		}
+
+		function drawStorageGauge(percent) {
+			const { ctx, width, height } = prepareCanvasContext(refs.storageCanvas);
+			const styles = getComputedStyle(refs.storageCircle);
+			const fillColor = styles.getPropertyValue('--rm-storage-fill').trim();
+			const emptyColor = styles.getPropertyValue('--rm-storage-empty').trim();
+
+			const cx = width / 2;
+			const cy = height / 2;
+			const radius = Math.max(0, Math.min(width, height) / 2 - 4);
+			const lineWidth = Math.max(8, radius * 0.55);
+			const normalized = clampPercent(percent) / 100;
+			const start = -Math.PI / 2;
+
+			ctx.beginPath();
+			ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+			ctx.lineWidth = lineWidth;
+			ctx.strokeStyle = emptyColor;
+			ctx.lineCap = 'butt';
+			ctx.stroke();
+
+			if (normalized > 0) {
+				ctx.beginPath();
+				const end = start - normalized * Math.PI * 2;
+				ctx.arc(cx, cy, radius, start, end, true);
+				ctx.lineWidth = lineWidth;
+				ctx.strokeStyle = fillColor;
+				ctx.lineCap = 'butt';
+				ctx.stroke();
+			}
 		}
 
 		function renderMemory(memoryData) {
-			renderCircle(refs.memoryCircle, memoryData && memoryData.percent);
+			const percent = memoryData && memoryData.percent;
+			state.lastMemoryPercent = clampPercent(percent);
+			drawMemoryGauge(state.lastMemoryPercent);
 			const used = formatGb(memoryData && memoryData.used);
 			const total = formatGb(memoryData && memoryData.total);
 			refs.memoryText.innerHTML = `Used: ${used} GB<br>Total: ${total} GB`;
 		}
 
 		function renderStorage(storageData) {
-			renderCircle(refs.storageCircle, storageData && storageData.percent);
+			const percent = storageData && storageData.percent;
+			state.lastStoragePercent = clampPercent(percent);
+			drawStorageGauge(state.lastStoragePercent);
 			const used = formatGb(storageData && storageData.used);
 			const total = formatGb(storageData && storageData.total);
 			refs.storageText.innerHTML = `Used: ${used} GB<br>Total: ${total} GB`;
@@ -356,6 +481,11 @@
 			refreshUsage();
 			setInterval(refreshUsage, REFRESH_MS);
 		}
+
+		window.addEventListener('resize', () => {
+			drawMemoryGauge(state.lastMemoryPercent);
+			drawStorageGauge(state.lastStoragePercent);
+		});
 
 		setTimeout(startPolling, 50);
 	})();
