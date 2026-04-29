@@ -1643,6 +1643,16 @@ async function toggleSettings() {
         document.getElementById('updatesSelect').value = settings.updates || 'release';
         document.getElementById('notificationBindInput').value = configuredNotificationBind;
         document.getElementById('commandPaletteBindInput').value = configuredCommandPaletteBind;
+        const versionLabel = document.getElementById('settingsVersion');
+        if (versionLabel) {
+            const versionText = settings.version ? `Version: ${settings.version}` : 'Version: —';
+            versionLabel.textContent = versionText;
+        }
+        const appsVersionLabel = document.getElementById('settingsAppsVersion');
+        if (appsVersionLabel) {
+            const appsText = settings.apps_version ? `Apps: ${settings.apps_version}` : 'Apps: —';
+            appsVersionLabel.textContent = appsText;
+        }
         const appsPerRingInput = document.getElementById('appsPerRingInput');
         if (appsPerRingInput) {
             appsPerRingInput.value = configuredAppsPerRing;

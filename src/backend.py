@@ -138,6 +138,27 @@ def _resolve_configured_path(path_value):
 
     return os.path.normpath(os.path.join(BASE_DIR, expanded_path))
 
+def _read_first_existing_text(paths):
+    for path in paths:
+        if not path or not os.path.exists(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                value = handle.read().strip()
+            if value:
+                return value
+        except (OSError, PermissionError):
+            continue
+    return ""
+
+def get_apps_version():
+    candidates = [
+        os.path.join(DATA_DIR, "apps_version.txt"),
+        os.path.join(BASE_DIR, "apps_version.txt"),
+        os.path.join(BASE_DIR, "resources", "apps_version.txt")
+    ]
+    return _read_first_existing_text(candidates) or "unknown"
+
 if IS_MOBILE:
     import toga
     print("Running on mobile platform")
@@ -1510,6 +1531,8 @@ class SettingsManagerAPI:
     def get_settings(self):
         global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo, ui_scale, notification_bind, command_palette_bind, reduce_graphics, color_theme
         return {
+            "version": version,
+            "apps_version": get_apps_version(),
             "wallpaper": wallpaper,
             "fonts": fonts,
             "day_gradient": day_gradient,
