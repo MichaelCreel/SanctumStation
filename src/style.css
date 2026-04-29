@@ -1298,6 +1298,108 @@ body {
     font-weight: 500;
 }
 
+/* App context menu */
+.app-context-menu {
+    position: fixed;
+    z-index: 1400;
+    min-width: 16rem;
+    max-width: min(22rem, 80vw);
+    background: rgba(20, 20, 28, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.9rem;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+    padding: 0.85rem;
+    backdrop-filter: blur(12px);
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.app-context-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.app-context-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.app-context-close {
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.app-context-close:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+}
+
+.app-context-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.7rem 0;
+}
+
+.app-context-row {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.app-context-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 600;
+}
+
+.app-context-value {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.92);
+    word-break: break-word;
+}
+
+.app-context-action {
+    width: 100%;
+    padding: 0.65rem 1rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.app-context-action:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.app-context-uninstall {
+    background: rgba(255, 59, 48, 0.18);
+    border-color: rgba(255, 59, 48, 0.4);
+    color: rgba(255, 118, 110, 0.95);
+}
+
+.app-context-uninstall:hover {
+    background: rgba(255, 59, 48, 0.3);
+    border-color: rgba(255, 59, 48, 0.55);
+    color: #ffffff;
+}
+
 /* Center button */
 .center-button {
     width: clamp(5rem, 15vw, 8rem);

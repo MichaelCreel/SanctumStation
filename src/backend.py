@@ -254,6 +254,7 @@ def init_apps():
                     app_name = app
                     extensions = []
                     mime_types = []
+                    description = ""
 
                     if os.path.exists(config_path):
                         try:
@@ -264,6 +265,10 @@ def init_apps():
                                 config_name = app_config.get("name")
                                 if isinstance(config_name, str) and config_name.strip():
                                     app_name = config_name.strip()
+
+                                config_description = app_config.get("description")
+                                if isinstance(config_description, str) and config_description.strip():
+                                    description = config_description.strip()
 
                                 config_extensions = app_config.get("extensions", [])
                                 if isinstance(config_extensions, list):
@@ -301,6 +306,7 @@ def init_apps():
                         "icon": icon_url,
                         "extensions": extensions,
                         "mime_types": mime_types,
+                        "description": description,
                         "htmlpath": html_path,
                         "pypath": py_path,
                         "app_dir": os.path.abspath(app_path)  # Use absolute path for backend

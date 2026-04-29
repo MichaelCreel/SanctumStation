@@ -308,6 +308,31 @@ This file contains the structure and layout for the psuedo-desktop environment t
             <!-- App launcher container (hidden by default) -->
             <div class="app-launcher" id="appLauncher"></div>
 
+            <!-- App context menu -->
+            <div class="app-context-menu" id="appContextMenu" style="display: none;">
+                <div class="app-context-header">
+                    <div class="app-context-title" id="appContextTitle">App</div>
+                    <button class="app-context-close" id="appContextClose" type="button">×</button>
+                </div>
+                <div class="app-context-list">
+                    <div class="app-context-row">
+                        <span class="app-context-label">Display Name</span>
+                        <span class="app-context-value" id="appContextDisplayName">—</span>
+                    </div>
+                    <div class="app-context-row">
+                        <span class="app-context-label">App ID</span>
+                        <span class="app-context-value" id="appContextAppId">—</span>
+                    </div>
+                    <div class="app-context-row">
+                        <span class="app-context-label">Description</span>
+                        <span class="app-context-value" id="appContextDescription">—</span>
+                    </div>
+                </div>
+                <button class="app-context-action app-context-uninstall" id="appContextUninstall" type="button">
+                    Uninstall
+                </button>
+            </div>
+
             <!-- Center circle button -->
             <button class="center-button" id="centerBtn">
                 <div class="center-button-icon">
