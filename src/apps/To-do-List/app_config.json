@@ -1,4 +1,5 @@
 {
   "name": "To-do List",
-  "extensions": []
+  "extensions": [],
+  "description": "A simple to-do list app for managing tasks."
 }

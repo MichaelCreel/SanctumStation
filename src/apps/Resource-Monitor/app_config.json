@@ -1,4 +1,5 @@
 {
   "name": "Resource Monitor",
-  "extensions": []
+  "extensions": [],
+  "description": "A resource monitor for displaying hardware usage."
 }
