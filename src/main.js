@@ -784,6 +784,8 @@ class DesktopInteractions {
             appIcon.className = 'app-icon';
             appIcon.style.transform = `translate(${x}px, ${y}px)`;
             appIcon.title = app.name;
+            let longPressTimer = null;
+            let longPressTriggered = false;
             
             // Try to load app icon, fallback to placeholder
             const iconPath = app.icon;
@@ -808,6 +810,10 @@ class DesktopInteractions {
             
             // Click handler to launch app
             appIcon.addEventListener('click', async () => {
+                if (longPressTriggered) {
+                    longPressTriggered = false;
+                    return;
+                }
                 console.log(`Launching app: ${app.name}`);
                 try {
                     if (window.pywebview && window.pywebview.api) {
@@ -824,6 +830,30 @@ class DesktopInteractions {
                 event.stopPropagation();
                 this.openAppContextMenu(app, event.clientX, event.clientY);
             });
+
+            const clearLongPress = () => {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            };
+
+            appIcon.addEventListener('pointerdown', (event) => {
+                if (event.pointerType === 'mouse' && event.button !== 0) {
+                    return;
+                }
+
+                longPressTriggered = false;
+                clearLongPress();
+                longPressTimer = setTimeout(() => {
+                    longPressTriggered = true;
+                    this.openAppContextMenu(app, event.clientX, event.clientY);
+                }, 550);
+            });
+
+            appIcon.addEventListener('pointerup', clearLongPress);
+            appIcon.addEventListener('pointercancel', clearLongPress);
+            appIcon.addEventListener('pointerleave', clearLongPress);
             
             this.appLauncher.appendChild(appIcon);
         });
@@ -942,7 +972,12 @@ class DesktopInteractions {
             return;
         }
 
-        const confirmed = window.confirm(`Uninstall ${app.name || app.id}? This will delete the app folder.`);
+        const confirmed = await showConfirmDialog({
+            title: 'Uninstall App',
+            message: `Uninstall ${app.name || app.id}? This will delete the app folder.`,
+            confirmText: 'Uninstall',
+            cancelText: 'Cancel'
+        });
         if (!confirmed) {
             return;
         }
@@ -1126,6 +1161,69 @@ function updateNotificationBadge(count) {
             badge.textContent = String(normalizedCount);
             badge.style.display = 'flex';
         }
+    });
+}
+
+function showConfirmDialog(options = {}) {
+    const overlay = document.getElementById('confirmOverlay');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const closeBtn = document.getElementById('confirmCloseBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    const acceptBtn = document.getElementById('confirmAcceptBtn');
+
+    if (!overlay || !titleEl || !messageEl || !closeBtn || !cancelBtn || !acceptBtn) {
+        return Promise.resolve(false);
+    }
+
+    const title = options.title || 'Confirm';
+    const message = options.message || 'Are you sure?';
+    const confirmText = options.confirmText || 'Confirm';
+    const cancelText = options.cancelText || 'Cancel';
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    acceptBtn.textContent = confirmText;
+    cancelBtn.textContent = cancelText;
+
+    overlay.style.display = 'flex';
+
+    return new Promise((resolve) => {
+        let resolved = false;
+
+        const cleanup = (result) => {
+            if (resolved) {
+                return;
+            }
+            resolved = true;
+            overlay.style.display = 'none';
+            closeBtn.removeEventListener('click', onCancel);
+            cancelBtn.removeEventListener('click', onCancel);
+            acceptBtn.removeEventListener('click', onAccept);
+            overlay.removeEventListener('click', onOverlay);
+            document.removeEventListener('keydown', onKeydown, true);
+            resolve(result);
+        };
+
+        const onAccept = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        const onOverlay = (event) => {
+            if (event.target === overlay) {
+                cleanup(false);
+            }
+        };
+        const onKeydown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                cleanup(false);
+            }
+        };
+
+        closeBtn.addEventListener('click', onCancel);
+        cancelBtn.addEventListener('click', onCancel);
+        acceptBtn.addEventListener('click', onAccept);
+        overlay.addEventListener('click', onOverlay);
+        document.addEventListener('keydown', onKeydown, true);
     });
 }
 

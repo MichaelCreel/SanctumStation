@@ -1157,6 +1157,113 @@ body {
     transform: translateY(0);
 }
 
+/* Confirm overlay */
+.confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1305;
+    backdrop-filter: blur(8px);
+}
+
+.confirm-popup {
+    background: rgba(28, 28, 32, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 1.75rem;
+    min-width: 320px;
+    max-width: 520px;
+    width: min(90vw, 520px);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+    animation: slideIn 0.25s ease;
+}
+
+.confirm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.confirm-header h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+}
+
+.confirm-close-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.confirm-close-btn:hover {
+    color: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+}
+
+.confirm-body {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.confirm-body p {
+    margin: 0;
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.confirm-cancel-btn,
+.confirm-accept-btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+}
+
+.confirm-cancel-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.confirm-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+}
+
+.confirm-accept-btn {
+    background: rgba(239, 68, 68, 0.85);
+    border-color: rgba(239, 68, 68, 0.95);
+    color: #ffffff;
+}
+
+.confirm-accept-btn:hover {
+    background: rgba(239, 68, 68, 1);
+}
+
 /* Central area */
 .central-area {
     position: fixed;

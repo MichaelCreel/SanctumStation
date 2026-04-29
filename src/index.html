@@ -297,6 +297,23 @@ This file contains the structure and layout for the psuedo-desktop environment t
             </div>
         </div>
 
+        <!-- Confirm overlay -->
+        <div class="confirm-overlay" id="confirmOverlay" style="display: none;">
+            <div class="confirm-popup" role="dialog" aria-modal="true">
+                <div class="confirm-header">
+                    <h2 id="confirmTitle">Confirm</h2>
+                    <button class="confirm-close-btn" id="confirmCloseBtn" type="button">✕</button>
+                </div>
+                <div class="confirm-body">
+                    <p id="confirmMessage">Are you sure?</p>
+                </div>
+                <div class="confirm-actions">
+                    <button class="confirm-cancel-btn" id="confirmCancelBtn" type="button">Cancel</button>
+                    <button class="confirm-accept-btn" id="confirmAcceptBtn" type="button">Confirm</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Central area with clock and button -->
         <div class="central-area">
             <!-- Clock area -->
