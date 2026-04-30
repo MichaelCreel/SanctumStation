@@ -14,6 +14,8 @@ import asyncio
 import requests
 import zipfile
 import webbrowser
+import yaml
+from yaml import SafeLoader, SafeDumper
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -553,6 +555,39 @@ class SanctumStation(toga.App):
             print("Data initialization complete")
         else:
             print(f"Using existing data at {writable_data_dir}")
+        
+        def read_yaml_file(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as handle:
+                    data = yaml.load(handle, Loader=SafeLoader)
+                return data if isinstance(data, dict) else {}
+            except Exception as e:
+                print(f"  Warning: Could not read YAML {path}: {e}")
+                return {}
+
+        def write_yaml_file(path, data):
+            try:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, 'w', encoding='utf-8') as handle:
+                    yaml.safe_dump(data, handle, sort_keys=False, Dumper=SafeDumper)
+                return True
+            except Exception as e:
+                print(f"  Warning: Could not write YAML {path}: {e}")
+                return False
+
+        bundled_settings_path = os.path.join(bundled_data_dir, 'settings.yaml')
+        writable_settings_path = settings_file
+        if os.path.exists(bundled_settings_path) and os.path.exists(writable_settings_path):
+            bundled_settings = read_yaml_file(bundled_settings_path)
+            writable_settings = read_yaml_file(writable_settings_path)
+            bundled_version = str(bundled_settings.get('version', '')).strip()
+            writable_version = str(writable_settings.get('version', '')).strip()
+            if bundled_version and bundled_version != writable_version:
+                writable_settings['version'] = bundled_version
+                if write_yaml_file(writable_settings_path, writable_settings):
+                    print(f"  Updated settings.yaml version: {writable_version} -> {bundled_version}")
+                else:
+                    print(f"  Failed to update settings.yaml version")
         
         def read_version_file(path):
             try:
