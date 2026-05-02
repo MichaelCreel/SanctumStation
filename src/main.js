@@ -986,6 +986,9 @@ class DesktopInteractions {
             const result = await window.pywebview.api.delete_directory(app.app_dir);
             if (result) {
                 this.closeAppContextMenu();
+                if (typeof window.pywebview.api.refresh_apps === 'function') {
+                    await window.pywebview.api.refresh_apps();
+                }
                 await this.loadApps();
                 if (this.isAppLauncherOpen) {
                     this.displayAppsInCircle();

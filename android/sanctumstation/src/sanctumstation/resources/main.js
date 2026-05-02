@@ -570,7 +570,6 @@ class DesktopInteractions {
         console.log('Settings button clicked');
         this.addClickFeedback(this.settingsBtn);
     }
-
     async handleCenterButtonClick() {
         console.log('Center button clicked');
         console.log('isAppLauncherOpen:', this.isAppLauncherOpen);

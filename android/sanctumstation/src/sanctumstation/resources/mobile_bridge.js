@@ -79,7 +79,7 @@
         
         const apiMethods = [
             'js_log',
-            'launch_app', 'stop_app', 'get_apps', 'get_running_apps',
+            'launch_app', 'stop_app', 'get_apps', 'get_running_apps', 'refresh_apps',
             'send_notification', 'delete_notification', 'get_notifications', 'clear_all_notifications',
             'display_error', 'get_error',
             'list_directory', 'read_file', 'write_file', 'delete_file', 'delete_directory',

@@ -682,6 +682,11 @@ def init_webview():
             
             def get_running_apps(self):
                 return get_running_apps()
+
+            def refresh_apps(self):
+                if init_apps():
+                    return apps
+                return []
             
             # Notification Management - Delegate to NotificationManagerAPI
             def send_notification(self, message, source=None):
@@ -1282,6 +1287,9 @@ class FileManagerAPI:
             # Convert relative paths to absolute using DATA_DIR
             if not os.path.isabs(path):
                 path = os.path.join(DATA_DIR, path)
+
+            if not os.path.exists(path):
+                return True
             
             import shutil
             shutil.rmtree(path)

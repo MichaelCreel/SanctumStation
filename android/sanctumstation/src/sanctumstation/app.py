@@ -200,6 +200,8 @@ class APIHandler(SimpleHTTPRequestHandler):
             return backend.apps
         elif method == 'get_running_apps':
             return backend.get_running_apps()
+        elif method == 'refresh_apps':
+            return backend.init_apps() or backend.apps
         elif method == 'fuzzy_search_apps':
             return backend.fuzzy_search_apps(*args)
         elif method == 'get_available_update':
@@ -846,7 +848,7 @@ class SanctumStation(toga.App):
             
             // Define all API methods
             const methods = [
-                'launch_app', 'stop_app', 'get_apps', 'get_running_apps',
+                'launch_app', 'stop_app', 'get_apps', 'get_running_apps', 'refresh_apps',
                 'send_notification', 'delete_notification', 'get_notifications', 'clear_all_notifications',
                 'display_error', 'get_error',
                 'list_directory', 'read_file', 'write_file', 'delete_file', 'delete_directory',
@@ -888,6 +890,8 @@ class SanctumStation(toga.App):
                 result = backend.apps
             elif method == 'get_running_apps':
                 result = backend.get_running_apps()
+            elif method == 'refresh_apps':
+                result = backend.init_apps() or backend.apps
             elif method == 'send_notification':
                 result = notification_manager.send_notification(*args)
             elif method == 'delete_notification':
