@@ -2,5 +2,6 @@
   "name": "Whiteboard",
   "extensions": [
     ".json"
-  ]
+  ],
+  "description": "A simple whiteboard app for drawing and taking notes."
 }

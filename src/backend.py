@@ -138,6 +138,27 @@ def _resolve_configured_path(path_value):
 
     return os.path.normpath(os.path.join(BASE_DIR, expanded_path))
 
+def _read_first_existing_text(paths):
+    for path in paths:
+        if not path or not os.path.exists(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                value = handle.read().strip()
+            if value:
+                return value
+        except (OSError, PermissionError):
+            continue
+    return ""
+
+def get_apps_version():
+    candidates = [
+        os.path.join(DATA_DIR, "apps_version.txt"),
+        os.path.join(BASE_DIR, "apps_version.txt"),
+        os.path.join(BASE_DIR, "resources", "apps_version.txt")
+    ]
+    return _read_first_existing_text(candidates) or "unknown"
+
 if IS_MOBILE:
     import toga
     print("Running on mobile platform")
@@ -254,6 +275,7 @@ def init_apps():
                     app_name = app
                     extensions = []
                     mime_types = []
+                    description = ""
 
                     if os.path.exists(config_path):
                         try:
@@ -264,6 +286,10 @@ def init_apps():
                                 config_name = app_config.get("name")
                                 if isinstance(config_name, str) and config_name.strip():
                                     app_name = config_name.strip()
+
+                                config_description = app_config.get("description")
+                                if isinstance(config_description, str) and config_description.strip():
+                                    description = config_description.strip()
 
                                 config_extensions = app_config.get("extensions", [])
                                 if isinstance(config_extensions, list):
@@ -301,6 +327,7 @@ def init_apps():
                         "icon": icon_url,
                         "extensions": extensions,
                         "mime_types": mime_types,
+                        "description": description,
                         "htmlpath": html_path,
                         "pypath": py_path,
                         "app_dir": os.path.abspath(app_path)  # Use absolute path for backend
@@ -655,6 +682,11 @@ def init_webview():
             
             def get_running_apps(self):
                 return get_running_apps()
+
+            def refresh_apps(self):
+                if init_apps():
+                    return apps
+                return []
             
             # Notification Management - Delegate to NotificationManagerAPI
             def send_notification(self, message, source=None):
@@ -1255,6 +1287,9 @@ class FileManagerAPI:
             # Convert relative paths to absolute using DATA_DIR
             if not os.path.isabs(path):
                 path = os.path.join(DATA_DIR, path)
+
+            if not os.path.exists(path):
+                return True
             
             import shutil
             shutil.rmtree(path)
@@ -1504,6 +1539,8 @@ class SettingsManagerAPI:
     def get_settings(self):
         global version, wallpaper, fonts, day_gradient, updates, fullscreen, logo, ui_scale, notification_bind, command_palette_bind, reduce_graphics, color_theme
         return {
+            "version": version,
+            "apps_version": get_apps_version(),
             "wallpaper": wallpaper,
             "fonts": fonts,
             "day_gradient": day_gradient,

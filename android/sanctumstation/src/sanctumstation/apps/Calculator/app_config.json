@@ -1,4 +1,5 @@
 {
   "name": "Calculator",
-  "extensions": []
+  "extensions": [],
+  "description": "A calculator for performing basic arithmetic operations."
 }

@@ -527,6 +527,16 @@ body {
     gap: 1.5rem;
 }
 
+.settings-meta {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.55);
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .setting-item {
     display: flex;
     flex-direction: column;
@@ -1157,6 +1167,113 @@ body {
     transform: translateY(0);
 }
 
+/* Confirm overlay */
+.confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1305;
+    backdrop-filter: blur(8px);
+}
+
+.confirm-popup {
+    background: rgba(28, 28, 32, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 1.75rem;
+    min-width: 320px;
+    max-width: 520px;
+    width: min(90vw, 520px);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+    animation: slideIn 0.25s ease;
+}
+
+.confirm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.confirm-header h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+}
+
+.confirm-close-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.confirm-close-btn:hover {
+    color: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+}
+
+.confirm-body {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.confirm-body p {
+    margin: 0;
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.confirm-cancel-btn,
+.confirm-accept-btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+}
+
+.confirm-cancel-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.confirm-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+}
+
+.confirm-accept-btn {
+    background: rgba(239, 68, 68, 0.85);
+    border-color: rgba(239, 68, 68, 0.95);
+    color: #ffffff;
+}
+
+.confirm-accept-btn:hover {
+    background: rgba(239, 68, 68, 1);
+}
+
 /* Central area */
 .central-area {
     position: fixed;
@@ -1296,6 +1413,108 @@ body {
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
     pointer-events: none;
     font-weight: 500;
+}
+
+/* App context menu */
+.app-context-menu {
+    position: fixed;
+    z-index: 1400;
+    min-width: 16rem;
+    max-width: min(22rem, 80vw);
+    background: rgba(20, 20, 28, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.9rem;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+    padding: 0.85rem;
+    backdrop-filter: blur(12px);
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.app-context-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.app-context-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.app-context-close {
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.app-context-close:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+}
+
+.app-context-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.7rem 0;
+}
+
+.app-context-row {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.app-context-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 600;
+}
+
+.app-context-value {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.92);
+    word-break: break-word;
+}
+
+.app-context-action {
+    width: 100%;
+    padding: 0.65rem 1rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.app-context-action:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.app-context-uninstall {
+    background: rgba(255, 59, 48, 0.18);
+    border-color: rgba(255, 59, 48, 0.4);
+    color: rgba(255, 118, 110, 0.95);
+}
+
+.app-context-uninstall:hover {
+    background: rgba(255, 59, 48, 0.3);
+    border-color: rgba(255, 59, 48, 0.55);
+    color: #ffffff;
 }
 
 /* Center button */

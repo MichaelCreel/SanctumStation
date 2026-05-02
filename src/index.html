@@ -231,6 +231,10 @@ This file contains the structure and layout for the psuedo-desktop environment t
                             </select>
                         </div>
                     </div>
+                    <div class="settings-meta">
+                        <span id="settingsVersion">Version: —</span>
+                        <span id="settingsAppsVersion">Apps Version: —</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -297,6 +301,23 @@ This file contains the structure and layout for the psuedo-desktop environment t
             </div>
         </div>
 
+        <!-- Confirm overlay -->
+        <div class="confirm-overlay" id="confirmOverlay" style="display: none;">
+            <div class="confirm-popup" role="dialog" aria-modal="true">
+                <div class="confirm-header">
+                    <h2 id="confirmTitle">Confirm</h2>
+                    <button class="confirm-close-btn" id="confirmCloseBtn" type="button">✕</button>
+                </div>
+                <div class="confirm-body">
+                    <p id="confirmMessage">Are you sure?</p>
+                </div>
+                <div class="confirm-actions">
+                    <button class="confirm-cancel-btn" id="confirmCancelBtn" type="button">Cancel</button>
+                    <button class="confirm-accept-btn" id="confirmAcceptBtn" type="button">Confirm</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Central area with clock and button -->
         <div class="central-area">
             <!-- Clock area -->
@@ -307,6 +328,31 @@ This file contains the structure and layout for the psuedo-desktop environment t
 
             <!-- App launcher container (hidden by default) -->
             <div class="app-launcher" id="appLauncher"></div>
+
+            <!-- App context menu -->
+            <div class="app-context-menu" id="appContextMenu" style="display: none;">
+                <div class="app-context-header">
+                    <div class="app-context-title" id="appContextTitle">App</div>
+                    <button class="app-context-close" id="appContextClose" type="button">×</button>
+                </div>
+                <div class="app-context-list">
+                    <div class="app-context-row">
+                        <span class="app-context-label">Display Name</span>
+                        <span class="app-context-value" id="appContextDisplayName">—</span>
+                    </div>
+                    <div class="app-context-row">
+                        <span class="app-context-label">App ID</span>
+                        <span class="app-context-value" id="appContextAppId">—</span>
+                    </div>
+                    <div class="app-context-row">
+                        <span class="app-context-label">Description</span>
+                        <span class="app-context-value" id="appContextDescription">—</span>
+                    </div>
+                </div>
+                <button class="app-context-action app-context-uninstall" id="appContextUninstall" type="button">
+                    Uninstall
+                </button>
+            </div>
 
             <!-- Center circle button -->
             <button class="center-button" id="centerBtn">

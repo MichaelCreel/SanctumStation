@@ -1,4 +1,5 @@
 {
   "name": "Speed Reader",
-  "extensions": []
+  "extensions": [],
+  "description": "A speed reader app for quickly reading text by removing the need to move your eyes."
 }

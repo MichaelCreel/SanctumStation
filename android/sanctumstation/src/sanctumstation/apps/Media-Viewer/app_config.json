@@ -28,5 +28,6 @@
     "audio/*",
     "image/*",
     "video/*"
-  ]
+  ],
+  "description": "A media viewer for displaying images and playing video and audio."
 }

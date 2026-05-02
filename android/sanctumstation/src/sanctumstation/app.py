@@ -14,6 +14,8 @@ import asyncio
 import requests
 import zipfile
 import webbrowser
+import yaml
+from yaml import SafeLoader, SafeDumper
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -198,6 +200,8 @@ class APIHandler(SimpleHTTPRequestHandler):
             return backend.apps
         elif method == 'get_running_apps':
             return backend.get_running_apps()
+        elif method == 'refresh_apps':
+            return backend.init_apps() or backend.apps
         elif method == 'fuzzy_search_apps':
             return backend.fuzzy_search_apps(*args)
         elif method == 'get_available_update':
@@ -554,10 +558,75 @@ class SanctumStation(toga.App):
         else:
             print(f"Using existing data at {writable_data_dir}")
         
+        def read_yaml_file(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as handle:
+                    data = yaml.load(handle, Loader=SafeLoader)
+                return data if isinstance(data, dict) else {}
+            except Exception as e:
+                print(f"  Warning: Could not read YAML {path}: {e}")
+                return {}
+
+        def write_yaml_file(path, data):
+            try:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, 'w', encoding='utf-8') as handle:
+                    yaml.safe_dump(data, handle, sort_keys=False, Dumper=SafeDumper)
+                return True
+            except Exception as e:
+                print(f"  Warning: Could not write YAML {path}: {e}")
+                return False
+
+        bundled_settings_path = os.path.join(bundled_data_dir, 'settings.yaml')
+        writable_settings_path = settings_file
+        if os.path.exists(bundled_settings_path) and os.path.exists(writable_settings_path):
+            bundled_settings = read_yaml_file(bundled_settings_path)
+            writable_settings = read_yaml_file(writable_settings_path)
+            bundled_version = str(bundled_settings.get('version', '')).strip()
+            writable_version = str(writable_settings.get('version', '')).strip()
+            if bundled_version and bundled_version != writable_version:
+                writable_settings['version'] = bundled_version
+                if write_yaml_file(writable_settings_path, writable_settings):
+                    print(f"  Updated settings.yaml version: {writable_version} -> {bundled_version}")
+                else:
+                    print(f"  Failed to update settings.yaml version")
+        
+        def read_version_file(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as handle:
+                    value = handle.read().strip()
+                return value if value else None
+            except (OSError, PermissionError):
+                return None
+
+        def write_version_file(path, value):
+            try:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, 'w', encoding='utf-8') as handle:
+                    handle.write(str(value).strip())
+                return True
+            except (OSError, PermissionError) as e:
+                print(f"  Warning: Unable to write apps version file: {e}")
+                return False
+
         # Extract apps from bundled resources (.txt files)
         bundled_apps_dir = os.path.join(app_dir, 'resources', 'apps')
+        bundled_version_path = os.path.join(app_dir, 'resources', 'apps_version.txt')
+        bundled_version_fallback = os.path.join(app_dir, 'apps_version.txt')
+        writable_version_path = os.path.join(writable_data_dir, 'apps_version.txt')
+
+        bundled_version = read_version_file(bundled_version_path) or read_version_file(bundled_version_fallback)
+        writable_version = read_version_file(writable_version_path)
+        should_sync_apps = True
+        if bundled_version and bundled_version == writable_version:
+            should_sync_apps = False
+            print("Bundled apps version unchanged; skipping app sync.")
+        elif bundled_version:
+            print(f"Bundled apps version changed ({writable_version} -> {bundled_version}); syncing apps.")
+        else:
+            print("Bundled apps version file missing; syncing apps by default.")
         
-        if os.path.exists(bundled_apps_dir):
+        if os.path.exists(bundled_apps_dir) and should_sync_apps:
             print(f"Checking bundled apps for updates...")
             print(f"  Bundled apps directory: {bundled_apps_dir}")
             print(f"  Writable apps directory: {writable_apps_dir}")
@@ -628,9 +697,12 @@ class SanctumStation(toga.App):
                                 print(f"  Error copying {writable_filename}: {e}")
             
             print(f"  App sync complete")
+            if bundled_version:
+                write_version_file(writable_version_path, bundled_version)
         else:
-            print(f"  Warning: Bundled apps directory not found at {bundled_apps_dir}")
-            print(f"  Apps will need to be manually installed")
+            if not os.path.exists(bundled_apps_dir):
+                print(f"  Warning: Bundled apps directory not found at {bundled_apps_dir}")
+                print(f"  Apps will need to be manually installed")
 
         # Sync core web assets to writable storage so update installs can refresh
         # frontend files without requiring uninstall/reinstall.
@@ -776,7 +848,7 @@ class SanctumStation(toga.App):
             
             // Define all API methods
             const methods = [
-                'launch_app', 'stop_app', 'get_apps', 'get_running_apps',
+                'launch_app', 'stop_app', 'get_apps', 'get_running_apps', 'refresh_apps',
                 'send_notification', 'delete_notification', 'get_notifications', 'clear_all_notifications',
                 'display_error', 'get_error',
                 'list_directory', 'read_file', 'write_file', 'delete_file', 'delete_directory',
@@ -818,6 +890,8 @@ class SanctumStation(toga.App):
                 result = backend.apps
             elif method == 'get_running_apps':
                 result = backend.get_running_apps()
+            elif method == 'refresh_apps':
+                result = backend.init_apps() or backend.apps
             elif method == 'send_notification':
                 result = notification_manager.send_notification(*args)
             elif method == 'delete_notification':

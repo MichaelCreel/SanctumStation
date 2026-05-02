@@ -1,4 +1,5 @@
 {
   "name": "File Browser",
-  "extensions": []
+  "extensions": [],
+  "description": "A file browser for navigating and managing files and directories on your system."
 }

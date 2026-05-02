@@ -1,4 +1,5 @@
 {
   "name": "Clock",
-  "extensions": []
+  "extensions": [],
+  "description": "A clock app for displaying current time information and utilizing timers and stopwatches."
 }

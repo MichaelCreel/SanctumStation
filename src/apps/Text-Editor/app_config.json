@@ -16,5 +16,6 @@
     ".html",
     ".css",
     ".sh"
-  ]
+  ],
+  "description": "A simple text editor for editing plain text files and code."
 }

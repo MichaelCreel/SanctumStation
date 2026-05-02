@@ -1,4 +1,5 @@
 {
   "name": "Notes",
-  "extensions": []
+  "extensions": [],
+  "description": "A note-taking app for creating simple notes."
 }

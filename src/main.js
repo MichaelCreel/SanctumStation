@@ -505,6 +505,14 @@ class DesktopInteractions {
         this.centerBtn = document.getElementById('centerBtn');
         this.clockArea = document.getElementById('clockArea');
         this.appLauncher = document.getElementById('appLauncher');
+        this.contextMenu = document.getElementById('appContextMenu');
+        this.contextMenuTitle = document.getElementById('appContextTitle');
+        this.contextMenuDisplayName = document.getElementById('appContextDisplayName');
+        this.contextMenuAppId = document.getElementById('appContextAppId');
+        this.contextMenuDescription = document.getElementById('appContextDescription');
+        this.contextMenuClose = document.getElementById('appContextClose');
+        this.contextMenuUninstall = document.getElementById('appContextUninstall');
+        this.activeContextApp = null;
         this.isAppLauncherOpen = false;
         this.apps = [];
         this.appLauncherDirty = true;
@@ -601,12 +609,33 @@ class DesktopInteractions {
         document.addEventListener('click', (event) => {
             if (this.isAppLauncherOpen && 
                 !this.centerBtn.contains(event.target) && 
-                !this.appLauncher.contains(event.target)) {
+                !this.appLauncher.contains(event.target) &&
+                !(this.contextMenu && this.contextMenu.contains(event.target))) {
                 // Only close if not clicking the center button
                 // The center button has its own handler that toggles
                 this.closeAppLauncher();
             }
         });
+
+        document.addEventListener('click', (event) => {
+            if (this.isContextMenuOpen() && this.contextMenu && !this.contextMenu.contains(event.target)) {
+                this.closeAppContextMenu();
+            }
+        });
+
+        document.addEventListener('contextmenu', (event) => {
+            if (this.isContextMenuOpen() && this.contextMenu && !this.contextMenu.contains(event.target)) {
+                this.closeAppContextMenu();
+            }
+        });
+
+        if (this.contextMenuClose) {
+            this.contextMenuClose.addEventListener('click', () => this.closeAppContextMenu());
+        }
+
+        if (this.contextMenuUninstall) {
+            this.contextMenuUninstall.addEventListener('click', () => this.handleContextUninstall());
+        }
 
         window.addEventListener('resize', () => {
             this.appLauncherDirty = true;
@@ -696,6 +725,7 @@ class DesktopInteractions {
 
     closeAppLauncher() {
         this.isAppLauncherOpen = false;
+        this.closeAppContextMenu();
         
         // Show clock
         this.clockArea.classList.remove('hidden');
@@ -754,6 +784,8 @@ class DesktopInteractions {
             appIcon.className = 'app-icon';
             appIcon.style.transform = `translate(${x}px, ${y}px)`;
             appIcon.title = app.name;
+            let longPressTimer = null;
+            let longPressTriggered = false;
             
             // Try to load app icon, fallback to placeholder
             const iconPath = app.icon;
@@ -778,6 +810,10 @@ class DesktopInteractions {
             
             // Click handler to launch app
             appIcon.addEventListener('click', async () => {
+                if (longPressTriggered) {
+                    longPressTriggered = false;
+                    return;
+                }
                 console.log(`Launching app: ${app.name}`);
                 try {
                     if (window.pywebview && window.pywebview.api) {
@@ -788,6 +824,36 @@ class DesktopInteractions {
                     console.error(`Error launching app ${app.name}:`, error);
                 }
             });
+
+            appIcon.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.openAppContextMenu(app, event.clientX, event.clientY);
+            });
+
+            const clearLongPress = () => {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            };
+
+            appIcon.addEventListener('pointerdown', (event) => {
+                if (event.pointerType === 'mouse' && event.button !== 0) {
+                    return;
+                }
+
+                longPressTriggered = false;
+                clearLongPress();
+                longPressTimer = setTimeout(() => {
+                    longPressTriggered = true;
+                    this.openAppContextMenu(app, event.clientX, event.clientY);
+                }, 550);
+            });
+
+            appIcon.addEventListener('pointerup', clearLongPress);
+            appIcon.addEventListener('pointercancel', clearLongPress);
+            appIcon.addEventListener('pointerleave', clearLongPress);
             
             this.appLauncher.appendChild(appIcon);
         });
@@ -800,6 +866,12 @@ class DesktopInteractions {
                          event.target.tagName === 'TEXTAREA' || 
                          event.target.isContentEditable;
         const isAppOpen = document.querySelector('.app-container') !== null;
+
+        if (event.key === 'Escape' && this.isContextMenuOpen()) {
+            event.preventDefault();
+            this.closeAppContextMenu();
+            return;
+        }
         
         if (eventMatchesShortcut(event, configuredNotificationBind)) {
             event.preventDefault();
@@ -827,6 +899,106 @@ class DesktopInteractions {
         setTimeout(() => {
             element.style.transform = element.style.transform.replace('scale(0.95)', '');
         }, 150);
+    }
+
+    isContextMenuOpen() {
+        return !!(this.contextMenu && this.contextMenu.style.display === 'block');
+    }
+
+    openAppContextMenu(app, x, y) {
+        if (!this.contextMenu || !app) {
+            return;
+        }
+
+        const descriptionText = (app.description || '').trim() || 'No description available.';
+
+        this.activeContextApp = app;
+        if (this.contextMenuTitle) {
+            this.contextMenuTitle.textContent = app.name || app.id || 'App';
+        }
+        if (this.contextMenuDisplayName) {
+            this.contextMenuDisplayName.textContent = app.name || 'Unknown';
+        }
+        if (this.contextMenuAppId) {
+            this.contextMenuAppId.textContent = app.id || 'Unknown';
+        }
+        if (this.contextMenuDescription) {
+            this.contextMenuDescription.textContent = descriptionText;
+        }
+
+        this.contextMenu.style.display = 'block';
+        this.contextMenu.style.left = `${x}px`;
+        this.contextMenu.style.top = `${y}px`;
+
+        const rect = this.contextMenu.getBoundingClientRect();
+        const padding = 12;
+        let left = x;
+        let top = y;
+
+        if (rect.right > window.innerWidth - padding) {
+            left = window.innerWidth - rect.width - padding;
+        }
+        if (rect.bottom > window.innerHeight - padding) {
+            top = window.innerHeight - rect.height - padding;
+        }
+        if (left < padding) {
+            left = padding;
+        }
+        if (top < padding) {
+            top = padding;
+        }
+
+        this.contextMenu.style.left = `${left}px`;
+        this.contextMenu.style.top = `${top}px`;
+    }
+
+    closeAppContextMenu() {
+        if (!this.contextMenu) {
+            return;
+        }
+
+        this.contextMenu.style.display = 'none';
+        this.activeContextApp = null;
+    }
+
+    async handleContextUninstall() {
+        const app = this.activeContextApp;
+        if (!app || !window.pywebview || !window.pywebview.api) {
+            return;
+        }
+
+        if (!app.app_dir) {
+            console.error('App directory missing for uninstall.');
+            return;
+        }
+
+        const confirmed = await showConfirmDialog({
+            title: 'Uninstall App',
+            message: `Uninstall ${app.name || app.id}? This will delete the app folder.`,
+            confirmText: 'Uninstall',
+            cancelText: 'Cancel'
+        });
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const result = await window.pywebview.api.delete_directory(app.app_dir);
+            if (result) {
+                this.closeAppContextMenu();
+                if (typeof window.pywebview.api.refresh_apps === 'function') {
+                    await window.pywebview.api.refresh_apps();
+                }
+                await this.loadApps();
+                if (this.isAppLauncherOpen) {
+                    this.displayAppsInCircle();
+                }
+            } else {
+                console.error(`Failed to uninstall app: ${app.name || app.id}`);
+            }
+        } catch (error) {
+            console.error('Failed to uninstall app:', error);
+        }
     }
 }
 
@@ -992,6 +1164,69 @@ function updateNotificationBadge(count) {
             badge.textContent = String(normalizedCount);
             badge.style.display = 'flex';
         }
+    });
+}
+
+function showConfirmDialog(options = {}) {
+    const overlay = document.getElementById('confirmOverlay');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const closeBtn = document.getElementById('confirmCloseBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    const acceptBtn = document.getElementById('confirmAcceptBtn');
+
+    if (!overlay || !titleEl || !messageEl || !closeBtn || !cancelBtn || !acceptBtn) {
+        return Promise.resolve(false);
+    }
+
+    const title = options.title || 'Confirm';
+    const message = options.message || 'Are you sure?';
+    const confirmText = options.confirmText || 'Confirm';
+    const cancelText = options.cancelText || 'Cancel';
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    acceptBtn.textContent = confirmText;
+    cancelBtn.textContent = cancelText;
+
+    overlay.style.display = 'flex';
+
+    return new Promise((resolve) => {
+        let resolved = false;
+
+        const cleanup = (result) => {
+            if (resolved) {
+                return;
+            }
+            resolved = true;
+            overlay.style.display = 'none';
+            closeBtn.removeEventListener('click', onCancel);
+            cancelBtn.removeEventListener('click', onCancel);
+            acceptBtn.removeEventListener('click', onAccept);
+            overlay.removeEventListener('click', onOverlay);
+            document.removeEventListener('keydown', onKeydown, true);
+            resolve(result);
+        };
+
+        const onAccept = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        const onOverlay = (event) => {
+            if (event.target === overlay) {
+                cleanup(false);
+            }
+        };
+        const onKeydown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                cleanup(false);
+            }
+        };
+
+        closeBtn.addEventListener('click', onCancel);
+        cancelBtn.addEventListener('click', onCancel);
+        acceptBtn.addEventListener('click', onAccept);
+        overlay.addEventListener('click', onOverlay);
+        document.addEventListener('keydown', onKeydown, true);
     });
 }
 
@@ -1411,6 +1646,16 @@ async function toggleSettings() {
         document.getElementById('updatesSelect').value = settings.updates || 'release';
         document.getElementById('notificationBindInput').value = configuredNotificationBind;
         document.getElementById('commandPaletteBindInput').value = configuredCommandPaletteBind;
+        const versionLabel = document.getElementById('settingsVersion');
+        if (versionLabel) {
+            const versionText = settings.version ? `Version: ${settings.version}` : 'Version: —';
+            versionLabel.textContent = versionText;
+        }
+        const appsVersionLabel = document.getElementById('settingsAppsVersion');
+        if (appsVersionLabel) {
+            const appsText = settings.apps_version ? `Apps Version: ${settings.apps_version}` : 'Apps Version: —';
+            appsVersionLabel.textContent = appsText;
+        }
         const appsPerRingInput = document.getElementById('appsPerRingInput');
         if (appsPerRingInput) {
             appsPerRingInput.value = configuredAppsPerRing;
