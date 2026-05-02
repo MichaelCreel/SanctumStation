@@ -1653,7 +1653,7 @@ async function toggleSettings() {
         }
         const appsVersionLabel = document.getElementById('settingsAppsVersion');
         if (appsVersionLabel) {
-            const appsText = settings.apps_version ? `Apps: ${settings.apps_version}` : 'Apps: —';
+            const appsText = settings.apps_version ? `Apps Version: ${settings.apps_version}` : 'Apps Version: —';
             appsVersionLabel.textContent = appsText;
         }
         const appsPerRingInput = document.getElementById('appsPerRingInput');
