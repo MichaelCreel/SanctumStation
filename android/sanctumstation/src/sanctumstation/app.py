@@ -562,16 +562,26 @@ class SanctumStation(toga.App):
             try:
                 with open(path, 'r', encoding='utf-8') as handle:
                     data = yaml.load(handle, Loader=SafeLoader)
-                return data if isinstance(data, dict) else {}
+                return data if isinstance(data, dict) else None
             except Exception as e:
                 print(f"  Warning: Could not read YAML {path}: {e}")
-                return {}
+                return None
+
+        def read_text_file(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as handle:
+                    return handle.read()
+            except Exception as e:
+                print(f"  Warning: Could not read text {path}: {e}")
+                return None
 
         def write_yaml_file(path, data):
             try:
                 os.makedirs(os.path.dirname(path), exist_ok=True)
-                with open(path, 'w', encoding='utf-8') as handle:
-                    yaml.safe_dump(data, handle, sort_keys=False, Dumper=SafeDumper)
+                temp_path = f"{path}.tmp"
+                with open(temp_path, 'w', encoding='utf-8') as handle:
+                    yaml.dump(data, handle, sort_keys=False, Dumper=SafeDumper)
+                os.replace(temp_path, path)
                 return True
             except Exception as e:
                 print(f"  Warning: Could not write YAML {path}: {e}")
@@ -582,14 +592,26 @@ class SanctumStation(toga.App):
         if os.path.exists(bundled_settings_path) and os.path.exists(writable_settings_path):
             bundled_settings = read_yaml_file(bundled_settings_path)
             writable_settings = read_yaml_file(writable_settings_path)
-            bundled_version = str(bundled_settings.get('version', '')).strip()
-            writable_version = str(writable_settings.get('version', '')).strip()
-            if bundled_version and bundled_version != writable_version:
-                writable_settings['version'] = bundled_version
-                if write_yaml_file(writable_settings_path, writable_settings):
-                    print(f"  Updated settings.yaml version: {writable_version} -> {bundled_version}")
-                else:
-                    print(f"  Failed to update settings.yaml version")
+            bundled_text = read_text_file(bundled_settings_path)
+            writable_text = read_text_file(writable_settings_path)
+
+            if bundled_settings is None:
+                print("  Skipping settings.yaml version update (bundled settings unreadable)")
+            elif writable_settings is None:
+                print("  Skipping settings.yaml version update (writable settings unreadable)")
+            elif not bundled_settings and bundled_text and bundled_text.strip():
+                print("  Skipping settings.yaml version update (bundled settings empty after parse)")
+            elif not writable_settings and writable_text and writable_text.strip():
+                print("  Skipping settings.yaml version update (writable settings empty after parse)")
+            else:
+                bundled_version = str(bundled_settings.get('version', '')).strip()
+                writable_version = str(writable_settings.get('version', '')).strip()
+                if bundled_version and bundled_version != writable_version:
+                    writable_settings['version'] = bundled_version
+                    if write_yaml_file(writable_settings_path, writable_settings):
+                        print(f"  Updated settings.yaml version: {writable_version} -> {bundled_version}")
+                    else:
+                        print(f"  Failed to update settings.yaml version")
         
         def read_version_file(path):
             try:
