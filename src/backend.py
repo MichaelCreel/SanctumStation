@@ -2172,6 +2172,13 @@ class UsageMonitorAPI:
         }
 
 class ConnectionsAPI:
+    def __init__(self):
+        self.active_connections = {}
+
+    # Open a brand new connection as a host
+    def open_new_connection(self):
+        print("Opening new connection as a host...")
+        
     # Open a connection to be connected to
     def open_connection(self, name, type, pin, settings):
         print(f"Opening connection '{name}', of type '{type}', with pin '{pin}', with settings:\n{settings}")
