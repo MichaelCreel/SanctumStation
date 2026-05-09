@@ -2178,7 +2178,7 @@ class ConnectionsAPI:
     # Open a brand new connection as a host
     def open_new_connection(self):
         print("Opening new connection as a host...")
-        
+
     # Open a connection to be connected to
     def open_connection(self, name, type, pin, settings):
         print(f"Opening connection '{name}', of type '{type}', with pin '{pin}', with settings:\n{settings}")
@@ -2186,6 +2186,11 @@ class ConnectionsAPI:
     # Close an existing connection
     def close_connection(self, connection_id):
         print(f"Closing connection {connection_id}...")
+
+    # Search for Sanctum Station hosts with Bluetooth
+    def search_hosts(self):
+        print("Searching for Sanctum Station hosts...")
+        return []
 
     # Join connection as a client
     def join_connection(self, connection_id, pin):
