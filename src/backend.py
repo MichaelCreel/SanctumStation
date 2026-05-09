@@ -36,6 +36,78 @@ if IS_MOBILE:
     from yaml import SafeLoader, SafeDumper
     yaml_loader = SafeLoader
     print("Using pure Python YAML loader for mobile")
+
+    # Import mobile Bluetooth support
+    from rubicon.java import JavaClass, JavaInterface, JavaMethod
+
+    BluetoothAdapter = JavaClass("android.bluetooth.BluetoothAdapter")
+    UUID = JavaClass("java.util.UUID")
+    SACTUM_UUID = UUID.fromString("12345678-1234-5678-1234-567812345678")
+
+    BluetoothDevice = JavaClass("android.bluetooth.BluetoothDevice")
+    Intent = JavaClass("android.content.Intent")
+    IntentFilter = JavaClass("android.content.IntentFilter")
+    BroadcastReceiver = JavaClass("android.content.BroadcastReceiver")
+
+    class DeviceDiscoveryReceiver(BroadcastReceiver):
+        @JavaMethod("(Landroid/content/Context;Landroid/content/Intent;)V")
+        def onReceive(self, context, intent):
+            action = intent.getAction()
+            if action == BluetoothDevice.ACTION_FOUND:
+                device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                name = device.getName()
+                address = device.getAddress()
+                AndroidBluetooth.discovered.append((name, address, device))
+                print(f"Discovered Bluetooth device: {name} ({address})")
+
+    class AndroidBluetooth:
+        discovered = []
+
+        def start_host(self):
+            adapter = BluetoothAdapter.getDefaultAdapter()
+            if not adapter or not adapter.isEnabled():
+                print("Bluetooth is unavailable")
+                return None
+            
+            server_socket = adapter.listenUsingRfcommWithServiceRecord("SanctumStation", SACTUM_UUID)
+
+            print("Bluetooth started, waiting for client...")
+            socket = server_socket.accept()
+            print("Client connected")
+            return socket
+
+        def send_handshake(self, socket, info):
+            out = socket.getOutputStream()
+            data = json.dumps(info).encode("utf-8")
+            out.write(data)
+            out.flush()
+
+        def discover(self):
+            adapter = BluetoothAdapter.getDefaultAdapter()
+            if not adapter or not adapter.isEnabled():
+                print("Bluetooth is unavailable, cannot discover devices")
+                return []
+            
+            AndroidBluetooth.discovered.clear()
+
+            filter = IntentFilter()
+            filter.addAction(BluetoothDevice.ACTION_FOUND)
+
+            receiver = DeviceDiscoveryReceiver()
+            context = JavaClass("org.beeware.android.Mainactivity").singletonThis
+            context.registerReceiver(receiver, filter)
+
+            adapter.startDiscovery() # Runs asynchronously
+            print("Started Bluetooth discovery")
+            return AndroidBluetooth.discovered
+
+        def connect(self, device_tuple):
+            name, address, device = device_tuple
+            print(f"Connecting to Bluetooth device: {name} ({address})")
+            socket = device.createRfcommSocketToServiceRecord(SACTUM_UUID)
+            socket.connect()
+            print(f"Connected to Bluetooth device: {name} ({address})")
+            return socket
 else:
     # Try to use C loader on desktop for speed, fall back to pure Python
     try:
@@ -47,6 +119,51 @@ else:
     
     # Import psutil
     import psutil
+
+    # Import desktop Bluetooth support
+    try:
+        import bluetooth
+    except ImportError:
+        bluetooth = None
+        print("PyBluez library unavailable, no Bluetooth support available")
+
+    class DesktopBluetooth:
+        def start_host(self):
+            if bluetooth is None:
+                print("Bluetooth unavailable, hosting failed")
+                return None
+
+            server = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+            server.bind(("", bluetooth.PORT_ANY))
+            server.listen(1)
+
+            bluetooth.advertise_service(
+                server,
+                "SanctumStation",
+                service_id="12345678-1234-5678-1234-567812345678",
+                service_classes=["12345678--1234-5678-1234-567812345678"],
+                profiles=[bluetooth.SERIAL_PORT_PROFILE]
+            )
+
+            print("Bluetooth started, waiting for client...")
+            client, address = server.accept()
+            print(f"Client connected from {address}")
+            return client
+        
+        def discover(self):
+            if bluetooth is None:
+                return []
+            return bluetooth.discover_devices(lookup_names=True)
+        
+        def connect(self, device):
+            if bluetooth is None:
+                print("Bluetooth unavailable, connection failed")
+                return None
+            address = device[0]
+            sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+            sock.connect((address, 1))
+            print(f"Connected to Bluetooth device at {address}")
+            return sock
 
 # Import requests (needed for update checking)
 try:
@@ -2176,6 +2293,7 @@ class ConnectionsAPI:
         self.active_connections = {}
 
     # Open a brand new connection as a host
+    # Starts a WiFi connection for connection and Bluetooth for discovery
     def open_new_connection(self):
         print("Opening new connection as a host...")
 
@@ -2191,6 +2309,9 @@ class ConnectionsAPI:
     def search_hosts(self):
         print("Searching for Sanctum Station hosts...")
         return []
+    
+    def connect_host(self, host_id):
+        print(f"Connecting to host {host_id}...")
 
     # Join connection as a client
     def join_connection(self, connection_id, pin):
@@ -2223,6 +2344,24 @@ class ConnectionsAPI:
         else:
             pass
 
+class BluetoothAPI:
+    def __init__(self):
+        if IS_MOBILE:
+            self.backend = AndroidBluetooth()
+        else:
+            self.backend = DesktopBluetooth()
+    
+    def start_host(self):
+        return self.backend.start_host()
+    
+    def discover(self):
+        return self.backend.discover()
+    
+    def send_handshake(self, device_id, handshake_data):
+        return self.backend.send_handshake(device_id, handshake_data)
+
+    def connect(self, device_id):
+        return self.backend.connect(device_id)
 
 # Checks if the installed version is older than the latest version
 def is_newer_version(installed, latest):
