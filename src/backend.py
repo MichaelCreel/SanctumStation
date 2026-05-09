@@ -2171,6 +2171,47 @@ class UsageMonitorAPI:
             "percent": usage.percent
         }
 
+class ConnectionsAPI:
+    # Open a connection to be connected to
+    def open_connection(self, name, type, pin, settings):
+        print(f"Opening connection '{name}', of type '{type}', with pin '{pin}', with settings:\n{settings}")
+    
+    # Close an existing connection
+    def close_connection(self, connection_id):
+        print(f"Closing connection {connection_id}...")
+
+    # Join connection as a client
+    def join_connection(self, connection_id, pin):
+        print(f"Joining connection {connection_id}...")
+    
+    # Modify settings/permissions for an existing connection
+    def modify_connection(self, connection_id, new_settings):
+        print(f"Giving connection {connection_id} these new settings:\n{new_settings}")
+
+    # List active connections
+    def list_connections(self, detailed):
+        print(f"Listing conenctions... (Detailed = {detailed})")
+        return []
+    
+    # Send files through a connection
+    # Relative paths is based on the app location, not the system location (/Whiteboard/board.json is $APP/Whiteboard/board.json)
+    # Do not send files outside of the app folder
+    def send_files(self, connection_id, relative_paths):
+        print(f"Sending files through connection {connection_id}:\n{relative_paths}")
+
+    # Attempts to reopen the last connection
+    # On the host device, this will always succeed
+    # On the client device, this will only succeed if the host device has the proper open connection
+    # Load from previous_connection.yaml
+    def reopen_previous_connection(self):
+        previous_connection_path = os.path.join(DATA_DIR, "previous_connection.yaml")
+        if not os.path.isfile(previous_connection_path) or os.path.getsize(previous_connection_path) == 0:
+            print("No previous connection found to reopen.")
+            return False
+        else:
+            pass
+
+
 # Checks if the installed version is older than the latest version
 def is_newer_version(installed, latest):
     def version_tuple(v):
